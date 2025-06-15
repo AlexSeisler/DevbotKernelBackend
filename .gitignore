@@ -1,0 +1,22 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env
+
+# System files
+.DS_Store
+
+# VSCode settings (optional, if you use it)
+.vscode/
+
+# Logs (optional, future logging expansion)
+logs/
+*.log
+
+# Pytest cache
+.pytest_cache/
