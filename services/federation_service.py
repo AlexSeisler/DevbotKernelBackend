@@ -2,7 +2,8 @@ import os
 import requests
 from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest
 from services.semantic_parser import SemanticParser
-
+from services.semantic_parser import SemanticParser
+from services.diff_engine import DiffEngine
 class FederationService:
 
     def __init__(self):
@@ -12,6 +13,7 @@ class FederationService:
             "Accept": "application/vnd.github.v3+json"
         }
         self.semantic_parser = SemanticParser()
+        self.diff_engine = DiffEngine()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner = payload.owner
@@ -89,7 +91,19 @@ class FederationService:
         return {"proposal_id": "patch-001", "summary": payload.patch_summary}
 
     def commit_patch(self, payload):
-        return {"patch_id": payload.patch_id, "commit_sha": "pending"}
+        # Parse repo_id → owner/repo
+        owner, repo = payload.repo_id.split("/")
+
+        # Apply multi-file patch through diff engine
+        result = self.diff_engine.apply_patch(
+            owner=owner,
+            repo=repo,
+            branch=payload.branch,
+            patches=payload.patches,
+            commit_message=payload.commit_message
+        )
+
+        return result
 
     def scan_federation_graph(self):
         return {"repos_federated": [], "total_nodes": 0}

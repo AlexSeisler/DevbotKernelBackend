@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class ImportRepoRequest(BaseModel):
     owner: str
@@ -8,11 +9,18 @@ class ImportRepoRequest(BaseModel):
 class AnalyzeRepoRequest(BaseModel):
     repo_id: str
 
+class PatchObject(BaseModel):
+    file_path: str
+    base_sha: str
+    updated_content: str
+
+class CommitPatchRequest(BaseModel):
+    repo_id: str
+    branch: str
+    commit_message: str
+    patches: List[PatchObject]
+
 class ProposePatchRequest(BaseModel):
     repo_id: str
     file_path: str
     patch_summary: str
-
-class CommitPatchRequest(BaseModel):
-    repo_id: str
-    patch_id: str
