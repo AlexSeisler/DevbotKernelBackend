@@ -13,11 +13,13 @@ class PatchProposal(BaseModel):
     updated_content: str = Field(..., description="New content for the file")
 
 # ✅ Patch Commit Schema
-class PatchCommit(BaseModel):
-    file_path: str = Field(..., description="File path to commit")
-    commit_message: str = Field(..., description="Commit message for patch")
-    updated_content: str = Field(..., description="Updated file content (raw string)")
-    branch: str = Field("main", description="Branch to commit on")
+class CommitPatch(BaseModel):
+    file_path: str
+    commit_message: str
+    updated_content: str
+    branch: Optional[str] = "main"
+    base_sha: str  # ✅ Add this line
+
 
 # ✅ File Deletion Schema
 class DeleteFileRequest(BaseModel):

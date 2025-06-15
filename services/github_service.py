@@ -63,12 +63,23 @@ class GitHubService:
         encoded_path = urllib.parse.quote(payload.file_path, safe="")
         url = f"{self.base_url}/repos/{self.owner}/{self.repo}/contents/{encoded_path}"
         content_encoded = encode_file_content(payload.updated_content)
+        
+        # 🔑 Inject the SHA safety guard
         body = {
             "message": payload.commit_message,
             "content": content_encoded,
-            "branch": payload.branch
+            "branch": payload.branch,
+            "sha": payload.base_sha  # Injected SHA safety check
         }
-        return self._request("PUT", url, json=body)
+
+        r = requests.put(url, headers=self.headers, json=body)
+        
+        if r.status_code not in [200, 201]:
+            raise Exception(f"Commit failed: {r.status_code} {r.text}")
+
+        return r.json()
+
+
 
     # ✅ Hardened Multi-file Commit (Federation ready)
     def multi_file_commit(self, message, files, branch="main"):

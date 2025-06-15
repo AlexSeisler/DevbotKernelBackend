@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from services.github_service import GitHubService
-from models.schemas import PatchProposal, PatchCommit
+from models.schemas import PatchProposal, CommitPatch  # ✅ Correct class here
 
 router = APIRouter(prefix="/patch")
 
@@ -10,7 +10,6 @@ github_service = GitHubService()
 @router.post("/proposal")
 async def propose_patch(payload: PatchProposal):
     try:
-        # This is where a queue system would eventually store proposals
         return {
             "status": "proposal_received",
             "file_path": payload.file_path,
@@ -23,7 +22,7 @@ async def propose_patch(payload: PatchProposal):
 
 # ✅ PATCH COMMIT (GPT-controlled Safe Commit Execution)
 @router.post("/commit")
-async def commit_patch(payload: PatchCommit):
+async def commit_patch(payload: CommitPatch):
     try:
         result = github_service.commit_patch(payload)
         commit_sha = result.get("commit", {}).get("sha", None)
