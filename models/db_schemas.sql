@@ -29,3 +29,14 @@ CREATE TABLE IF NOT EXISTS patch_proposal (
     status TEXT DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS federation_graph (
+    id SERIAL PRIMARY KEY,
+    repo_id TEXT REFERENCES federation_repo(repo_id),
+    file_path TEXT,
+    node_type TEXT, 
+    name TEXT,
+    cross_linked_to TEXT,
+    federation_weight FLOAT DEFAULT 1.0,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
