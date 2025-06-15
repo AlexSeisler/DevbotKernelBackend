@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from routes import health, github, patch, pull_request
 import os
 from dotenv import load_dotenv
+from routes import github, patch, pull_request, health, federation
 
 # ✅ Load .env credentials safely
 load_dotenv()
@@ -44,6 +45,7 @@ app.include_router(health.router)
 app.include_router(github.router)
 app.include_router(patch.router)
 app.include_router(pull_request.router)
+app.include_router(federation.router)
 
 # ✅ Reserved for Phase 2 federation ingestion system
 # from routes import federation
