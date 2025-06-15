@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from services.federation_service import FederationService
-from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest, ProposePatchRequest, CommitPatchRequest
+from models.federation_schemas import (
+    ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest
+)
 
 router = APIRouter(prefix="/federation")
-federation_service = FederationService()
+service = FederationService()
 
 @router.post("/import-repo")
 async def import_repo(payload: ImportRepoRequest):
@@ -24,8 +26,8 @@ async def analyze_repo(payload: AnalyzeRepoRequest):
 @router.post("/propose-patch")
 async def propose_patch(payload: ProposePatchRequest):
     try:
-        result = federation_service.propose_patch(payload)
-        return {"status": "patch_proposed", "data": result}
+        result = service.propose_patch(payload)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -42,5 +44,25 @@ async def scan_federation_graph():
     try:
         result = federation_service.scan_federation_graph()
         return {"status": "graph_scanned", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/list-proposals")
+async def list_proposals():
+    try:
+        return service.list_proposals()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/approve-patch")
+async def approve_patch(payload: ApprovePatchRequest):
+    try:
+        result = service.approve_patch(payload.proposal_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/reject-patch")
+async def reject_patch(payload: ApprovePatchRequest):
+    try:
+        result = service.reject_patch(payload.proposal_id)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

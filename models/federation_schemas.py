@@ -22,5 +22,10 @@ class CommitPatchRequest(BaseModel):
 
 class ProposePatchRequest(BaseModel):
     repo_id: str
-    file_path: str
-    patch_summary: str
+    branch: str
+    commit_message: str
+    proposed_by: str
+    patches: List[PatchObject]
+
+class ApprovePatchRequest(BaseModel):
+    proposal_id: str

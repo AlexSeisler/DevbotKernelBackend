@@ -2,8 +2,9 @@ import os
 import requests
 from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest
 from services.semantic_parser import SemanticParser
-from services.semantic_parser import SemanticParser
 from services.diff_engine import DiffEngine
+from services.diff_engine import DiffEngine
+from services.proposal_queue import ProposalQueueManager
 class FederationService:
 
     def __init__(self):
@@ -14,6 +15,7 @@ class FederationService:
         }
         self.semantic_parser = SemanticParser()
         self.diff_engine = DiffEngine()
+        self.proposal_queue = ProposalQueueManager()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner = payload.owner
@@ -88,7 +90,21 @@ class FederationService:
 
     # The other federation functions remain as previous stage
     def propose_patch(self, payload):
-        return {"proposal_id": "patch-001", "summary": payload.patch_summary}
+        proposal = {
+            "repo_id": payload.repo_id,
+            "branch": payload.branch,
+            "proposed_by": payload.proposed_by,
+            "commit_message": payload.commit_message,
+            "patches": [
+                {
+                    "file_path": patch.file_path,
+                    "base_sha": patch.base_sha,
+                    "updated_content": patch.updated_content
+                } for patch in payload.patches
+            ]
+        }
+        proposal_id = self.proposal_queue.submit_proposal(proposal)
+        return {"proposal_id": proposal_id}
 
     def commit_patch(self, payload):
         # Parse repo_id → owner/repo
@@ -107,3 +123,22 @@ class FederationService:
 
     def scan_federation_graph(self):
         return {"repos_federated": [], "total_nodes": 0}
+    def list_proposals(self):
+        return self.proposal_queue.list_proposals()
+    def approve_patch(self, proposal_id):
+        proposal = self.proposal_queue.approve_proposal(proposal_id)
+        owner, repo = proposal["repo_id"].split("/")
+
+        result = self.diff_engine.apply_patch(
+            owner=owner,
+            repo=repo,
+            branch=proposal["branch"],
+            patches=proposal["patches"],
+            commit_message=proposal["commit_message"]
+        )
+
+        self.proposal_queue.remove_proposal(proposal_id)
+        return result
+    def reject_patch(self, proposal_id):
+        proposal = self.proposal_queue.reject_proposal(proposal_id)
+        return {"status": "rejected", "proposal_id": proposal_id}
