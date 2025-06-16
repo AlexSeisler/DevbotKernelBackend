@@ -6,6 +6,7 @@ from services.semantic_parser import SemanticParser
 from services.diff_engine import DiffEngine
 from services.diff_engine import DiffEngine
 from services.proposal_queue import ProposalQueueManager
+from services.db.federation_graph_manager import FederationGraphManager
 class FederationService:
 
     def __init__(self):
@@ -17,6 +18,7 @@ class FederationService:
         self.semantic_parser = SemanticParser()
         self.diff_engine = DiffEngine()
         self.proposal_queue = ProposalQueueManager()
+        self.federation_graph = FederationGraphManager()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner = payload.owner
@@ -39,11 +41,23 @@ class FederationService:
 
         files = []
         for item in tree_data.get("tree", []):
+            file_path = item.get("path")
             files.append({
-                "path": item.get("path"),
+                "path": file_path,
                 "type": item.get("type"),
                 "sha": item.get("sha")
             })
+
+            # ✅ Insert raw file metadata into federation graph (initial ingestion stage)
+            self.federation_graph.insert_graph_link(
+                repo_id=f"{owner}/{repo}",
+                file_path=file_path,
+                node_type="file",
+                name=file_path.split("/")[-1],
+                cross_linked_to=None,
+                federation_weight=1,
+                notes="Ingested file"
+            )
 
         ingestion_payload = {
             "repo_id": f"{owner}/{repo}",
@@ -54,42 +68,36 @@ class FederationService:
 
         return ingestion_payload
 
+
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        owner, repo = payload.repo_id.split("/")
-
-        # First fetch repo metadata to extract true default branch
-        repo_metadata_url = f"{self.base_url}/repos/{owner}/{repo}"
-        metadata_resp = requests.get(repo_metadata_url, headers=self.headers)
-        metadata_resp.raise_for_status()
-
-        repo_metadata = metadata_resp.json()
-        default_branch = repo_metadata.get("default_branch", "main")
-
-        # Pull full repo tree off correct branch
-        tree_url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1"
-        tree_resp = requests.get(tree_url, headers=self.headers)
-        tree_resp.raise_for_status()
-        tree_data = tree_resp.json()
+        repo_id = payload.repo_id
+        graph_files = self.federation_graph.query_graph(repo_id=repo_id)
 
         semantic_results = []
-        for item in tree_data.get("tree", []):
-            if item.get("type") == "blob" and item.get("path").endswith(".py"):
-                file_path = item.get("path")
 
-                # Fetch file content
-                file_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}?ref={default_branch}"
-                file_resp = requests.get(file_url, headers=self.headers)
-                file_resp.raise_for_status()
+        for file_entry in graph_files:
+            file_path = file_entry["file_path"]
 
-                file_data = file_resp.json()
-                file_content = self._decode_github_content(file_data.get("content"))
+            if not file_path.endswith(".py"):
+                continue
 
-                file_nodes = self.semantic_parser.parse_python_file(file_content)
-                for node in file_nodes:
-                    node["file_path"] = file_path
-                    semantic_results.append(node)
+            owner, repo = repo_id.split("/")
+            branch = "master"  # TODO: Improve with branch persistence in next stage
 
-        return {"repo_id": payload.repo_id, "semantic_nodes": semantic_results}
+            file_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}?ref={branch}"
+            file_resp = requests.get(file_url, headers=self.headers)
+            file_resp.raise_for_status()
+
+            file_data = file_resp.json()
+            file_content = self._decode_github_content(file_data.get("content"))
+
+            file_nodes = self.semantic_parser.parse_python_file(file_content)
+            for node in file_nodes:
+                node["file_path"] = file_path
+                semantic_results.append(node)
+
+        return {"repo_id": repo_id, "semantic_nodes": semantic_results}
+
 
 
     def _decode_github_content(self, encoded_content):
