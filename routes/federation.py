@@ -15,11 +15,13 @@ async def import_repo(payload: ImportRepoRequest, request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/analyze-repo")
-async def analyze_repo(payload: AnalyzeRepoRequest):
+def analyze_repo(self, payload: AnalyzeRepoRequest):
     try:
-        result = service.analyze_repo(payload)
-        return {"status": "repo_analyzed", "data": result}
+        repo_metadata = self.github_service.get_repo_metadata(payload.owner, payload.repo)
+        branch = payload.branch or repo_metadata.get("default_branch", "main")
+        repo_tree = self.github_service.get_repo_tree(payload.owner, payload.repo, branch)
+        analysis_result = self.analyze_repo_tree(repo_tree)
+        return analysis_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
