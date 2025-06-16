@@ -1,5 +1,5 @@
-import os
 import psycopg2
+import os
 
 class Database:
     def __init__(self):
@@ -8,9 +8,9 @@ class Database:
             user=os.getenv("FEDERATION_DB_USER"),
             password=os.getenv("FEDERATION_DB_PASSWORD"),
             host=os.getenv("FEDERATION_DB_HOST"),
-            port=os.getenv("FEDERATION_DB_PORT")
+            port=os.getenv("FEDERATION_DB_PORT"),
+            sslmode='require'   # ✅ <-- This line is the fix
         )
-        self.conn.autocommit = True
 
     def get_connection(self):
         return self.conn
