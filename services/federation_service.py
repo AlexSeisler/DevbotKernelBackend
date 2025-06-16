@@ -1,15 +1,14 @@
 import os
 import requests
+import json
 from fastapi import HTTPException
-from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest
+from models.federation_schemas import ImportRepoRequest
+from services.db.repo_manager import RepoManager
+from services.db.federation_graph_manager import FederationGraphManager
+from settings import Database
 from services.semantic_parser import SemanticParser
 from services.diff_engine import DiffEngine
 from services.proposal_queue import ProposalQueueManager
-from services.db.federation_graph_manager import FederationGraphManager
-from services.db.repo_manager import RepoManager
-from services.db.semantic_manager import SemanticManager 
-from settings import Database
-from models.federation_models import FederationRepo
 
 
 class FederationService:
@@ -17,7 +16,6 @@ class FederationService:
     def __init__(self):
         self.base_url = "https://api.github.com"
         self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN", os.getenv("GITHUB_TOKEN")).strip()
-        print(f"Using GitHub Token: {self.github_token}")
 
         self.headers = {
             "Authorization": (
@@ -27,7 +25,7 @@ class FederationService:
             "Accept": "application/vnd.github.v3+json"
         }
         if not self.github_token:
-            raise ValueError("GitHub OAuth token not found. Aborting Federation Import.")
+            raise ValueError("GitHub OAuth token not found.")
 
         self.db = Database().get_connection()
         self.repo_manager = RepoManager()
@@ -35,7 +33,6 @@ class FederationService:
         self.semantic_parser = SemanticParser()
         self.diff_engine = DiffEngine()
         self.proposal_queue = ProposalQueueManager()
-        self.semantic_manager = SemanticManager()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner = payload.owner
@@ -56,7 +53,6 @@ class FederationService:
 
         tree_data = tree_resp.json()
 
-        logical_repo_id = f"{owner}/{repo}"
         files = []
         for item in tree_data.get("tree", []):
             file_path = item.get("path")
@@ -69,31 +65,32 @@ class FederationService:
         try:
             with self.db:
                 with self.db.cursor() as cur:
-                    # ✅ Insert federation_repo FIRST
+                    # ✅ FIRST: Insert into federation_repo and retrieve PK
                     cur.execute("""
                         INSERT INTO federation_repo (repo_id, branch, root_sha)
                         VALUES (%s, %s, %s)
-                        ON CONFLICT (repo_id) DO UPDATE SET branch = EXCLUDED.branch, root_sha = EXCLUDED.root_sha
                         RETURNING id
-                    """, (logical_repo_id, branch, tree_data.get("sha")))
-                    federation_repo_id = cur.fetchone()[0]
+                    """, (f"{owner}/{repo}", branch, tree_data.get("sha")))
+                    repo_pk = cur.fetchone()[0]
 
-                    # ✅ Then insert federation_graph records using PK id as FK
+                    # ✅ THEN: Insert graph records using committed PK
                     for file in files:
-                        self.graph_manager.insert_graph_link_tx(
-                            cur,
-                            repo_id=federation_repo_id,  # <=== 🔥 using PK now
-                            file_path=file['path'],
-                            node_type=file['type'],
-                            name=file['path'].split("/")[-1],
-                            cross_linked_to=None,
-                            federation_weight=1,
-                            notes="Ingested file"
-                        )
+                        cur.execute("""
+                            INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            repo_pk,
+                            file['path'],
+                            file['type'],
+                            file['path'].split("/")[-1],
+                            None,
+                            1,
+                            "Ingested file"
+                        ))
 
             return {
                 "status": "success",
-                "repo_id": federation_repo_id,
+                "repo_id": repo_pk,
                 "files_ingested": len(files)
             }
 
