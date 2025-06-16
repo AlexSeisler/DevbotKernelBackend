@@ -96,11 +96,21 @@ class FederationService:
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
         repo_id = payload.repo_id
+
+        # ✅ Resolver injection: handle integer PK → logical repo_id string
+        if isinstance(repo_id, int):
+            with self.db.cursor() as cur:
+                cur.execute("SELECT repo_id FROM federation_repo WHERE id = %s", (repo_id,))
+                result = cur.fetchone()
+                if not result:
+                    raise Exception(f"Repo with id {repo_id} not found in federation_repo table.")
+                repo_id = result[0]  # Now fully resolved to 'octocat/Hello-World'
+
         graph_files = self.federation_graph.query_graph(repo_id=repo_id)
 
-        # ✅ After translation, repo_id is now external string: octocat/Hello-World
-        owner, repo = graph_files[0]['repo_id'].split("/")
-        branch = "master"  # Next patch improves this
+        # ✅ Repo ID now fully resolved to string — safe to split
+        owner, repo = repo_id.split("/")
+        branch = "master"  # Next stage: wire dynamic branch persistence
 
         semantic_results = []
         for file_entry in graph_files:
@@ -121,6 +131,7 @@ class FederationService:
                 semantic_results.append(node)
 
         return {"repo_id": repo_id, "semantic_nodes": semantic_results}
+
 
 
     def _decode_github_content(self, encoded_content):
