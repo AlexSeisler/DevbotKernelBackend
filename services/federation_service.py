@@ -7,6 +7,7 @@ from services.diff_engine import DiffEngine
 from services.proposal_queue import ProposalQueueManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.db.repo_manager import RepoManager
+from services.db.semantic_manager import SemanticManager 
 from settings import Database
 
 class FederationService:
@@ -32,6 +33,7 @@ class FederationService:
         self.semantic_parser = SemanticParser()
         self.diff_engine = DiffEngine()
         self.proposal_queue = ProposalQueueManager()
+        self.semantic_manager = SemanticManager()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner = payload.owner
@@ -95,24 +97,23 @@ class FederationService:
         return repo_entry['repo_id']
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        repo_id = payload.repo_id
+        requested_id = payload.repo_id
 
-        # ✅ Resolver injection: handle integer PK → logical repo_id string
-        if isinstance(repo_id, int):
-            with self.db.cursor() as cur:
-                cur.execute("SELECT repo_id FROM federation_repo WHERE id = %s", (repo_id,))
-                result = cur.fetchone()
-                if not result:
-                    raise Exception(f"Repo with id {repo_id} not found in federation_repo table.")
-                repo_id = result[0]  # Now fully resolved to 'octocat/Hello-World'
+        # ✅ Use new resolver to normalize ingestion ID
+        ingestion_pk = self.repo_manager.resolve_repo_id(requested_id)
 
-        graph_files = self.federation_graph.query_graph(repo_id=repo_id)
+        # ✅ Query semantic graph using resolved PK
+        graph_files = self.federation_graph.query_graph(repo_id=ingestion_pk)
 
-        # ✅ Repo ID now fully resolved to string — safe to split
-        owner, repo = repo_id.split("/")
-        branch = "master"  # Next stage: wire dynamic branch persistence
+        if not graph_files:
+            raise Exception("Federation Graph contains no files for semantic analysis.")
+
+        # ✅ Recover owner/repo from first graph entry string ID
+        owner, repo = graph_files[0]['repo_id'].split("/")
+        branch = "master"  # Future enhancement will read actual branch
 
         semantic_results = []
+
         for file_entry in graph_files:
             file_path = file_entry["file_path"]
             if not file_path.endswith(".py"):
@@ -130,7 +131,11 @@ class FederationService:
                 node["file_path"] = file_path
                 semantic_results.append(node)
 
-        return {"repo_id": repo_id, "semantic_nodes": semantic_results}
+                # ✅ Persist parsed semantic nodes into semantic_node table
+                self.semantic_manager.save_semantic_node(ingestion_pk, node)
+
+        return {"repo_id": ingestion_pk, "semantic_nodes": semantic_results}
+
 
 
 

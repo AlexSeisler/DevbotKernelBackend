@@ -29,3 +29,21 @@ class RepoManager:
                 }
             else:
                 return None
+    def resolve_repo_id(self, repo_identifier):
+        """
+        Accepts either an integer (PK) or logical string (octocat/Hello-World).
+        Returns internal DB PK.
+        """
+        with self.db.cursor() as cur:
+            if isinstance(repo_identifier, int):
+                # Direct PK passthrough
+                return repo_identifier
+            else:
+                # Logical repo_id lookup
+                cur.execute("""
+                    SELECT id FROM federation_repo WHERE repo_id = %s
+                """, (repo_identifier,))
+                result = cur.fetchone()
+                if not result:
+                    raise Exception(f"Repository {repo_identifier} not found in ingestion registry.")
+                return result[0]
