@@ -1,5 +1,6 @@
 import os
 import requests
+from fastapi import HTTPException
 from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest
 from services.semantic_parser import SemanticParser
 from services.diff_engine import DiffEngine
@@ -56,9 +57,16 @@ class FederationService:
     def analyze_repo(self, payload: AnalyzeRepoRequest):
         owner, repo = payload.repo_id.split("/")
 
-        # Get file list from prior ingestion call
-        branch = "main"  # (assuming default for now, future: dynamic state)
-        tree_url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
+        # First fetch repo metadata to extract true default branch
+        repo_metadata_url = f"{self.base_url}/repos/{owner}/{repo}"
+        metadata_resp = requests.get(repo_metadata_url, headers=self.headers)
+        metadata_resp.raise_for_status()
+
+        repo_metadata = metadata_resp.json()
+        default_branch = repo_metadata.get("default_branch", "main")
+
+        # Pull full repo tree off correct branch
+        tree_url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1"
         tree_resp = requests.get(tree_url, headers=self.headers)
         tree_resp.raise_for_status()
         tree_data = tree_resp.json()
@@ -69,7 +77,7 @@ class FederationService:
                 file_path = item.get("path")
 
                 # Fetch file content
-                file_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}?ref={branch}"
+                file_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}?ref={default_branch}"
                 file_resp = requests.get(file_url, headers=self.headers)
                 file_resp.raise_for_status()
 
@@ -82,6 +90,7 @@ class FederationService:
                     semantic_results.append(node)
 
         return {"repo_id": payload.repo_id, "semantic_nodes": semantic_results}
+
 
     def _decode_github_content(self, encoded_content):
         import base64
