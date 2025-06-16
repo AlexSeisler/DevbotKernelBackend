@@ -10,7 +10,6 @@ class Database:
             try:
                 self.conn = psycopg2.connect(
                     dsn=dsn,
-                    sslmode='require',
                     connect_timeout=10
                 )
                 break  # success
