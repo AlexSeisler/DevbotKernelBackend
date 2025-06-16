@@ -4,9 +4,11 @@ from fastapi import HTTPException
 from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest
 from services.semantic_parser import SemanticParser
 from services.diff_engine import DiffEngine
-from services.diff_engine import DiffEngine
 from services.proposal_queue import ProposalQueueManager
 from services.db.federation_graph_manager import FederationGraphManager
+from services.db.repo_manager import RepoManager  # ✅ Added RepoManager here
+from settings import Database  # ✅ Pull in DB directly for transaction control
+
 class FederationService:
 
     def __init__(self):
@@ -24,10 +26,12 @@ class FederationService:
         if not self.github_token:
             raise ValueError("GitHub OAuth token not found. Aborting Federation Import.")
 
+        self.db = Database().get_connection()
+        self.repo_manager = RepoManager()
+        self.graph_manager = FederationGraphManager()
         self.semantic_parser = SemanticParser()
         self.diff_engine = DiffEngine()
         self.proposal_queue = ProposalQueueManager()
-        self.federation_graph = FederationGraphManager()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner = payload.owner
@@ -48,6 +52,7 @@ class FederationService:
 
         tree_data = tree_resp.json()
 
+        repo_id = f"{owner}/{repo}"
         files = []
         for item in tree_data.get("tree", []):
             file_path = item.get("path")
@@ -57,25 +62,33 @@ class FederationService:
                 "sha": item.get("sha")
             })
 
-            # ✅ Insert raw file metadata into federation graph (initial ingestion stage)
-            self.federation_graph.insert_graph_link(
-                repo_id=f"{owner}/{repo}",
-                file_path=file_path,
-                node_type="file",
-                name=file_path.split("/")[-1],
-                cross_linked_to=None,
-                federation_weight=1,
-                notes="Ingested file"
-            )
+        try:
+            with self.db:
+                with self.db.cursor() as cur:
+                    # ✅ Insert into federation_repo FIRST (prevents foreign key violation)
+                    self.repo_manager.save_repo_tx(cur, repo_id, branch, tree_data.get("sha"))
 
-        ingestion_payload = {
-            "repo_id": f"{owner}/{repo}",
-            "branch": branch,
-            "root_sha": tree_data.get("sha"),
-            "files": files
-        }
+                    # ✅ Then insert federation_graph file nodes
+                    for file in files:
+                        self.graph_manager.insert_graph_link_tx(
+                            cur,
+                            repo_id=repo_id,
+                            file_path=file['path'],
+                            node_type=file['type'],
+                            name=file['path'].split("/")[-1],
+                            cross_linked_to=None,
+                            federation_weight=1,
+                            notes="Ingested file"
+                        )
 
-        return ingestion_payload
+            return {
+                "status": "success",
+                "repo_id": repo_id,
+                "files_ingested": len(files)
+            }
+
+        except Exception as e:
+            raise Exception(f"Federation ingestion transaction failed: {str(e)}")
 
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):

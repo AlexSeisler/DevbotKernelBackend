@@ -4,20 +4,20 @@ class FederationGraphManager:
     def __init__(self):
         self.db = Database().get_connection()
 
-    def insert_graph_link(self, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
-        with self.db.cursor() as cur:
-            cur.execute("""
-                INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (
-                repo_id,
-                file_path,
-                node_type,
-                name,
-                cross_linked_to,
-                federation_weight,
-                notes
-            ))
+    def insert_graph_link_tx(self, cur, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
+        cur.execute("""
+            INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            repo_id,
+            file_path,
+            node_type,
+            name,
+            cross_linked_to,
+            federation_weight,
+            notes
+        ))
+
 
     def query_graph(self, repo_id=None):
         with self.db.cursor() as cur:
