@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from routes import health, github, patch, pull_request
-import os
 from dotenv import load_dotenv
+import os
+
 from routes import github, patch, pull_request, health, federation
+from services.federation_service import FederationService
 
 # ✅ Load .env credentials safely
 load_dotenv()
@@ -15,6 +16,9 @@ app = FastAPI(
     version="3.0.0",
     description="SaaS Kernel Backend — GPT-Agent Controlled GitHub Repo Manager"
 )
+
+# ✅ Inject Federation Service into app context (hot fix injection)
+app.federation_service = FederationService()
 
 # ✅ GPT Action Compatible CORS Layer
 app.add_middleware(
@@ -46,7 +50,3 @@ app.include_router(github.router)
 app.include_router(patch.router)
 app.include_router(pull_request.router)
 app.include_router(federation.router)
-
-# ✅ Reserved for Phase 2 federation ingestion system
-# from routes import federation
-# app.include_router(federation.router)
