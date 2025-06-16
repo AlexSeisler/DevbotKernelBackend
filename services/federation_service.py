@@ -6,8 +6,8 @@ from services.semantic_parser import SemanticParser
 from services.diff_engine import DiffEngine
 from services.proposal_queue import ProposalQueueManager
 from services.db.federation_graph_manager import FederationGraphManager
-from services.db.repo_manager import RepoManager  # ✅ Added RepoManager here
-from settings import Database  # ✅ Pull in DB directly for transaction control
+from services.db.repo_manager import RepoManager
+from settings import Database
 
 class FederationService:
 
@@ -65,10 +65,7 @@ class FederationService:
         try:
             with self.db:
                 with self.db.cursor() as cur:
-                    # ✅ Insert into federation_repo FIRST (prevents foreign key violation)
                     self.repo_manager.save_repo_tx(cur, repo_id, branch, tree_data.get("sha"))
-
-                    # ✅ Then insert federation_graph file nodes
                     for file in files:
                         self.graph_manager.insert_graph_link_tx(
                             cur,
@@ -80,7 +77,6 @@ class FederationService:
                             federation_weight=1,
                             notes="Ingested file"
                         )
-
             return {
                 "status": "success",
                 "repo_id": repo_id,
@@ -90,10 +86,17 @@ class FederationService:
         except Exception as e:
             raise Exception(f"Federation ingestion transaction failed: {str(e)}")
 
+    # 🔧 PATCHED: Repo ID resolver added here
+    def resolve_repo_pk(self, owner, repo):
+        full_repo_id = f"{owner}/{repo}"
+        repo_entry = self.repo_manager.get_repo_by_repo_id(full_repo_id)
+        if not repo_entry:
+            raise HTTPException(status_code=404, detail="Repository not found in ingestion DB")
+        return repo_entry['repo_id']
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        repo_id = payload.repo_id
-        graph_files = self.federation_graph.query_graph(repo_id=repo_id)
+        repo_id = self.resolve_repo_pk(payload.owner, payload.repo)
+        graph_files = self.graph_manager.query_graph(repo_id=repo_id)
 
         semantic_results = []
 
@@ -104,7 +107,7 @@ class FederationService:
                 continue
 
             owner, repo = repo_id.split("/")
-            branch = "master"  # TODO: Improve with branch persistence in next stage
+            branch = "master"  # TODO: Future dynamic branch resolution
 
             file_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}?ref={branch}"
             file_resp = requests.get(file_url, headers=self.headers)
@@ -120,14 +123,11 @@ class FederationService:
 
         return {"repo_id": repo_id, "semantic_nodes": semantic_results}
 
-
-
     def _decode_github_content(self, encoded_content):
         import base64
         decoded_bytes = base64.b64decode(encoded_content)
         return decoded_bytes.decode("utf-8")
 
-    # The other federation functions remain as previous stage
     def propose_patch(self, payload):
         proposal = {
             "repo_id": payload.repo_id,
@@ -146,10 +146,7 @@ class FederationService:
         return {"proposal_id": proposal_id}
 
     def commit_patch(self, payload):
-        # Parse repo_id → owner/repo
         owner, repo = payload.repo_id.split("/")
-
-        # Apply multi-file patch through diff engine
         result = self.diff_engine.apply_patch(
             owner=owner,
             repo=repo,
@@ -157,17 +154,17 @@ class FederationService:
             patches=payload.patches,
             commit_message=payload.commit_message
         )
-
         return result
 
     def scan_federation_graph(self):
         return {"repos_federated": [], "total_nodes": 0}
+
     def list_proposals(self):
         return self.proposal_queue.list_proposals()
+
     def approve_patch(self, proposal_id):
         proposal = self.proposal_queue.approve_proposal(proposal_id)
         owner, repo = proposal["repo_id"].split("/")
-
         result = self.diff_engine.apply_patch(
             owner=owner,
             repo=repo,
@@ -175,9 +172,9 @@ class FederationService:
             patches=proposal["patches"],
             commit_message=proposal["commit_message"]
         )
-
         self.proposal_queue.remove_proposal(proposal_id)
         return result
+
     def reject_patch(self, proposal_id):
         proposal = self.proposal_queue.reject_proposal(proposal_id)
         return {"status": "rejected", "proposal_id": proposal_id}

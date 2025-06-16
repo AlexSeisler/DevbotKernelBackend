@@ -4,10 +4,11 @@ from typing import List
 class ImportRepoRequest(BaseModel):
     owner: str
     repo: str
-    default_branch: str = "main"
+    default_branch: str
 
 class AnalyzeRepoRequest(BaseModel):
-    repo_id: str
+    owner: str
+    repo: str
 
 class PatchObject(BaseModel):
     file_path: str
