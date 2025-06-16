@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
+from services.federation_service import FederationService
 from models.federation_schemas import (
     ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest
 )
 
 router = APIRouter(prefix="/federation")
-
+service = FederationService()
 @router.post("/import-repo")
 async def import_repo(payload: ImportRepoRequest, request: Request):
     try:
@@ -17,7 +18,7 @@ async def import_repo(payload: ImportRepoRequest, request: Request):
 @router.post("/analyze-repo")
 async def analyze_repo(payload: AnalyzeRepoRequest):
     try:
-        result = federation_service.analyze_repo(payload)
+        result = service.analyze_repo(payload)
         return {"status": "repo_analyzed", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
