@@ -67,11 +67,21 @@ class FederationService:
         try:
             with self.db:
                 with self.db.cursor() as cur:
+                    # Insert into federation_repo (no change)
                     self.repo_manager.save_repo_tx(cur, repo_id, branch, tree_data.get("sha"))
+
+                    # 🔥 Look up assigned PK id from federation_repo
+                    cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (repo_id,))
+                    repo_pk_row = cur.fetchone()
+                    if not repo_pk_row:
+                        raise Exception(f"Failed to retrieve PK for repo_id {repo_id}")
+                    repo_pk = repo_pk_row[0]
+
+                    # ✅ Insert into federation_graph using PK id
                     for file in files:
                         self.graph_manager.insert_graph_link_tx(
                             cur,
-                            repo_id=repo_id,
+                            repo_id=repo_pk,
                             file_path=file['path'],
                             node_type=file['type'],
                             name=file['path'].split("/")[-1],
@@ -79,6 +89,7 @@ class FederationService:
                             federation_weight=1,
                             notes="Ingested file"
                         )
+
             return {
                 "status": "success",
                 "repo_id": repo_id,
