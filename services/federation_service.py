@@ -11,10 +11,14 @@ class FederationService:
 
     def __init__(self):
         self.base_url = "https://api.github.com"
+        self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
         self.headers = {
-            "Authorization": f"Bearer {os.getenv('FEDERATION_GITHUB_TOKEN')}",
+            "Authorization": f"token {self.github_token}",
             "Accept": "application/vnd.github.v3+json"
         }
+        if not self.github_token:
+            raise ValueError("GitHub OAuth token not found. Aborting Federation Import.")
+
         self.semantic_parser = SemanticParser()
         self.diff_engine = DiffEngine()
         self.proposal_queue = ProposalQueueManager()
