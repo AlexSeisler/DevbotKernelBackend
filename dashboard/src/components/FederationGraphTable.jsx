@@ -1,36 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React from "react";
 
-export default function FederationGraphTable() {
-  const [graph, setGraph] = useState([]);
-
-  useEffect(() => {
-    axios.get('/federation/graph/query')
-      .then(res => setGraph(res.data))
-      .catch(err => console.error(err));
-  }, []);
-
+export default function FederationGraphTable({ repos }) {
   return (
-    <div>
-      <h2 className="mb-2">Federation Graph</h2>
-      <table className="border w-full">
+    <div className="mt-6">
+      <h2 className="text-xl font-bold mb-4">Federated Repositories</h2>
+      <table className="w-full border-collapse border border-gray-300">
         <thead>
           <tr>
-            <th>Repo</th>
-            <th>File</th>
-            <th>Node</th>
-            <th>Linked</th>
-            <th>Notes</th>
+            <th className="border p-2">Repo ID</th>
+            <th className="border p-2">Owner</th>
+            <th className="border p-2">Repo</th>
+            <th className="border p-2">Status</th>
           </tr>
         </thead>
         <tbody>
-          {graph.map((row, idx) => (
-            <tr key={idx} className="border">
-              <td className="p-1">{row.repo_id}</td>
-              <td className="p-1">{row.file_path}</td>
-              <td className="p-1">{row.name}</td>
-              <td className="p-1">{row.cross_linked_to}</td>
-              <td className="p-1">{row.notes}</td>
+          {repos.map((repo) => (
+            <tr key={repo.repo_id}>
+              <td className="border p-2">{repo.repo_id}</td>
+              <td className="border p-2">{repo.owner}</td>
+              <td className="border p-2">{repo.repo}</td>
+              <td className="border p-2">{repo.status}</td>
             </tr>
           ))}
         </tbody>
