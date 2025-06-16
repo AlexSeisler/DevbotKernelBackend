@@ -9,6 +9,8 @@ from services.db.federation_graph_manager import FederationGraphManager
 from services.db.repo_manager import RepoManager
 from services.db.semantic_manager import SemanticManager 
 from settings import Database
+from models.federation_models import FederationRepo
+
 
 class FederationService:
 
@@ -108,23 +110,16 @@ class FederationService:
         return repo_entry['repo_id']
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        requested_id = payload.repo_id
+        repo_id = payload.repo_id
 
-        # ✅ Use new resolver to normalize ingestion ID
-        ingestion_pk = self.repo_manager.resolve_repo_id(requested_id)
+        # ✅ Translate repo_id PK to logical repo_id
+        logical_repo_id = self.resolve_repo_id(repo_id)
 
-        # ✅ Query semantic graph using resolved PK
-        graph_files = self.federation_graph.query_graph(repo_id=ingestion_pk)
-
-        if not graph_files:
-            raise Exception("Federation Graph contains no files for semantic analysis.")
-
-        # ✅ Recover owner/repo from first graph entry string ID
-        owner, repo = graph_files[0]['repo_id'].split("/")
-        branch = "master"  # Future enhancement will read actual branch
+        graph_files = self.federation_graph.query_graph(repo_id=logical_repo_id)
+        owner, repo = logical_repo_id.split("/")
+        branch = "master"  # still static for now
 
         semantic_results = []
-
         for file_entry in graph_files:
             file_path = file_entry["file_path"]
             if not file_path.endswith(".py"):
@@ -142,10 +137,8 @@ class FederationService:
                 node["file_path"] = file_path
                 semantic_results.append(node)
 
-                # ✅ Persist parsed semantic nodes into semantic_node table
-                self.semantic_manager.save_semantic_node(ingestion_pk, node)
+        return {"repo_id": repo_id, "semantic_nodes": semantic_results}
 
-        return {"repo_id": ingestion_pk, "semantic_nodes": semantic_results}
 
 
 

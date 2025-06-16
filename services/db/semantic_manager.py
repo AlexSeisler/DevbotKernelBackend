@@ -5,6 +5,16 @@ class SemanticManager:
     def __init__(self):
         self.db = Database().get_connection()
 
+    def resolve_repo_id(self, repo_id):
+        with self.db.cursor() as cur:
+            cur.execute("""
+                SELECT repo_id FROM federation_repo WHERE id = %s
+            """, (repo_id,))
+            result = cur.fetchone()
+            if not result:
+                raise Exception(f"Repo ID {repo_id} not found in federation_repo")
+            return result[0]  # returns 'octocat/Hello-World'
+
     def save_semantic_node(self, repo_id, node):
         with self.db.cursor() as cur:
             cur.execute("""
