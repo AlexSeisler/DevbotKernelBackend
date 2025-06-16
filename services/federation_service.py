@@ -11,9 +11,14 @@ class FederationService:
 
     def __init__(self):
         self.base_url = "https://api.github.com"
-        self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN", os.getenv("GITHUB_TOKEN"))
+        self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN", os.getenv("GITHUB_TOKEN")).strip()
+        print(f"Using GitHub Token: {self.github_token}")
+
         self.headers = {
-            "Authorization": f"token {self.github_token}",
+            "Authorization": (
+                f"Bearer {self.github_token}" if self.github_token.startswith("github_pat_")
+                else f"token {self.github_token}"
+            ),
             "Accept": "application/vnd.github.v3+json"
         }
         if not self.github_token:
