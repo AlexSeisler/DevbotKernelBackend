@@ -9,7 +9,7 @@ class FederationGraphManager:
             INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (
-            repo_id,
+            repo_id,  # 🔥 Now integer PK id
             file_path,
             node_type,
             name,
@@ -17,6 +17,7 @@ class FederationGraphManager:
             federation_weight,
             notes
         ))
+
 
 
     def query_graph(self, repo_id=None):

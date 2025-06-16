@@ -56,7 +56,7 @@ class FederationService:
 
         tree_data = tree_resp.json()
 
-        repo_id = f"{owner}/{repo}"
+        logical_repo_id = f"{owner}/{repo}"
         files = []
         for item in tree_data.get("tree", []):
             file_path = item.get("path")
@@ -69,21 +69,20 @@ class FederationService:
         try:
             with self.db:
                 with self.db.cursor() as cur:
-                    # Insert into federation_repo (no change)
-                    self.repo_manager.save_repo_tx(cur, repo_id, branch, tree_data.get("sha"))
+                    # ✅ Insert federation_repo FIRST
+                    cur.execute("""
+                        INSERT INTO federation_repo (repo_id, branch, root_sha)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (repo_id) DO UPDATE SET branch = EXCLUDED.branch, root_sha = EXCLUDED.root_sha
+                        RETURNING id
+                    """, (logical_repo_id, branch, tree_data.get("sha")))
+                    federation_repo_id = cur.fetchone()[0]
 
-                    # 🔥 Look up assigned PK id from federation_repo
-                    cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (repo_id,))
-                    repo_pk_row = cur.fetchone()
-                    if not repo_pk_row:
-                        raise Exception(f"Failed to retrieve PK for repo_id {repo_id}")
-                    repo_pk = repo_pk_row[0]
-
-                    # ✅ Insert into federation_graph using PK id
+                    # ✅ Then insert federation_graph records using PK id as FK
                     for file in files:
                         self.graph_manager.insert_graph_link_tx(
                             cur,
-                            repo_id=repo_pk,
+                            repo_id=federation_repo_id,  # <=== 🔥 using PK now
                             file_path=file['path'],
                             node_type=file['type'],
                             name=file['path'].split("/")[-1],
@@ -94,12 +93,13 @@ class FederationService:
 
             return {
                 "status": "success",
-                "repo_id": repo_id,
+                "repo_id": federation_repo_id,
                 "files_ingested": len(files)
             }
 
         except Exception as e:
             raise Exception(f"Federation ingestion transaction failed: {str(e)}")
+
 
     # 🔧 PATCHED: Repo ID resolver added here
     def resolve_repo_pk(self, owner, repo):
