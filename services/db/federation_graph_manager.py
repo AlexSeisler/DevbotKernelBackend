@@ -22,6 +22,15 @@ class FederationGraphManager:
     def query_graph(self, repo_id=None):
         with self.db.cursor() as cur:
             if repo_id:
+                # ✅ ID Resolver: if passed repo_id is an integer PK, convert to logical repo_id string
+                if isinstance(repo_id, int):
+                    cur.execute("SELECT repo_id FROM federation_repo WHERE id = %s", (repo_id,))
+                    result = cur.fetchone()
+                    if not result:
+                        raise Exception(f"Repo with id {repo_id} not found")
+                    repo_id = result[0]  # Now we have octocat/Hello-World style string
+
+                # ✅ Proceed as normal using logical string ID
                 cur.execute("""
                     SELECT repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes
                     FROM federation_graph

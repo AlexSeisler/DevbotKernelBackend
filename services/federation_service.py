@@ -95,19 +95,18 @@ class FederationService:
         return repo_entry['repo_id']
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        repo_id = self.resolve_repo_pk(payload.owner, payload.repo)
-        graph_files = self.graph_manager.query_graph(repo_id=repo_id)
+        repo_id = payload.repo_id
+        graph_files = self.federation_graph.query_graph(repo_id=repo_id)
+
+        # ✅ After translation, repo_id is now external string: octocat/Hello-World
+        owner, repo = graph_files[0]['repo_id'].split("/")
+        branch = "master"  # Next patch improves this
 
         semantic_results = []
-
         for file_entry in graph_files:
             file_path = file_entry["file_path"]
-
             if not file_path.endswith(".py"):
                 continue
-
-            owner, repo = repo_id.split("/")
-            branch = "master"  # TODO: Future dynamic branch resolution
 
             file_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}?ref={branch}"
             file_resp = requests.get(file_url, headers=self.headers)
@@ -122,6 +121,7 @@ class FederationService:
                 semantic_results.append(node)
 
         return {"repo_id": repo_id, "semantic_nodes": semantic_results}
+
 
     def _decode_github_content(self, encoded_content):
         import base64
