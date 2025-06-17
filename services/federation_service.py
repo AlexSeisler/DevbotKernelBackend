@@ -84,11 +84,11 @@ class FederationService:
             if logical_repo_id.startswith("Synthetic/"):
                 # Direct synthetic injection — bypass GitHub API
                 file_content = """
-    # Synthetic kernel file
-    def bootstrap_function():
-        '''Synthetic Federation Test Node'''
-        pass
-    """
+                    # Synthetic kernel file
+                    def bootstrap_function():
+                        '''Synthetic Federation Test Node'''
+                        pass
+                    """
             else:
                 # Original GitHub resolution for real repos
                 file_content = self._get_file_content(owner, repo, file["file_path"])
