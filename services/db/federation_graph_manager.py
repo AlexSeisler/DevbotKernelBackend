@@ -7,7 +7,12 @@ class FederationGraphManager:
         self.repo_manager = RepoManager()
 
     def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
-        pk = self.repo_manager.resolve_repo_pk(logical_repo_id)
+        # Bypass lookup if already integer PK (synthetic mode safeguard)
+        if isinstance(logical_repo_id, int):
+            pk = logical_repo_id
+        else:
+            pk = self.repo_manager.resolve_repo_pk(logical_repo_id)
+
 
         # 🔧 Synthetic SHA Validation Bypass Logic
         if logical_repo_id.startswith("Synthetic/"):
