@@ -79,7 +79,20 @@ class FederationService:
         for file in graph_files:
             if not file["file_path"].endswith(".py"):
                 continue
-            file_content = self._get_file_content(owner, repo, file["file_path"])
+
+            # ✅ SYNTHETIC PATCH STARTS HERE
+            if logical_repo_id.startswith("Synthetic/"):
+                # Direct synthetic injection — bypass GitHub API
+                file_content = """
+    # Synthetic kernel file
+    def bootstrap_function():
+        '''Synthetic Federation Test Node'''
+        pass
+    """
+            else:
+                # Original GitHub resolution for real repos
+                file_content = self._get_file_content(owner, repo, file["file_path"])
+
             nodes = self.semantic_parser.parse_python_file(file_content)
             for node in nodes:
                 node["file_path"] = file["file_path"]
