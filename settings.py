@@ -8,7 +8,10 @@ class Database:
         attempt = 0
         while attempt < retries:
             try:
-                self.conn = psycopg2.connect(dsn=dsn, connect_timeout=10)
+                self.conn = psycopg2.connect(
+                    dsn=dsn,
+                    connect_timeout=10
+                )
                 break
             except psycopg2.OperationalError as e:
                 print(f"DB connection failed (attempt {attempt+1}): {e}")
