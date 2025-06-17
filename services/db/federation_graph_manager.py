@@ -6,12 +6,11 @@ class FederationGraphManager:
         self.db = Database().get_connection()
         self.repo_manager = RepoManager()  # Instantiate repo ID resolver
 
-    def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
+    def insert_graph_link_tx(self, cur, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
         """
-        Accept logical repo_id string — always internally resolve to PK before insert.
+        Accepts logical repo_id (string) or PK — always resolves internally to PK.
         """
-        # Convert logical repo_id (octocat/Hello-World) into federation_repo.id PK
-        repo_pk = self.repo_manager.resolve_repo_id(logical_repo_id)
+        repo_pk = self.repo_manager.resolve_repo_id(repo_id)
 
         cur.execute("""
             INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
@@ -25,6 +24,7 @@ class FederationGraphManager:
             federation_weight,
             notes
         ))
+
 
     def query_graph(self, repo_id=None):
         with self.db.cursor() as cur:
