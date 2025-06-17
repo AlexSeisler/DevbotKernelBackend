@@ -2,7 +2,7 @@ import os
 import requests
 import json
 from fastapi import HTTPException
-from models.federation_schemas import ImportRepoRequest
+from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest
 from services.db.repo_manager import RepoManager
 from services.db.federation_graph_manager import FederationGraphManager
 from settings import Database
