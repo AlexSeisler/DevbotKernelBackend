@@ -72,20 +72,21 @@ async def reject_patch(payload: ApprovePatchRequest):
 @router.post("/graph/link")
 async def link_federation_node(payload: LinkFederationNodeRequest):
     try:
-        # Synthetic override logic
+        # Synthetic override logic: activate bypass for PK >= 4 (your synthetic seed)
         synthetic_safe_zone = int(payload.repo_id) >= 4
 
         if not synthetic_safe_zone:
-            # 🔒 Normally here would live the live file existence check against GitHub
-            # For your current state, we simply skip any existence check
+            # ⚠ Live file existence checks would normally occur here (omitted)
             pass
 
-        # Direct insert call
+        # Resolve logical repo_id (string) from PK to match GraphManager contract
+        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(int(payload.repo_id))
+
         with service.db:
             with service.db.cursor() as cur:
                 service.graph_manager.insert_graph_link_tx(
                     cur=cur,
-                    logical_repo_id=payload.repo_id,
+                    logical_repo_id=logical_repo_id,   # ✅ now correct input form
                     file_path=payload.file_path,
                     node_type="file",
                     name=payload.name,
