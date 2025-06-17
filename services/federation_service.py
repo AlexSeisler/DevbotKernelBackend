@@ -64,13 +64,14 @@ class FederationService:
         try:
             with self.db:
                 with self.db.cursor() as cur:
-                    self.repo_manager.save_repo_tx(cur, repo_id_str, branch, tree_data.get("sha"))
                     repo_internal_id = self.repo_manager.fetch_internal_id(cur, repo_id_str)
+                    
+                    repo_pk_id = self.repo_manager.save_repo_tx(cur, repo_id, branch, tree_data.get("sha"))
 
                     for file in files:
                         self.graph_manager.insert_graph_link_tx(
                             cur,
-                            repo_id=repo_internal_id,
+                            repo_id=repo_pk_id,  # Pass the true PK id
                             file_path=file['path'],
                             node_type=file['type'],
                             name=file['path'].split("/")[-1],

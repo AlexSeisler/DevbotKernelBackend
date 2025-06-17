@@ -8,9 +8,10 @@ class RepoManager:
         cur.execute("""
             INSERT INTO federation_repo (repo_id, branch, root_sha)
             VALUES (%s, %s, %s)
-            ON CONFLICT (repo_id) DO NOTHING
+            RETURNING id;
         """, (repo_id, branch, root_sha))
-
+        result = cur.fetchone()
+        return result[0]  # Return the true PK ID generated
     def fetch_internal_id(self, cur, repo_id):
         cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (repo_id,))
         result = cur.fetchone()
