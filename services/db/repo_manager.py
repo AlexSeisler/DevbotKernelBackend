@@ -10,50 +10,20 @@ class RepoManager:
             VALUES (%s, %s, %s)
             RETURNING id;
         """, (repo_id, branch, root_sha))
-        result = cur.fetchone()
-        return result[0]
+        return cur.fetchone()[0]
 
-    def fetch_internal_id(self, cur, repo_id):
-        cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (repo_id,))
-        result = cur.fetchone()
-        if result:
-            return result[0]
-        return None
-
-    def get_repo_by_repo_id(self, repo_id):
+    def resolve_repo_pk(self, logical_repo_id):
         with self.db.cursor() as cur:
-            cur.execute("""
-                SELECT id, repo_id, branch, root_sha
-                FROM federation_repo
-                WHERE repo_id = %s
-            """, (repo_id,))
-            result = cur.fetchone()
-            if result:
-                return {
-                    "id": result[0],
-                    "repo_id": result[1],
-                    "branch": result[2],
-                    "root_sha": result[3]
-                }
-            else:
-                return None
-
-    def resolve_repo_id(self, repo_identifier):
-        with self.db.cursor() as cur:
-            if isinstance(repo_identifier, int):
-                return repo_identifier
-            else:
-                cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (repo_identifier,))
-                result = cur.fetchone()
-                if not result:
-                    raise Exception(f"Repository {repo_identifier} not found.")
-                return result[0]
+            cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (logical_repo_id,))
+            row = cur.fetchone()
+            if not row:
+                raise Exception(f"Repo {logical_repo_id} not found")
+            return row[0]
 
     def resolve_repo_id_by_pk(self, repo_pk_id):
         with self.db.cursor() as cur:
             cur.execute("SELECT repo_id FROM federation_repo WHERE id = %s", (repo_pk_id,))
-            result = cur.fetchone()
-            if result:
-                return result[0]
-            else:
-                return None
+            row = cur.fetchone()
+            if not row:
+                raise Exception(f"PK {repo_pk_id} not found")
+            return row[0]

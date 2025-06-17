@@ -7,7 +7,7 @@ class ImportRepoRequest(BaseModel):
     default_branch: str
 
 class AnalyzeRepoRequest(BaseModel):
-    repo_id: int
+    repo_id: int  # 🔧 integer PK now
 
 class PatchObject(BaseModel):
     file_path: str
@@ -15,13 +15,13 @@ class PatchObject(BaseModel):
     updated_content: str
 
 class CommitPatchRequest(BaseModel):
-    repo_id: str
+    repo_id: int
     branch: str
     commit_message: str
     patches: List[PatchObject]
 
 class ProposePatchRequest(BaseModel):
-    repo_id: str
+    repo_id: int
     branch: str
     commit_message: str
     proposed_by: str

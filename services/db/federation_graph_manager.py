@@ -7,45 +7,30 @@ class FederationGraphManager:
         self.repo_manager = RepoManager()
 
     def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
-        repo_pk = self.repo_manager.resolve_repo_id(logical_repo_id)
+        pk = self.repo_manager.resolve_repo_pk(logical_repo_id)
         cur.execute("""
             INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (
-            repo_pk,
-            file_path,
-            node_type,
-            name,
-            cross_linked_to,
-            federation_weight,
-            notes
+            pk, file_path, node_type, name, cross_linked_to, federation_weight, notes
         ))
 
-    def query_graph(self, repo_id=None):
+    def query_graph(self, logical_repo_id):
+        pk = self.repo_manager.resolve_repo_pk(logical_repo_id)
         with self.db.cursor() as cur:
-            if repo_id:
-                cur.execute("""
-                    SELECT repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes
-                    FROM federation_graph
-                    WHERE repo_id = %s
-                """, (self.repo_manager.resolve_repo_id(repo_id),))
-            else:
-                cur.execute("""
-                    SELECT repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes
-                    FROM federation_graph
-                """)
-            results = cur.fetchall()
-
-            graph = []
-            for row in results:
-                logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(row[0])
-                graph.append({
-                    "repo_id": logical_repo_id,
-                    "file_path": row[1],
-                    "node_type": row[2],
-                    "name": row[3],
-                    "cross_linked_to": row[4],
-                    "federation_weight": row[5],
-                    "notes": row[6]
-                })
-            return graph
+            cur.execute("""
+                SELECT file_path, node_type, name, cross_linked_to, federation_weight, notes
+                FROM federation_graph WHERE repo_id = %s
+            """, (pk,))
+            rows = cur.fetchall()
+            return [
+                {
+                    "file_path": r[0],
+                    "node_type": r[1],
+                    "name": r[2],
+                    "cross_linked_to": r[3],
+                    "federation_weight": r[4],
+                    "notes": r[5]
+                }
+                for r in rows
+            ]

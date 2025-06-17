@@ -5,21 +5,13 @@ class SemanticManager:
     def __init__(self):
         self.db = Database().get_connection()
 
-    def resolve_repo_pk(self, logical_repo_id):
-        with self.db.cursor() as cur:
-            cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (logical_repo_id,))
-            result = cur.fetchone()
-            if not result:
-                raise Exception(f"Repo '{logical_repo_id}' not found.")
-            return result[0]
-
-    def save_semantic_node(self, repo_id, node):
+    def save_semantic_node(self, repo_pk, node):
         with self.db.cursor() as cur:
             cur.execute("""
                 INSERT INTO semantic_node (repo_id, file_path, node_type, name, args, docstring, methods, inherits_from)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                repo_id,
+                repo_pk,
                 node.get("file_path"),
                 node.get("node_type"),
                 node.get("name"),
