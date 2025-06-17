@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from services.federation_service import FederationService
 from models.federation_schemas import (
-    ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest
+    ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest
 )
 
 router = APIRouter(prefix="/federation")
@@ -67,5 +67,33 @@ async def reject_patch(payload: ApprovePatchRequest):
     try:
         result = service.reject_patch(payload.proposal_id)
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/graph/link")
+async def link_federation_node(payload: LinkFederationNodeRequest):
+    try:
+        # Synthetic override logic
+        synthetic_safe_zone = int(payload.repo_id) >= 4
+
+        if not synthetic_safe_zone:
+            # 🔒 Normally here would live the live file existence check against GitHub
+            # For your current state, we simply skip any existence check
+            pass
+
+        # Direct insert call
+        with service.db:
+            with service.db.cursor() as cur:
+                service.graph_manager.insert_graph_link_tx(
+                    cur=cur,
+                    logical_repo_id=payload.repo_id,
+                    file_path=payload.file_path,
+                    node_type="file",
+                    name=payload.name,
+                    cross_linked_to=payload.cross_linked_to or None,
+                    federation_weight=1.0,
+                    notes=payload.notes
+                )
+        return {"status": "success"}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
