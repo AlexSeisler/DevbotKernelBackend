@@ -11,13 +11,15 @@ class RepoManager:
             RETURNING id;
         """, (repo_id, branch, root_sha))
         result = cur.fetchone()
-        return result[0]  # Return the true PK ID generated
+        return result[0]
+
     def fetch_internal_id(self, cur, repo_id):
         cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (repo_id,))
         result = cur.fetchone()
         if result:
             return result[0]
         return None
+
     def get_repo_by_repo_id(self, repo_id):
         with self.db.cursor() as cur:
             cur.execute("""
@@ -35,21 +37,28 @@ class RepoManager:
                 }
             else:
                 return None
+
     def resolve_repo_id(self, repo_identifier):
         """
-        Accepts either an integer (PK) or logical string (octocat/Hello-World).
-        Returns internal DB PK.
+        Accepts either PK integer or logical string.
+        Always returns integer PK.
         """
         with self.db.cursor() as cur:
             if isinstance(repo_identifier, int):
-                # Direct PK passthrough
                 return repo_identifier
             else:
-                # Logical repo_id lookup
-                cur.execute("""
-                    SELECT id FROM federation_repo WHERE repo_id = %s
-                """, (repo_identifier,))
+                cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (repo_identifier,))
                 result = cur.fetchone()
                 if not result:
-                    raise Exception(f"Repository {repo_identifier} not found in ingestion registry.")
+                    raise Exception(f"Repository {repo_identifier} not found.")
                 return result[0]
+
+    # 🔧 NEW: Reverse resolver: PK -> logical repo_id
+    def resolve_repo_id_by_pk(self, repo_pk_id):
+        with self.db.cursor() as cur:
+            cur.execute("SELECT repo_id FROM federation_repo WHERE id = %s", (repo_pk_id,))
+            result = cur.fetchone()
+            if result:
+                return result[0]
+            else:
+                return None
