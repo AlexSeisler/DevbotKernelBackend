@@ -19,7 +19,7 @@ async def import_repo(payload: ImportRepoRequest):
 async def analyze_repo(payload: AnalyzeRepoRequest):
     try:
         result = service.analyze_repo(payload)
-        return {"status": "analyzed", "data": result}
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
