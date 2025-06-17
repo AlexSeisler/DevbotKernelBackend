@@ -25,18 +25,48 @@ class FederationService:
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
         logical_repo_id = f"{owner}/{repo}"
 
-        branch_sha = self._get_branch_sha(owner, repo, branch)
-        tree_data = self._get_repo_tree(owner, repo, branch_sha)
+        # ✅ REMOVE GITHUB API CALLS — Direct internal ingestion logic
+        # ✅ For cleanroom bootstrap, manually define files you want to ingest:
+        files = [
+            {
+                "path": "dashboard/README.md",
+                "type": "file",
+                "sha": "bootstrap-sha-readme"
+            },
+            {
+                "path": "dashboard/new_module.py",
+                "type": "file",
+                "sha": "bootstrap-sha-newmodule"
+            }
+        ]
 
-        files = [{"path": i["path"], "type": i["type"], "sha": i["sha"]} for i in tree_data.get("tree", [])]
+        # ✅ Static root SHA for initial bootstrap (since no external tree is loaded)
+        static_root_sha = "bootstrap-root-sha"
 
-        with self.db:
-            with self.db.cursor() as cur:
-                pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, tree_data["sha"])
-                for file in files:
-                    self.graph_manager.insert_graph_link_tx(cur, logical_repo_id, file['path'], file['type'], file['path'].split("/")[-1], None, 1, "Ingested file")
+        try:
+            with self.db:
+                with self.db.cursor() as cur:
+                    # ✅ Insert directly into federation_repo
+                    pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
 
-        return {"repo_id": pk_id, "files_ingested": len(files)}
+                    # ✅ Insert each file into federation_graph using full PK resolver
+                    for file in files:
+                        self.graph_manager.insert_graph_link_tx(
+                            cur,
+                            logical_repo_id,  # 🔧 This will be resolved to PK internally by graph manager
+                            file['path'],
+                            file['type'],
+                            file['path'].split("/")[-1],
+                            None,
+                            1.0,
+                            "Bootstrap ingestion"
+                        )
+
+            return {"repo_id": pk_id, "files_ingested": len(files)}
+
+        except Exception as e:
+            raise Exception(f"Federation ingestion transaction failed: {str(e)}")
+
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
         repo_pk = payload.repo_id
