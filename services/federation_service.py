@@ -31,36 +31,60 @@ class FederationService:
         self.proposal_queue = ProposalQueueManager()
 
     def import_repo(self, payload: ImportRepoRequest):
-        owner, repo, branch = payload.owner, payload.repo, payload.default_branch
-        logical_repo_id = f"{owner}/{repo}"
+        owner = payload.owner
+        repo = payload.repo
+        branch = payload.default_branch
 
-        branch_resp = requests.get(f"{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}", headers=self.headers)
+        branch_url = f"{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}"
+        branch_resp = requests.get(branch_url, headers=self.headers)
         if branch_resp.status_code != 200:
-            raise Exception(f"Branch reference failed: {branch_resp.json()}")
+            raise Exception(f"Failed to retrieve branch reference: {branch_resp.json()}")
 
         branch_sha = branch_resp.json()["object"]["sha"]
 
-        tree_resp = requests.get(f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch_sha}?recursive=1", headers=self.headers)
+        tree_url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch_sha}?recursive=1"
+        tree_resp = requests.get(tree_url, headers=self.headers)
         if tree_resp.status_code != 200:
-            raise Exception(f"Tree retrieval failed: {tree_resp.json()}")
+            raise Exception(f"Failed to retrieve repo tree: {tree_resp.json()}")
 
+        tree_data = tree_resp.json()
+
+        logical_repo_id = f"{owner}/{repo}"
         files = [
-            {"path": item["path"], "type": item["type"], "sha": item["sha"]}
-            for item in tree_resp.json()["tree"]
+            {
+                "path": item.get("path"),
+                "type": item.get("type"),
+                "sha": item.get("sha")
+            }
+            for item in tree_data.get("tree", [])
         ]
 
         try:
             with self.db:
                 with self.db.cursor() as cur:
-                    repo_pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, branch_sha)
+                    repo_pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, tree_data.get("sha"))
+
                     for file in files:
                         self.graph_manager.insert_graph_link_tx(
-                            cur, logical_repo_id, file['path'], file['type'],
-                            file['path'].split("/")[-1], None, 1, "Ingested file"
+                            cur,
+                            logical_repo_id=logical_repo_id,
+                            file_path=file['path'],
+                            node_type=file['type'],
+                            name=file['path'].split("/")[-1],
+                            cross_linked_to=None,
+                            federation_weight=1,
+                            notes="Ingested file"
                         )
-            return {"status": "success", "repo_id": repo_pk_id, "files_ingested": len(files)}
+
+            return {
+                "status": "success",
+                "repo_id": repo_pk_id,
+                "files_ingested": len(files)
+            }
+
         except Exception as e:
-            raise Exception(f"Ingestion failed: {str(e)}")
+            raise Exception(f"Federation ingestion transaction failed: {str(e)}")
+
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
         repo_id = payload.repo_id
