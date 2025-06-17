@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from services.federation_service import FederationService
 from models.federation_schemas import (
     ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest
@@ -6,22 +6,20 @@ from models.federation_schemas import (
 
 router = APIRouter(prefix="/federation")
 service = FederationService()
+
 @router.post("/import-repo")
-async def import_repo(payload: ImportRepoRequest, request: Request):
+async def import_repo(payload: ImportRepoRequest):
     try:
-        federation_service = request.app.federation_service
-        result = federation_service.import_repo(payload)
+        result = service.import_repo(payload)
         return {"status": "repo_imported", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def analyze_repo(self, payload: AnalyzeRepoRequest):
+@router.post("/analyze-repo")
+async def analyze_repo(payload: AnalyzeRepoRequest):
     try:
-        repo_metadata = self.github_service.get_repo_metadata(payload.owner, payload.repo)
-        branch = payload.branch or repo_metadata.get("default_branch", "main")
-        repo_tree = self.github_service.get_repo_tree(payload.owner, payload.repo, branch)
-        analysis_result = self.analyze_repo_tree(repo_tree)
-        return analysis_result
+        result = service.analyze_repo(payload)
+        return {"status": "analyzed", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -36,7 +34,7 @@ async def propose_patch(payload: ProposePatchRequest):
 @router.post("/commit-patch")
 async def commit_patch(payload: CommitPatchRequest):
     try:
-        result = federation_service.commit_patch(payload)
+        result = service.commit_patch(payload)
         return {"status": "patch_committed", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -44,16 +42,18 @@ async def commit_patch(payload: CommitPatchRequest):
 @router.get("/scan-federation-graph")
 async def scan_federation_graph():
     try:
-        result = federation_service.scan_federation_graph()
+        result = service.scan_federation_graph()
         return {"status": "graph_scanned", "data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/list-proposals")
 async def list_proposals():
     try:
         return service.list_proposals()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/approve-patch")
 async def approve_patch(payload: ApprovePatchRequest):
     try:
@@ -61,6 +61,7 @@ async def approve_patch(payload: ApprovePatchRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/reject-patch")
 async def reject_patch(payload: ApprovePatchRequest):
     try:

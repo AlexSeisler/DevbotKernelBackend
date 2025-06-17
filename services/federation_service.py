@@ -98,7 +98,8 @@ class FederationService:
         if not logical_repo_id:
             raise HTTPException(status_code=404, detail="Repository not found.")
 
-        graph_files = self.graph_manager.query_graph(logical_repo_id)
+        # ✅ PATCHED: pass logical string into FederationGraphManager query
+        graph_files = self.graph_manager.query_graph(repo_id=logical_repo_id)
         owner, repo = logical_repo_id.split("/")
         branch = "master"
 
@@ -118,6 +119,11 @@ class FederationService:
             file_nodes = self.semantic_parser.parse_python_file(file_content)
             for node in file_nodes:
                 node["file_path"] = file_path
+
+                # ✅ 💥 MAIN CRITICAL PATCH: semantic node write uses PK not logical
+                repo_pk_id = self.repo_manager.resolve_repo_id(logical_repo_id)
+                self.semantic_parser.semantic_manager.save_semantic_node(repo_pk_id, node)
+
                 semantic_results.append(node)
 
         return {"repo_id": repo_id, "semantic_nodes": semantic_results}
