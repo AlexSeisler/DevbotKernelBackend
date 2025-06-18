@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, HTTPException
 from services.github_service import GitHubService
 from services.db.repo_manager import RepoManager
@@ -12,9 +13,8 @@ repo_manager = RepoManager()
 @router.post("/pull-request")
 async def create_pull_request(payload: PullRequestCreateRequest):
     try:
-        # Resolve logical repo_id from PK (e.g., "AlexSeisler/DevbotKernelBackend")
-        logical_repo_id = repo_manager.resolve_repo_id_by_pk(payload.repo_id)
-        owner, repo = logical_repo_id.split("/")
+        owner = os.getenv("GITHUB_OWNER")
+        repo = os.getenv("GITHUB_REPO")
 
         result = github_service.create_pull_request(
             owner=owner,
