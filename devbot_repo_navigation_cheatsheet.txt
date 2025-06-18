@@ -59,3 +59,6 @@ git push origin --delete test-kernel-branch
 - Use `code .` to open repo in VS Code
 - Use `code <file>` to open specific files (e.g., `code dashboard/new_module.py`)
 - Always confirm you're on the correct branch before making commits
+
+
+DB Connection: psql "postgresql://devbot_kernel_db_user:QXHzyHjiuoUUKbTKZQcXrcwqsRdume7N@dpg-d186jf0dl3ps738sqo40-a.virginia-postgres.render.com/devbot_kernel_db"
