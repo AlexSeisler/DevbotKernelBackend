@@ -1,0 +1,61 @@
+
+🧠 Git Navigation Cheatsheet — DevBotKernelBackend Repo
+=======================================================
+
+✅ 1. Clone the Repo
+--------------------
+git clone https://github.com/AlexSeisler/DevbotKernelBackend.git
+cd DevbotKernelBackend
+
+✅ 2. Check Available Branches
+------------------------------
+git branch -a
+
+✅ 3. Switch Between Branches
+-----------------------------
+git checkout main                 # Switch to main branch
+git checkout test-kernel-branch  # Switch to sandbox/testing branch
+
+✅ 4. Pull Latest Changes
+-------------------------
+git checkout main
+git pull origin main
+
+✅ 5. Create a New Test Branch from Main
+---------------------------------------
+git checkout main
+git pull origin main
+git checkout -b test-kernel-branch
+git push -u origin test-kernel-branch
+
+✅ 6. Stage, Commit & Push Changes
+---------------------------------
+git add .
+git commit -m "Your commit message here"
+git push origin test-kernel-branch
+
+✅ 7. Open Pull Request (PR)
+----------------------------
+- Go to GitHub → DevbotKernelBackend
+- Click "Compare & Pull Request"
+- Set base: main, compare: test-kernel-branch
+- Add title and description
+- Click "Create Pull Request"
+
+✅ 8. View File Changes & History
+--------------------------------
+git diff main..test-kernel-branch
+git log --oneline
+
+✅ 9. Cleanup After Merge
+-------------------------
+git checkout main
+git pull origin main
+git branch -d test-kernel-branch
+git push origin --delete test-kernel-branch
+
+📌 Tips
+-------
+- Use `code .` to open repo in VS Code
+- Use `code <file>` to open specific files (e.g., `code dashboard/new_module.py`)
+- Always confirm you're on the correct branch before making commits
