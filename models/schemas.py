@@ -36,10 +36,8 @@ class MultiFileCommitRequest(BaseModel):
 
 # ✅ Pull Request Schema
 class PullRequestCreateRequest(BaseModel):
-    repo_id: int
     source_branch: str
     target_branch: str
     title: str
     body: str
-
 
