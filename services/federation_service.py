@@ -12,6 +12,9 @@ from models.federation_schemas import CommitPatchObject
 
 
 class FederationService:
+    from settings import Database
+
+class FederationService:
     def __init__(self):
         self.base_url = "https://api.github.com"
         self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN")
@@ -19,7 +22,9 @@ class FederationService:
             "Authorization": f"token {self.github_token}",
             "Accept": "application/vnd.github.v3+json"
         }
-        self.db = Database().get_connection()
+
+        # Setup a shared DB pool (not a raw connection)
+        self.db = Database()  # store pool object
         self.repo_manager = RepoManager()
         self.graph_manager = FederationGraphManager()
         self.semantic_parser = SemanticParser()
@@ -48,29 +53,35 @@ class FederationService:
         # ✅ Static root SHA for initial bootstrap (since no external tree is loaded)
         static_root_sha = "bootstrap-root-sha"
 
+        conn = self.db.get_connection()
         try:
-            with self.db:
-                with self.db.cursor() as cur:
-                    # ✅ Insert directly into federation_repo
-                    pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
+            with conn.cursor() as cur:
+                # ✅ Insert directly into federation_repo
+                pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
 
-                    # ✅ Insert each file into federation_graph using full PK resolver
-                    for file in files:
-                        self.graph_manager.insert_graph_link_tx(
-                            cur,
-                            logical_repo_id,  # 🔧 This will be resolved to PK internally by graph manager
-                            file['path'],
-                            file['type'],
-                            file['path'].split("/")[-1],
-                            None,
-                            1.0,
-                            "Bootstrap ingestion"
-                        )
+                # ✅ Insert each file into federation_graph using full PK resolver
+                for file in files:
+                    self.graph_manager.insert_graph_link_tx(
+                        cur,
+                        logical_repo_id,  # 🔧 This will be resolved to PK internally by graph manager
+                        file['path'],
+                        file['type'],
+                        file['path'].split("/")[-1],
+                        None,
+                        1.0,
+                        "Bootstrap ingestion"
+                    )
 
+            conn.commit()
             return {"repo_id": pk_id, "files_ingested": len(files)}
 
         except Exception as e:
+            conn.rollback()
             raise Exception(f"Federation ingestion transaction failed: {str(e)}")
+
+        finally:
+            self.db.release_connection(conn)
+
 
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
