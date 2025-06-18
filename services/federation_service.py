@@ -6,6 +6,7 @@ from services.db.repo_manager import RepoManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.db.semantic_manager import SemanticManager
 from settings import Database
+from services.github_service import GitHubService
 
 class FederationService:
     def __init__(self):
@@ -20,6 +21,7 @@ class FederationService:
         self.graph_manager = FederationGraphManager()
         self.semantic_parser = SemanticParser()
         self.semantic_manager = SemanticManager()
+        self.github = GitHubService()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
