@@ -13,8 +13,9 @@ repo_manager = RepoManager()
 @router.post("/pull-request")
 async def create_pull_request(payload: PullRequestCreateRequest):
     try:
-        # 🔐 Use known repo_id 4 → AlexSeisler/DevbotKernelBackend
-        logical_repo_id = repo_manager.resolve_repo_id_by_pk(4)
+        # 🔧 Hardcode known working repo PK for now
+        repo_pk = 4
+        logical_repo_id = repo_manager.resolve_repo_id_by_pk(repo_pk)
         owner, repo = logical_repo_id.split("/")
 
         result = github_service.create_pull_request(
