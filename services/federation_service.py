@@ -77,7 +77,8 @@ class FederationService:
         semantic_results = []
 
         # 🔍 Pull entire repo tree
-        repo_tree = self.github.get_repo_tree(owner, repo, branch="test-kernel-branch")
+        repo_tree = self.github.get_repo_tree(owner, repo, "test-kernel-branch")
+
 
         for file in repo_tree:
             file_path = file["path"]
