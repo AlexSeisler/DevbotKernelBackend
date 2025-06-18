@@ -41,3 +41,6 @@ class CommitPatchObject(BaseModel):
     commit_message: str = ""
     base_sha: str = None
     branch: str = "main"
+class ReplicateSaaSRequest(BaseModel):
+    source_repo: str
+    target_repo: str

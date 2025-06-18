@@ -4,17 +4,21 @@ import base64
 import urllib.parse
 from utils.helpers import encode_file_content
 from requests.exceptions import RequestException
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class GitHubService:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        self.owner = os.getenv("GITHUB_OWNER")
-        self.repo = os.getenv("GITHUB_REPO")
+        self.token = os.getenv("FEDERATION_GITHUB_TOKEN")
+        self.owner = os.getenv("GITHUB_OWNER")       # ✅ REQUIRED
+        self.repo = os.getenv("GITHUB_REPO")         # ✅ REQUIRED
+        self.timeout = 10
         self.headers = {
-            "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
+            "Authorization": f"token {self.token}",
             "Accept": "application/vnd.github.v3+json"
         }
-        self.timeout = 10  # ✅ timeout everywhere to prevent hangs
 
     def _request(self, method, url, **kwargs):
         """
@@ -25,8 +29,10 @@ class GitHubService:
             response.raise_for_status()
             return response.json()
         except RequestException as e:
-            print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
-            raise e
+            print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")  # Retain minimal trace for error triage
+            raise
+
+
 
     # ✅ Hardened Repo Tree Retrieval
     def get_repo_tree(self, branch, recursive):
@@ -50,13 +56,35 @@ class GitHubService:
         return self._request("GET", url)
 
     # ✅ Hardened Branch Creation
-    def create_branch(self, new_branch, base_branch):
-        sha_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{base_branch}"
-        base_sha = self._request("GET", sha_url)['object']['sha']
+    def create_branch(self, new_branch: str, base_branch: str):
+        try:
+            # Fetch SHA from the branch name
+            sha_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{base_branch}"
+            response = requests.get(sha_url, headers=self.headers)
+            response.raise_for_status()
+            base_sha = response.json()["object"]["sha"]
 
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs"
-        payload = {"ref": f"refs/heads/{new_branch}", "sha": base_sha}
-        return self._request("POST", url, json=payload)
+            # Create the new branch using that SHA
+            url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs"
+            payload = {
+                "ref": f"refs/heads/{new_branch}",
+                "sha": base_sha
+            }
+            post_response = requests.post(url, headers=self.headers, json=payload)
+            post_response.raise_for_status()
+
+            return post_response.json()
+
+        except RequestException as e:
+            print(f"[❌] create_branch failed: {str(e)}")  # Keep this for safety logging
+            raise
+
+
+
+
+
+
+
 
     # ✅ Hardened Single File Commit
     def commit_patch(self, payload):
@@ -153,10 +181,3 @@ class GitHubService:
         }
         return self._request("POST", url, json=payload)
 
-    def create_branch(self, new_branch: str, from_sha: str):
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs"
-        payload = {
-            "ref": f"refs/heads/{new_branch}",
-            "sha": from_sha
-        }
-        return self._request("POST", url, json=payload)

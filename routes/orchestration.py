@@ -5,7 +5,7 @@ from services.replicator.replication_executor import ReplicationExecutor
 from services.github_service import GitHubService
 from services.db.repo_manager import RepoManager
 from datetime import datetime
-from models.federation_schemas import AnalyzeRepoRequest
+from models.federation_schemas import AnalyzeRepoRequest, ReplicateSaaSRequest
 
 router = APIRouter(prefix="/orchestrate")  # ✅ Main router for orchestration endpoints
 
@@ -57,8 +57,8 @@ class OrchestrationPipeline:
 
             # ✅ Create branch from main
             print("🌿 Creating branch...")
-            default_sha = self.github.get_branch_sha("main")["object"]["sha"]
-            self.github.create_branch(branch, default_sha)
+            self.github.create_branch(branch, "main")  # Let GitHubService handle SHA lookup
+
 
             # Step 4: Execute semantic patch commit
             print("🚀 Executing patch commit...")
@@ -87,13 +87,22 @@ class OrchestrationPipeline:
 
 # ✅ Mounted orchestrator endpoint
 pipeline = OrchestrationPipeline()
+repo_manager = RepoManager()
 
 @router.post("/replicate-saas")
-async def replicate_saas(payload: dict):
+async def replicate_saas(payload: ReplicateSaaSRequest):
     try:
-        source_repo = payload["source_repo"]
-        target_repo = payload["target_repo"]
-        result = pipeline.run_full_replication(source_repo, target_repo)
+        # ✅ Corrected attribute access
+        source_repo = payload.source_repo
+        target_repo = payload.target_repo
+
+        source_pk = repo_manager.resolve_repo_pk(source_repo)
+        target_pk = repo_manager.resolve_repo_pk(target_repo)
+
+        result = pipeline.run_full_replication(source_pk, target_pk)
         return result
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Full orchestration failed: {str(e)}")
+
+
