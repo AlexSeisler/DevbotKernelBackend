@@ -56,6 +56,8 @@ class OrchestrationPipeline:
 
             # Step 3: Build replication plan
             print("🧠 Building replication plan...")
+            if isinstance(source_repo_id, str):
+                raise ValueError("Expected numeric repo_id, got string")
             source_logical = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
             target_logical = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
             plan = self.planner.build_plan(source_logical, target_logical)

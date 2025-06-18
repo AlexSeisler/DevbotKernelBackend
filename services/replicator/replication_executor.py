@@ -12,6 +12,10 @@ class ReplicationExecutor:
         # Ensure both IDs are logical repo strings
         source_repo = plan["source_repo_id"]
         target_repo = plan["target_repo_id"]
+        if isinstance(source_repo, int):
+            source_repo = self.repo_manager.resolve_repo_id_by_pk(source_repo)
+        if isinstance(target_repo, int):
+            target_repo = self.repo_manager.resolve_repo_id_by_pk(target_repo)
         branch = plan["target_branch"]
 
         source_owner, source_repo_name = source_repo.split("/")

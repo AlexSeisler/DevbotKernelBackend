@@ -86,7 +86,9 @@ class FederationService:
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
         repo_pk = payload.repo_id
-        logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_pk)
+        if isinstance(repo_id, str):
+            raise ValueError("Expected integer repo_id, got string")
+        logical_id = self.repo_manager.resolve_repo_id_by_pk(repo_id)
         owner, repo = logical_repo_id.split("/")
         semantic_results = []
 

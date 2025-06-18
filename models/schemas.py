@@ -8,9 +8,9 @@ class BranchCreateRequest(BaseModel):
 
 # ✅ Patch Proposal Schema
 class PatchProposal(BaseModel):
-    file_path: str = Field(..., description="Path of file to patch")
-    base_sha: str = Field(..., description="SHA of the base commit or file version")
-    updated_content: str = Field(..., description="New content for the file")
+    file_path: str
+    base_sha: str
+    updated_content: str
 
 # ✅ Patch Commit Schema
 class CommitPatch(BaseModel):

@@ -1,20 +1,22 @@
 from fastapi import APIRouter, HTTPException
 from services.github_service import GitHubService
-from models.schemas import PatchProposal, CommitPatch  # ✅ Correct class here
+from models.schemas import PatchProposal, CommitPatch, PatchProposalCreateRequest  # ✅ Correct class here
 
 router = APIRouter(prefix="/patch")
 
 github_service = GitHubService()
 
 # ✅ PATCH PROPOSAL (Safe Human-in-the-Loop Staging)
+
 @router.post("/proposal")
-async def propose_patch(payload: PatchProposal):
+async def propose_patch(payload: PatchProposalCreateRequest):
     try:
         return {
             "status": "proposal_received",
-            "file_path": payload.file_path,
-            "base_sha": payload.base_sha,
-            "preview_content_sample": payload.updated_content[:250]
+            "repo_id": payload.repo_id,
+            "branch": payload.branch,
+            "num_patches": len(payload.patches),
+            "sample_patch_preview": payload.patches[0].updated_content[:200] if payload.patches else "No patches"
         }
     except Exception as e:
         print(f"[ERROR] propose_patch failed: {str(e)}")
