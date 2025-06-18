@@ -10,7 +10,7 @@ from settings import Database
 class FederationService:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN").strip()
+        self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN")
         self.headers = {
             "Authorization": f"token {self.github_token}",
             "Accept": "application/vnd.github.v3+json"
@@ -71,18 +71,18 @@ class FederationService:
     def analyze_repo(self, payload: AnalyzeRepoRequest):
         repo_pk = payload.repo_id
         logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_pk)
-        graph_files = self.graph_manager.query_graph(logical_repo_id)
-
         owner, repo = logical_repo_id.split("/")
         semantic_results = []
 
-        for file in graph_files:
-            if not file["file_path"].endswith(".py"):
+        # 🔍 Pull entire repo tree
+        repo_tree = self.github.get_repo_tree(owner, repo, branch="test-kernel-branch")
+
+        for file in repo_tree:
+            file_path = file["path"]
+            if not file_path.endswith(".py"):
                 continue
 
-            # ✅ SYNTHETIC PATCH STARTS HERE
             if logical_repo_id.startswith("Synthetic/"):
-                # Direct synthetic injection — bypass GitHub API
                 file_content = """
                     # Synthetic kernel file
                     def bootstrap_function():
@@ -90,16 +90,16 @@ class FederationService:
                         pass
                     """
             else:
-                # Original GitHub resolution for real repos
-                file_content = self._get_file_content(owner, repo, file["file_path"])
+                file_content = self._get_file_content(owner, repo, file_path)
 
             nodes = self.semantic_parser.parse_python_file(file_content)
             for node in nodes:
-                node["file_path"] = file["file_path"]
+                node["file_path"] = file_path
                 self.semantic_manager.save_semantic_node(repo_pk, node)
                 semantic_results.append(node)
 
         return {"repo_id": repo_pk, "semantic_nodes": semantic_results}
+
 
     def _get_branch_sha(self, owner, repo, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}"
