@@ -13,8 +13,10 @@ repo_manager = RepoManager()
 @router.post("/pull-request")
 async def create_pull_request(payload: PullRequestCreateRequest):
     try:
-        owner = os.getenv("GITHUB_OWNER")
-        repo = os.getenv("GITHUB_REPO")
+        # 🔧 Hardcoded repo_id or fallback logic (if only 1 repo exists or static for now)
+        repo_pk = 4  # Replace with dynamic logic if needed
+        logical_repo_id = repo_manager.resolve_repo_id_by_pk(repo_pk)
+        owner, repo = logical_repo_id.split("/")
 
         result = github_service.create_pull_request(
             owner=owner,
@@ -24,6 +26,7 @@ async def create_pull_request(payload: PullRequestCreateRequest):
             title=payload.title,
             body=payload.body
         )
+
         return {
             "status": "pull_request_created",
             "pr_url": result.get("html_url"),
