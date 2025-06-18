@@ -3,8 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
+
 # ✅ Import ALL existing route files
-from routes import github, patch, pull_request, health, federation
+from routes import github, patch, pull_request, health, federation, replication
 from services.federation_service import FederationService
 
 # ✅ Load .env credentials
@@ -50,3 +51,4 @@ app.include_router(github.router)
 app.include_router(patch.router)
 app.include_router(pull_request.router)
 app.include_router(federation.router)
+app.include_router(replication.router)
