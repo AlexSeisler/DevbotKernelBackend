@@ -1,6 +1,9 @@
 import psycopg2
 import os
 import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Database:
     def __init__(self, retries=5, delay=2):
