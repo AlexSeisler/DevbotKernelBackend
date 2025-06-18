@@ -41,3 +41,8 @@ class PullRequestCreateRequest(BaseModel):
     title: str
     body: str
 
+class ReplicationExecutionRequest(BaseModel):
+    source_repo_id: int
+    target_repo_id: int
+    commit_message: str
+    target_branch: str

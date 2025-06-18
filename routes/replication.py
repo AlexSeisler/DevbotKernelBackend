@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Body
 from services.replicator.replication_plan_builder import ReplicationPlanBuilder
 from services.replicator.replication_executor import ReplicationExecutor
 from services.db.repo_manager import RepoManager
+from models.schemas import ReplicationExecutionRequest
 
 router = APIRouter(prefix="/replication")
 planner = ReplicationPlanBuilder()
@@ -24,12 +25,13 @@ async def create_plan(payload: dict = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/execute")
-async def execute_replication(payload: dict = Body(...)):
+async def execute_replication(payload: ReplicationExecutionRequest):
     try:
         print("[DEBUG] Raw payload:", payload)
 
-        source_repo_pk = payload.get("source_repo_id")
-        target_repo_pk = payload.get("target_repo_id")
+        # Directly access attributes of the Pydantic model
+        source_repo_pk = payload.source_repo_id
+        target_repo_pk = payload.target_repo_id
 
         if not source_repo_pk or not target_repo_pk:
             raise ValueError("Missing source_repo_id or target_repo_id")
@@ -50,8 +52,8 @@ async def execute_replication(payload: dict = Body(...)):
         print("[DEBUG] Plan:", plan)
 
         # Inject commit metadata
-        plan["commit_message"] = payload.get("commit_message", "DevBot: Apply semantic replication plan")
-        plan["target_branch"] = payload.get("target_branch", "main")
+        plan["commit_message"] = payload.commit_message or "DevBot: Apply semantic replication plan"
+        plan["target_branch"] = payload.target_branch or "main"
 
         # Execute
         result = executor.execute_replication(plan)

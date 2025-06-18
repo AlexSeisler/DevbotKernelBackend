@@ -31,21 +31,28 @@ class OrchestrationPipeline:
 
             # Step 2: Link semantic nodes into federation graph
             print("🔗 Linking semantic nodes...")
-            with self.federation.db.cursor() as cur:
-                cur.execute("SELECT name, file_path FROM semantic_node WHERE repo_id = %s", (source_repo_id,))
-                nodes = cur.fetchall()
-                for name, file_path in nodes:
-                    self.federation.graph_manager.insert_graph_link_tx(
-                        cur,
-                        self.repo_manager.resolve_repo_id_by_pk(source_repo_id),
-                        file_path,
-                        "file",
-                        name,
-                        None,
-                        1.0,
-                        "Auto-linked by orchestrator"
-                    )
-            self.federation.db.commit()
+            conn = self.federation.db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT name, file_path FROM semantic_node WHERE repo_id = %s", (source_repo_id,))
+                    nodes = cur.fetchall()
+                    for name, file_path in nodes:
+                        self.federation.graph_manager.insert_graph_link_tx(
+                            cur=cur,
+                            logical_repo_id=self.repo_manager.resolve_repo_id_by_pk(source_repo_id),
+                            file_path=file_path,
+                            node_type="file",
+                            name=name,
+                            cross_linked_to=None,
+                            federation_weight=1.0,
+                            notes="Auto-linked by orchestrator"
+                        )
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                raise e
+            finally:
+                self.federation.db.release_connection(conn)
 
             # Step 3: Build replication plan
             print("🧠 Building replication plan...")
@@ -57,8 +64,7 @@ class OrchestrationPipeline:
 
             # ✅ Create branch from main
             print("🌿 Creating branch...")
-            self.github.create_branch(branch, "main")  # Let GitHubService handle SHA lookup
-
+            self.github.create_branch(branch, "main")
 
             # Step 4: Execute semantic patch commit
             print("🚀 Executing patch commit...")
@@ -83,6 +89,7 @@ class OrchestrationPipeline:
 
         except Exception as e:
             raise Exception(f"Full orchestration failed: {str(e)}")
+
 
 
 # ✅ Mounted orchestrator endpoint

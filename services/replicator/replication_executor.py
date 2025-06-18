@@ -32,12 +32,17 @@ class ReplicationExecutor:
             "patches": [p.dict() for p in patches]
         }
 
-        # ✅ Hardened transaction safety around commit logic
+        # ✅ Hardened transaction-safe write using pooled connection
+        conn = self.federation_service.db.get_connection()
         try:
-            with self.federation_service.db:
-                with self.federation_service.db.cursor() as cur:
-                    # If commit_patch writes to DB in future, this ensures safety
-                    return self.federation_service.commit_patch(commit_payload)
+            with conn.cursor() as cur:
+                # Optional: pass cursor into commit_patch in future if needed
+                result = self.federation_service.commit_patch(commit_payload)
+            conn.commit()
+            return result
         except Exception as e:
-            self.federation_service.db.rollback()
+            conn.rollback()
             raise Exception(f"Replication failed: {str(e)}")
+        finally:
+            self.federation_service.db.release_connection(conn)
+

@@ -82,11 +82,12 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         # Resolve logical repo_id (string) from PK to match GraphManager contract
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(int(payload.repo_id))
 
-        with service.db:
-            with service.db.cursor() as cur:
+        conn = service.db.get_connection()
+        try:
+            with conn.cursor() as cur:
                 service.graph_manager.insert_graph_link_tx(
                     cur=cur,
-                    logical_repo_id=logical_repo_id,   # ✅ now correct input form
+                    logical_repo_id=logical_repo_id,
                     file_path=payload.file_path,
                     node_type="file",
                     name=payload.name,
@@ -94,10 +95,19 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
                     federation_weight=1.0,
                     notes=payload.notes
                 )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            service.db.release_connection(conn)
+
         return {"status": "success"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/graph/query")
 async def query_federation_graph():
     try:
