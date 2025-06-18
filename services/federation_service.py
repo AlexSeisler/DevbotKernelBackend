@@ -76,25 +76,25 @@ class FederationService:
         owner, repo = logical_repo_id.split("/")
         semantic_results = []
 
-        # 🔍 Pull entire repo tree
-        repo_tree = self.github.get_repo_tree(logical_repo_id, "test-kernel-branch")
+        # ✅ Step 1: Get branch SHA
+        branch_sha = self.github.get_branch_sha("test-kernel-branch")["object"]["sha"]
 
+        # ✅ Step 2: Get full repo tree (recursive)
+        repo_tree_data = self.github.get_repo_tree(branch_sha, recursive=True)
+        repo_tree = repo_tree_data["tree"]
 
-
+        # ✅ Step 3: Scan .py files and parse AST
         for file in repo_tree:
-            file_path = file["path"]
+            file_path = file.get("path", "")
             if not file_path.endswith(".py"):
                 continue
 
-            if logical_repo_id.startswith("Synthetic/"):
-                file_content = """
-                    # Synthetic kernel file
-                    def bootstrap_function():
-                        '''Synthetic Federation Test Node'''
-                        pass
-                    """
-            else:
-                file_content = self._get_file_content(owner, repo, file_path)
+            try:
+                raw_file = self.github.get_file(file_path, "test-kernel-branch")
+                file_content = base64.b64decode(raw_file["content"]).decode()
+            except Exception as e:
+                print(f"⚠️ Skipped file {file_path} due to fetch error: {e}")
+                continue
 
             nodes = self.semantic_parser.parse_python_file(file_content)
             for node in nodes:
@@ -105,17 +105,24 @@ class FederationService:
         return {"repo_id": repo_pk, "semantic_nodes": semantic_results}
 
 
+
     def _get_branch_sha(self, owner, repo, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}"
         res = requests.get(url, headers=self.headers)
         res.raise_for_status()
         return res.json()["object"]["sha"]
 
-    def _get_repo_tree(self, owner, repo, sha):
-        url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{sha}?recursive=1"
-        res = requests.get(url, headers=self.headers)
-        res.raise_for_status()
-        return res.json()
+    def get_repo_tree(self, owner, repo, branch):
+        # Step 1: Get latest commit SHA for the branch
+        ref_url = f"{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}"
+        ref_res = requests.get(ref_url, headers=self.headers)
+        ref_res.raise_for_status()
+        sha = ref_res.json()["object"]["sha"]
+
+        # Step 2: Get full tree using SHA
+        return self.github._get_repo_tree(owner, repo, sha)
+
+
 
     def _get_file_content(self, owner, repo, path):
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{path}"
