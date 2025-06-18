@@ -7,6 +7,9 @@ from services.db.federation_graph_manager import FederationGraphManager
 from services.db.semantic_manager import SemanticManager
 from settings import Database
 from services.github_service import GitHubService
+from models.federation_schemas import CommitPatchObject
+
+
 
 class FederationService:
     def __init__(self):
@@ -130,3 +133,17 @@ class FederationService:
         res.raise_for_status()
         data = res.json()
         return base64.b64decode(data["content"]).decode()
+
+    def commit_patch(self, payload):
+        """
+        Wrapper to GitHubService.commit_patch that aligns with Federation logic
+        """
+        result = []
+        for patch in payload["patches"]:
+            patch_obj = CommitPatchObject(**patch)
+            patch_obj.commit_message = payload["commit_message"]
+            patch_obj.branch = payload["branch"]
+            result.append(
+                self.github.commit_patch(patch_obj)
+            )
+        return {"status": "committed", "results": result}

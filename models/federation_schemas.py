@@ -35,3 +35,9 @@ class LinkFederationNodeRequest(BaseModel):
     name: str
     cross_linked_to: str = ""
     notes: str
+class CommitPatchObject(BaseModel):
+    file_path: str
+    updated_content: str
+    commit_message: str = ""
+    base_sha: str = None
+    branch: str = "main"

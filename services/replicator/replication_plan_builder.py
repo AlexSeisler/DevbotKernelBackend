@@ -1,10 +1,18 @@
 from services.db.federation_graph_manager import FederationGraphManager
+from services.db.repo_manager import RepoManager
 
 class ReplicationPlanBuilder:
     def __init__(self):
         self.graph_manager = FederationGraphManager()
+        self.repo_manager = RepoManager()
 
     def build_plan(self, source_repo_id, target_repo_id):
+        # 🔁 Normalize PKs if passed as integers
+        if isinstance(source_repo_id, int):
+            source_repo_id = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
+        if isinstance(target_repo_id, int):
+            target_repo_id = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
+
         graph = self.graph_manager.query_graph(source_repo_id)
 
         modules = []
@@ -20,5 +28,6 @@ class ReplicationPlanBuilder:
             "source_repo_id": source_repo_id,
             "target_repo_id": target_repo_id,
             "modules": modules,
-            "commit_message": f"Replicated modules from {source_repo_id} into {target_repo_id}"
+            "commit_message": "",
+            "target_branch": ""
         }
