@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS federation_repo (
     id SERIAL PRIMARY KEY,
-    repo_id TEXT UNIQUE,
+    repo_id INTEGER UNIQUE,  -- Changed to INTEGER
     branch TEXT,
     root_sha TEXT,
     ingestion_date TIMESTAMP DEFAULT NOW()
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS federation_repo (
 
 CREATE TABLE IF NOT EXISTS semantic_node (
     id SERIAL PRIMARY KEY,
-    repo_id TEXT REFERENCES federation_repo(repo_id),
+    repo_id INTEGER REFERENCES federation_repo(id),  -- Changed to INTEGER for foreign key reference
     file_path TEXT,
     node_type TEXT,
     name TEXT,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS semantic_node (
 
 CREATE TABLE IF NOT EXISTS patch_proposal (
     proposal_id UUID PRIMARY KEY,
-    repo_id TEXT REFERENCES federation_repo(repo_id),
+    repo_id INTEGER REFERENCES federation_repo(id),  -- Changed to INTEGER for foreign key reference
     branch TEXT,
     proposed_by TEXT,
     commit_message TEXT,
@@ -29,9 +29,10 @@ CREATE TABLE IF NOT EXISTS patch_proposal (
     status TEXT DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT NOW()
 );
+
 CREATE TABLE IF NOT EXISTS federation_graph (
     id SERIAL PRIMARY KEY,
-    repo_id TEXT REFERENCES federation_repo(repo_id),
+    repo_id INTEGER REFERENCES federation_repo(id),  -- Changed to INTEGER for foreign key reference
     file_path TEXT,
     node_type TEXT, 
     name TEXT,

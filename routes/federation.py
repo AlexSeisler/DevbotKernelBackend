@@ -112,7 +112,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
 async def query_federation_graph():
     try:
         # ✅ Synthetic isolation: hard-target repo_id 4 (Synthetic/KernelTestRepo)
-        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(4)
+        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(int(payload["repo_id"]))
         graph_nodes = service.graph_manager.query_graph(logical_repo_id)
 
         return {

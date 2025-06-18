@@ -30,7 +30,7 @@ class ProposePatchRequest(BaseModel):
 class ApprovePatchRequest(BaseModel):
     proposal_id: str
 class LinkFederationNodeRequest(BaseModel):
-    repo_id: str
+    repo_id: int
     file_path: str
     name: str
     cross_linked_to: str = ""

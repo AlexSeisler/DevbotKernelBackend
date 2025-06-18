@@ -40,6 +40,7 @@ class FederationGraphManager:
                     SELECT file_path, node_type, name, cross_linked_to, federation_weight, notes
                     FROM federation_graph WHERE repo_id = %s
                 """, (pk,))
+
                 rows = cur.fetchall()
                 return [
                     {

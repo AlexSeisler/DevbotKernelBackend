@@ -34,7 +34,7 @@ class OrchestrationPipeline:
             conn = self.federation.db.get_connection()
             try:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT name, file_path FROM semantic_node WHERE repo_id = %s", (source_repo_id,))
+                    cur.execute("SELECT name, file_path FROM semantic_node WHERE repo_id = %s", (int(source_repo_id),))
                     nodes = cur.fetchall()
                     for name, file_path in nodes:
                         self.federation.graph_manager.insert_graph_link_tx(

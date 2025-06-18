@@ -46,3 +46,9 @@ class ReplicationExecutionRequest(BaseModel):
     target_repo_id: int
     commit_message: str
     target_branch: str
+class PatchProposalCreateRequest(BaseModel):
+    repo_id: int
+    branch: str
+    proposed_by: str
+    commit_message: str
+    patches: List[PatchProposal]

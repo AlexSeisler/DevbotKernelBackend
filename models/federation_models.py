@@ -7,6 +7,7 @@ class FederationRepo(Base):
     __tablename__ = 'federation_repo'
 
     id = Column(Integer, primary_key=True)
-    repo_id = Column(String, unique=True)
+    repo_id = Column(Integer, unique=True)  # Ensure INTEGER type
     branch = Column(String)
     root_sha = Column(String)
+
