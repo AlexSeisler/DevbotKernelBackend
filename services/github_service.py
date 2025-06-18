@@ -176,8 +176,14 @@ class GitHubService:
         payload = {
             "title": title,
             "body": body,
-            "head": source_branch,
+            "head": source_branch,      # ⚠️ No owner prefix!
             "base": target_branch
         }
+
+        print(f"[PR DEBUG] POST to: {url}")
+        print(f"[PR PAYLOAD] {payload}")
+
         return self._request("POST", url, json=payload)
+
+
 
