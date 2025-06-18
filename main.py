@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 
 # ✅ Import ALL existing route files
-from routes import github, patch, pull_request, health, federation, replication
+from routes import github, patch, pull_request, health, federation, replication, orchestration
 from services.federation_service import FederationService
 
 # ✅ Load .env credentials
@@ -52,3 +52,4 @@ app.include_router(patch.router)
 app.include_router(pull_request.router)
 app.include_router(federation.router)
 app.include_router(replication.router)
+app.include_router(orchestration.router)

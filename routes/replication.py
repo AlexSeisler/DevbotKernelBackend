@@ -25,18 +25,23 @@ async def create_plan(payload: dict):
 @router.post("/execute")
 async def execute_replication(payload: dict):
     try:
-        # 🔧 Normalize repo_id to logical form before execution
+        # Normalize repo PKs to logical string IDs
         source_repo_id = repo_manager.resolve_repo_id_by_pk(payload["source_repo_id"])
         target_repo_id = repo_manager.resolve_repo_id_by_pk(payload["target_repo_id"])
 
+        # Build plan
         plan = planner.build_plan(
             source_repo_id=source_repo_id,
             target_repo_id=target_repo_id
         )
-        plan["commit_message"] = payload["commit_message"]
-        plan["target_branch"] = payload["target_branch"]
 
+        # Inject commit metadata
+        plan["commit_message"] = payload.get("commit_message", "DevBot: Apply semantic replication plan")
+        plan["target_branch"] = payload.get("target_branch", "main")
+
+        # Execute
         result = executor.execute_replication(plan)
         return result
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -36,7 +36,10 @@ class MultiFileCommitRequest(BaseModel):
 
 # ✅ Pull Request Schema
 class PullRequestCreateRequest(BaseModel):
-    source_branch: str = Field(..., description="The branch containing changes (head)")
-    target_branch: str = Field(..., description="The branch to merge into (base)")
-    title: str = Field(..., description="Title for the pull request")
-    body: str = Field(..., description="Description of pull request")
+    repo_id: int
+    source_branch: str
+    target_branch: str
+    title: str
+    body: str
+
+

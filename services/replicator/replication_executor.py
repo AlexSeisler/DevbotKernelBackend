@@ -32,4 +32,12 @@ class ReplicationExecutor:
             "patches": [p.dict() for p in patches]
         }
 
-        return self.federation_service.commit_patch(commit_payload)
+        # ✅ Hardened transaction safety around commit logic
+        try:
+            with self.federation_service.db:
+                with self.federation_service.db.cursor() as cur:
+                    # If commit_patch writes to DB in future, this ensures safety
+                    return self.federation_service.commit_patch(commit_payload)
+        except Exception as e:
+            self.federation_service.db.rollback()
+            raise Exception(f"Replication failed: {str(e)}")

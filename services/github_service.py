@@ -143,12 +143,20 @@ class GitHubService:
         return {"status": "deleted"}
 
     # ✅ Hardened Pull Request Creation
-    def create_pull_request(self, source_branch, target_branch, title, body):
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/pulls"
+    def create_pull_request(self, owner, repo, source_branch, target_branch, title, body):
+        url = f"{self.base_url}/repos/{owner}/{repo}/pulls"
         payload = {
             "title": title,
             "body": body,
             "head": source_branch,
             "base": target_branch
+        }
+        return self._request("POST", url, json=payload)
+
+    def create_branch(self, new_branch: str, from_sha: str):
+        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs"
+        payload = {
+            "ref": f"refs/heads/{new_branch}",
+            "sha": from_sha
         }
         return self._request("POST", url, json=payload)
