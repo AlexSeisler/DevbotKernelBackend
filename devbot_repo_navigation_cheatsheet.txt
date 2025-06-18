@@ -54,6 +54,17 @@ git pull origin main
 git branch -d test-kernel-branch
 git push origin --delete test-kernel-branch
 
+
+10. Merging branch to main
+--------------------------
+git checkout main
+git merge test-kernel-branch
+git push origin main
+
+
+
+
+
 📌 Tips
 -------
 - Use `code .` to open repo in VS Code
