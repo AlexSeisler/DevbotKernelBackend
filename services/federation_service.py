@@ -12,6 +12,9 @@ from models.federation_schemas import CommitPatchObject
 
 
 class FederationService:
+    from settings import Database
+
+class FederationService:
     def __init__(self):
         self.base_url = "https://api.github.com"
         self.github_token = os.getenv("FEDERATION_GITHUB_TOKEN")
@@ -19,7 +22,9 @@ class FederationService:
             "Authorization": f"token {self.github_token}",
             "Accept": "application/vnd.github.v3+json"
         }
-        self.db = Database().get_connection()
+
+        # Setup a shared DB pool (not a raw connection)
+        self.db = Database()  # store pool object
         self.repo_manager = RepoManager()
         self.graph_manager = FederationGraphManager()
         self.semantic_parser = SemanticParser()
@@ -30,8 +35,7 @@ class FederationService:
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
         logical_repo_id = f"{owner}/{repo}"
 
-        # ✅ REMOVE GITHUB API CALLS — Direct internal ingestion logic
-        # ✅ For cleanroom bootstrap, manually define files you want to ingest:
+        # ✅ Cleanroom ingest stub
         files = [
             {
                 "path": "dashboard/README.md",
@@ -45,36 +49,47 @@ class FederationService:
             }
         ]
 
-        # ✅ Static root SHA for initial bootstrap (since no external tree is loaded)
         static_root_sha = "bootstrap-root-sha"
-
+        
+        conn = None
         try:
-            with self.db:
-                with self.db.cursor() as cur:
-                    # ✅ Insert directly into federation_repo
-                    pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
+            conn = self.db.get_connection()
+            with conn.cursor() as cur:
+                existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
+                if existing_id:
+                    raise Exception(f"Repo already ingested: {logical_repo_id} (ID={existing_id})")
 
-                    # ✅ Insert each file into federation_graph using full PK resolver
-                    for file in files:
-                        self.graph_manager.insert_graph_link_tx(
-                            cur,
-                            logical_repo_id,  # 🔧 This will be resolved to PK internally by graph manager
-                            file['path'],
-                            file['type'],
-                            file['path'].split("/")[-1],
-                            None,
-                            1.0,
-                            "Bootstrap ingestion"
-                        )
+                pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
 
+                for file in files:
+                    self.graph_manager.insert_graph_link_tx(
+                        cur,
+                        logical_repo_id,  # Will be resolved to PK
+                        file["path"],
+                        file["type"],
+                        file["path"].split("/")[-1],
+                        None,
+                        1.0,
+                        "Bootstrap ingestion"
+                    )
+
+            conn.commit()
             return {"repo_id": pk_id, "files_ingested": len(files)}
 
         except Exception as e:
+            if conn:
+                conn.rollback()
             raise Exception(f"Federation ingestion transaction failed: {str(e)}")
+
+        finally:
+            if conn:
+                self.db.release_connection(conn)
+
+
 
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        repo_pk = payload.repo_id
+        repo_pk = payload.repo_id  # 🔧 Correct use of typed Pydantic input
         logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_pk)
         owner, repo = logical_repo_id.split("/")
         semantic_results = []
@@ -109,6 +124,7 @@ class FederationService:
 
 
 
+
     def _get_branch_sha(self, owner, repo, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}"
         res = requests.get(url, headers=self.headers)
@@ -135,15 +151,31 @@ class FederationService:
         return base64.b64decode(data["content"]).decode()
 
     def commit_patch(self, payload):
-        """
-        Wrapper to GitHubService.commit_patch that aligns with Federation logic
-        """
+        conn = None
         result = []
-        for patch in payload["patches"]:
-            patch_obj = CommitPatchObject(**patch)
-            patch_obj.commit_message = payload["commit_message"]
-            patch_obj.branch = payload["branch"]
-            result.append(
-                self.github.commit_patch(patch_obj)
-            )
-        return {"status": "committed", "results": result}
+
+        try:
+            conn = self.db.get_connection()
+            with conn.cursor() as cur:
+                for patch in payload["patches"]:
+                    patch_obj = CommitPatchObject(**patch)
+                    patch_obj.repo_id = payload["repo_id"]
+                    patch_obj.commit_message = payload["commit_message"]
+                    patch_obj.branch = payload["branch"]
+
+                    result.append(
+                        self.github.commit_patch(patch_obj)
+                    )
+
+            conn.commit()
+            return {"status": "committed", "results": result}
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            raise Exception(f"Commit patch failed: {str(e)}")
+
+        finally:
+            if conn:
+                self.db.release_connection(conn)
+

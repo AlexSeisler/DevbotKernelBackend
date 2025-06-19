@@ -19,8 +19,14 @@ class OrchestrationPipeline:
         self.github = GitHubService()
         self.repo_manager = RepoManager()
 
+
+
     def run_full_replication(self, source_repo_id, target_repo_id):
         try:
+            # ✅ Enforce integer PKs early
+            if not isinstance(source_repo_id, int) or not isinstance(target_repo_id, int):
+                raise ValueError("Expected numeric repo_id values for source and target")
+
             # ✅ Auto-generate branch to avoid duplicate PR issues
             branch = f"devbot-replication-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
             commit_msg = "DevBot: Full SaaS replication test"
@@ -31,34 +37,44 @@ class OrchestrationPipeline:
 
             # Step 2: Link semantic nodes into federation graph
             print("🔗 Linking semantic nodes...")
-            with self.federation.db.cursor() as cur:
-                cur.execute("SELECT name, file_path FROM semantic_node WHERE repo_id = %s", (source_repo_id,))
-                nodes = cur.fetchall()
-                for name, file_path in nodes:
-                    self.federation.graph_manager.insert_graph_link_tx(
-                        cur,
-                        self.repo_manager.resolve_repo_id_by_pk(source_repo_id),
-                        file_path,
-                        "file",
-                        name,
-                        None,
-                        1.0,
-                        "Auto-linked by orchestrator"
+            conn = self.federation.db.get_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT name, file_path FROM semantic_node WHERE repo_id = %s",
+                        (int(source_repo_id),)
                     )
-            self.federation.db.commit()
+                    nodes = cur.fetchall()
+                    for name, file_path in nodes:
+                        self.federation.graph_manager.insert_graph_link_tx(
+                            cur=cur,
+                            logical_repo_id=self.repo_manager.resolve_repo_id_by_pk(source_repo_id),
+                            file_path=file_path,
+                            node_type="file",
+                            name=name,
+                            cross_linked_to=None,
+                            federation_weight=1.0,
+                            notes="Auto-linked by orchestrator"
+                        )
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                raise e
+            finally:
+                self.federation.db.release_connection(conn)
 
             # Step 3: Build replication plan
             print("🧠 Building replication plan...")
             source_logical = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
             target_logical = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
+
             plan = self.planner.build_plan(source_logical, target_logical)
             plan["commit_message"] = commit_msg
             plan["target_branch"] = branch
 
             # ✅ Create branch from main
             print("🌿 Creating branch...")
-            self.github.create_branch(branch, "main")  # Let GitHubService handle SHA lookup
-
+            self.github.create_branch(branch, "main")
 
             # Step 4: Execute semantic patch commit
             print("🚀 Executing patch commit...")
@@ -83,6 +99,8 @@ class OrchestrationPipeline:
 
         except Exception as e:
             raise Exception(f"Full orchestration failed: {str(e)}")
+
+
 
 
 # ✅ Mounted orchestrator endpoint

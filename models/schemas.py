@@ -6,21 +6,6 @@ class BranchCreateRequest(BaseModel):
     new_branch: str = Field(..., description="The name of the branch to create")
     base_branch: str = Field("main", description="The base branch to create from")
 
-# ✅ Patch Proposal Schema
-class PatchProposal(BaseModel):
-    file_path: str = Field(..., description="Path of file to patch")
-    base_sha: str = Field(..., description="SHA of the base commit or file version")
-    updated_content: str = Field(..., description="New content for the file")
-
-# ✅ Patch Commit Schema
-class CommitPatch(BaseModel):
-    file_path: str
-    commit_message: str
-    updated_content: str
-    branch: Optional[str] = "main"
-    base_sha: str  # ✅ Add this line
-
-
 # ✅ File Deletion Schema
 class DeleteFileRequest(BaseModel):
     file_path: str = Field(..., description="Path of file to delete")
@@ -41,4 +26,9 @@ class PullRequestCreateRequest(BaseModel):
     title: str
     body: str
 
-
+class ReplicationExecutionRequest(BaseModel):
+    source_repo_id: int
+    target_repo_id: int
+    commit_message: str
+    target_branch: str
+    

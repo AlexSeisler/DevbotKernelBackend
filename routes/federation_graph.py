@@ -21,7 +21,7 @@ async def insert_link(payload: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/query")
-async def query_graph(repo_id: str = None):
+async def query_graph(repo_id: int = None):
     try:
         graph = manager.query_graph(repo_id)
         return graph

@@ -89,23 +89,30 @@ class GitHubService:
     # ✅ Hardened Single File Commit
     def commit_patch(self, payload):
         encoded_path = urllib.parse.quote(payload.file_path, safe="")
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/contents/{encoded_path}"
+        owner, repo = payload.repo_id.split("/")  # ✅ Parse logical repo_id
+
+        # 🔄 Automatically resolve latest SHA if not provided or set to "latest"
+        if not payload.base_sha or payload.base_sha == "latest":
+            payload.base_sha = self.get_latest_file_sha(payload.file_path, payload.branch)
+
+        url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}"
         content_encoded = encode_file_content(payload.updated_content)
-        
-        # 🔑 Inject the SHA safety guard
+
         body = {
             "message": payload.commit_message,
             "content": content_encoded,
             "branch": payload.branch,
-            "sha": payload.base_sha  # Injected SHA safety check
+            "sha": payload.base_sha  # ✅ Always accurate SHA
         }
 
         r = requests.put(url, headers=self.headers, json=body)
-        
+
         if r.status_code not in [200, 201]:
             raise Exception(f"Commit failed: {r.status_code} {r.text}")
 
         return r.json()
+
+
 
 
 
@@ -185,5 +192,10 @@ class GitHubService:
 
         return self._request("POST", url, json=payload)
 
-
-
+    def get_latest_file_sha(self, file_path: str, branch: str = "main") -> str:
+        encoded_path = urllib.parse.quote(file_path, safe="")
+        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/contents/{encoded_path}?ref={branch}"
+        r = requests.get(url, headers=self.headers)
+        if r.status_code == 200:
+            return r.json()["sha"]
+        raise Exception(f"Failed to fetch latest SHA: {r.status_code} {r.text}")

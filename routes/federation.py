@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from services.federation_service import FederationService
 from models.federation_schemas import (
     ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest
 )
+
 
 router = APIRouter(prefix="/federation")
 service = FederationService()
@@ -18,10 +19,13 @@ async def import_repo(payload: ImportRepoRequest):
 @router.post("/analyze-repo")
 async def analyze_repo(payload: AnalyzeRepoRequest):
     try:
-        result = service.analyze_repo(payload)
+        result = service.analyze_repo(payload)  # ✅ pass full Pydantic object
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 @router.post("/propose-patch")
 async def propose_patch(payload: ProposePatchRequest):
@@ -82,11 +86,13 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         # Resolve logical repo_id (string) from PK to match GraphManager contract
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(int(payload.repo_id))
 
-        with service.db:
-            with service.db.cursor() as cur:
-                service.graph_manager.insert_graph_link_tx(
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                # ✅ Perform INSERT or update logic here
+                self.graph_manager.insert_graph_link_tx(
                     cur=cur,
-                    logical_repo_id=logical_repo_id,   # ✅ now correct input form
+                    logical_repo_id=logical_repo_id,
                     file_path=payload.file_path,
                     node_type="file",
                     name=payload.name,
@@ -94,20 +100,29 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
                     federation_weight=1.0,
                     notes=payload.notes
                 )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            self.db.release_connection(conn)
+
+
         return {"status": "success"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/graph/query")
-async def query_federation_graph():
+async def query_federation_graph(repo_id: int = Query(..., description="Repo PK ID")):
     try:
-        # ✅ Synthetic isolation: hard-target repo_id 4 (Synthetic/KernelTestRepo)
-        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(4)
+        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(repo_id)
         graph_nodes = service.graph_manager.query_graph(logical_repo_id)
 
         return {
             "status": "success",
-            "repo_id": 4,
+            "repo_id": repo_id,
             "nodes": graph_nodes
         }
     except Exception as e:

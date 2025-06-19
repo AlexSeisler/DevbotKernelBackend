@@ -2,10 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
-
+import inspect
 
 # ✅ Import ALL existing route files
-from routes import github, patch, pull_request, health, federation, replication, orchestration
+from routes import github, pull_request, health, federation, replication, orchestration
 from services.federation_service import FederationService
 
 # ✅ Load .env credentials
@@ -37,7 +37,12 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"error": str(exc), "detail": "Internal Kernel Failure"}
     )
-
+@app.on_event("startup")
+async def print_routes():
+    print("\n🔍 REGISTERED ROUTES:")
+    for route in app.routes:
+        if hasattr(route, "path"):
+            print(f"{route.methods} -> {route.path}")
 # ✅ Request Logger for audit tracking
 @app.middleware("http")
 async def request_logger(request: Request, call_next):
@@ -48,7 +53,6 @@ async def request_logger(request: Request, call_next):
 # ✅ ROUTER MOUNT POINTS — FULL SYSTEM
 app.include_router(health.router)
 app.include_router(github.router)
-app.include_router(patch.router)
 app.include_router(pull_request.router)
 app.include_router(federation.router)
 app.include_router(replication.router)
