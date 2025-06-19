@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class ImportRepoRequest(BaseModel):
     owner: str
@@ -37,10 +37,12 @@ class LinkFederationNodeRequest(BaseModel):
     notes: str
 class CommitPatchObject(BaseModel):
     file_path: str
+    branch: str
+    commit_message: str
     updated_content: str
-    commit_message: str = ""
-    base_sha: str = None
-    branch: str = "main"
+    base_sha: str
+    repo_id: Optional[str] = None  # ✅ Add this field
+
 class ReplicateSaaSRequest(BaseModel):
     source_repo: str
     target_repo: str

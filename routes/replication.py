@@ -30,17 +30,12 @@ async def execute_replication(payload: ReplicationExecutionRequest):
     try:
         print("[DEBUG] Raw payload:", payload)
 
-        # Directly access attributes of the Pydantic model
-        source_repo_pk = payload.source_repo_id
-        target_repo_pk = payload.target_repo_id
+        # ✅ Enforce that both are integers (strict contract)
+        source_repo_pk = int(payload.source_repo_id)
+        target_repo_pk = int(payload.target_repo_id)
 
-        if not source_repo_pk or not target_repo_pk:
-            raise ValueError("Missing source_repo_id or target_repo_id")
-
-        # Normalize repo PKs to logical string IDs
-        source_repo_id = repo_manager.resolve_repo_id_by_pk(int(source_repo_pk))
-        target_repo_id = repo_manager.resolve_repo_id_by_pk(int(target_repo_pk))
-
+        source_repo_id = repo_manager.resolve_repo_id_by_pk(source_repo_pk)
+        target_repo_id = repo_manager.resolve_repo_id_by_pk(target_repo_pk)
 
         print("[DEBUG] Resolved Source:", source_repo_id)
         print("[DEBUG] Resolved Target:", target_repo_id)

@@ -22,7 +22,7 @@ class SemanticManager:
                     json.dumps(node.get("methods")),
                     node.get("inherits_from")
                 ))
-                conn.commit()
+            conn.commit()
         except Exception as e:
             conn.rollback()
             raise Exception(f"Failed to save semantic node: {str(e)}")

@@ -18,7 +18,8 @@ class CommitPatch(BaseModel):
     commit_message: str
     updated_content: str
     branch: Optional[str] = "main"
-    base_sha: str  # ✅ Add this line
+    base_sha: str
+    repo_id: str  # ✅ Inject this to pass into GitHubService
 
 
 # ✅ File Deletion Schema
@@ -46,6 +47,7 @@ class ReplicationExecutionRequest(BaseModel):
     target_repo_id: int
     commit_message: str
     target_branch: str
+    
 class PatchProposalCreateRequest(BaseModel):
     repo_id: int
     branch: str

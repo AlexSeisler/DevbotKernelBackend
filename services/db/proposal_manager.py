@@ -11,7 +11,10 @@ class ProposalManager:
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO patch_proposal (proposal_id, repo_id, branch, proposed_by, commit_message, patches, status)
+                    INSERT INTO patch_proposal (
+                        proposal_id, repo_id, branch, proposed_by,
+                        commit_message, patches, status
+                    )
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (
                     proposal["proposal_id"],
@@ -22,7 +25,7 @@ class ProposalManager:
                     json.dumps(proposal["patches"]),
                     proposal["status"]
                 ))
-                conn.commit()
+            conn.commit()
         except Exception as e:
             conn.rollback()
             raise Exception(f"Failed to save patch proposal: {str(e)}")
