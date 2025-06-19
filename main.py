@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import inspect
 
 # ✅ Import ALL existing route files
-from routes import github, patch, pull_request, health, federation, replication, orchestration
+from routes import github, pull_request, health, federation, replication, orchestration
 from services.federation_service import FederationService
 
 # ✅ Load .env credentials
@@ -53,7 +53,6 @@ async def request_logger(request: Request, call_next):
 # ✅ ROUTER MOUNT POINTS — FULL SYSTEM
 app.include_router(health.router)
 app.include_router(github.router)
-app.include_router(patch.router)
 app.include_router(pull_request.router)
 app.include_router(federation.router)
 app.include_router(replication.router)

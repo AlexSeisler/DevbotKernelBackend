@@ -6,22 +6,6 @@ class BranchCreateRequest(BaseModel):
     new_branch: str = Field(..., description="The name of the branch to create")
     base_branch: str = Field("main", description="The base branch to create from")
 
-# ✅ Patch Proposal Schema
-class PatchProposal(BaseModel):
-    file_path: str
-    base_sha: str
-    updated_content: str
-
-# ✅ Patch Commit Schema
-class CommitPatch(BaseModel):
-    file_path: str
-    commit_message: str
-    updated_content: str
-    branch: Optional[str] = "main"
-    base_sha: str
-    repo_id: str  # ✅ Inject this to pass into GitHubService
-
-
 # ✅ File Deletion Schema
 class DeleteFileRequest(BaseModel):
     file_path: str = Field(..., description="Path of file to delete")
@@ -48,9 +32,3 @@ class ReplicationExecutionRequest(BaseModel):
     commit_message: str
     target_branch: str
     
-class PatchProposalCreateRequest(BaseModel):
-    repo_id: int
-    branch: str
-    proposed_by: str
-    commit_message: str
-    patches: List[PatchProposal]
