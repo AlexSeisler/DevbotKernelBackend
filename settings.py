@@ -31,13 +31,11 @@ class Database:
             raise Exception("Database connection pool failed after retries.")
 
     def get_connection(self):
-        print("🔌 [POOL] Acquiring connection...")
         return self.pool.getconn()
 
     def release_connection(self, conn):
         if conn:
             self.pool.putconn(conn)
-            print("✅ [POOL] Released connection")
         else:
             print("⚠️ [POOL] Attempted to release a null connection")
 
