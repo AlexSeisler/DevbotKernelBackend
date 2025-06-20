@@ -159,11 +159,12 @@ class FederationService:
         try:
             conn = self.db.get_connection()
             with conn.cursor() as cur:
-                for patch in payload["patches"]:
+                for patch in payload.patches:
                     patch_obj = CommitPatchObject(**patch)
-                    patch_obj.repo_id = payload["repo_id"]
-                    patch_obj.commit_message = payload["commit_message"]
-                    patch_obj.branch = payload["branch"]
+                    patch_obj.repo_id = payload.repo_id
+                    patch_obj.commit_message = payload.commit_message
+                    patch_obj.branch = payload.branch
+
 
                     result.append(
                         self.github.commit_patch(patch_obj)
