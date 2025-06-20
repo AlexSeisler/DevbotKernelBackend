@@ -1,6 +1,7 @@
 from settings import Database
 from services.db.repo_manager import RepoManager
 import traceback
+import psycopg2.extras
 import sys
 
 class FederationGraphManager:
@@ -49,6 +50,18 @@ class FederationGraphManager:
             raise
         finally:
             self.db.release_connection(conn)
+
+    def query_graph(self, logical_repo_id):
+        repo_id = self.repo_manager.resolve_repo_pk(logical_repo_id)  # ✅ Convert to integer
+
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("SELECT * FROM federation_graph WHERE repo_id = %s", (repo_id,))
+                return cur.fetchall()
+        finally:
+            self.db.release_connection(conn)
+
 
     def _verify_file_existence(self, logical_repo_id, file_path):
         """

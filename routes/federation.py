@@ -86,26 +86,26 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         # Resolve logical repo_id (string) from PK to match GraphManager contract
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(int(payload.repo_id))
 
-        conn = self.db.get_connection()
+        conn = service.db.get_connection()
         try:
             with conn.cursor() as cur:
                 # ✅ Perform INSERT or update logic here
-                self.graph_manager.insert_graph_link_tx(
-                    cur=cur,
-                    logical_repo_id=logical_repo_id,
-                    file_path=payload.file_path,
-                    node_type="file",
-                    name=payload.name,
-                    cross_linked_to=payload.cross_linked_to or None,
-                    federation_weight=1.0,
-                    notes=payload.notes
-                )
+                service.graph_manager.insert_graph_link(
+                logical_repo_id,
+                payload.file_path,
+                "file",
+                payload.name,
+                payload.cross_linked_to or "",
+                1.0,
+                payload.notes or ""
+            )
+
             conn.commit()
         except Exception as e:
             conn.rollback()
             raise e
         finally:
-            self.db.release_connection(conn)
+            service.db.release_connection(conn)
 
 
         return {"status": "success"}
