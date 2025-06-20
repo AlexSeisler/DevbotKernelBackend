@@ -116,7 +116,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
 
 
 @router.get("/graph/query")
-async def query_federation_graph(repo_id: int):
+async def query_federation_graph(repo_id: int = Query(...)):
 
     try:
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(repo_id)
