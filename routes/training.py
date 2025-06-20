@@ -13,12 +13,17 @@ async def build_training_set():
         generator = TrainingPayloadGenerator()
 
         full_graph = exporter.export_full_graph()
+        if not full_graph:
+            raise ValueError("Federation graph query returned no data")
+
         patterns = analyzer.analyze_graph(full_graph)
         payloads = generator.generate_payload(patterns)
 
-        # In production we'd stream to object storage
+        if not payloads:
+            raise ValueError("Training payload generation returned empty result")
+
         output_path = "training_dataset.jsonl"
-        generator.save_to_jsonl(payloads, output_path)
+        generator.save_to_json(payloads, output_path)
 
         return {"status": "training_dataset_generated", "file_path": output_path}
 
