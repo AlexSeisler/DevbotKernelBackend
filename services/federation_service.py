@@ -9,6 +9,7 @@ from settings import Database
 from services.github_service import GitHubService
 from models.federation_schemas import CommitPatchObject
 from services.db.proposal_manager import ProposalManager
+from models.federation_schemas import CommitPatchRequest
 import uuid
 
 
