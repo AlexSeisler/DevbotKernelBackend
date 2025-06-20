@@ -98,7 +98,7 @@ class FederationService:
         semantic_results = []
 
         # ✅ Step 1: Get branch SHA
-        branch_sha = self.github.get_branch_sha("test-kernel-branch")["object"]["sha"]
+        branch_sha = self.github.get_branch_sha("main")["object"]["sha"]
 
         # ✅ Step 2: Get full repo tree (recursive)
         repo_tree_data = self.github.get_repo_tree(branch_sha, recursive=True)
