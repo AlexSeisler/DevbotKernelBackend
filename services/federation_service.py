@@ -152,23 +152,22 @@ class FederationService:
         data = res.json()
         return base64.b64decode(data["content"]).decode()
 
-    def commit_patch(self, payload):
+    def commit_patch(self, payload: CommitPatchRequest):
         conn = None
         result = []
 
         try:
             conn = self.db.get_connection()
             with conn.cursor() as cur:
-                for patch in payload.patches:
-                    patch_obj = CommitPatchObject(**patch)
-                    patch_obj.repo_id = payload.repo_id
-                    patch_obj.commit_message = payload.commit_message
-                    patch_obj.branch = payload.branch
-
-
-                    result.append(
-                        self.github.commit_patch(patch_obj)
-                    )
+                patch_obj = CommitPatchObject(
+                    repo_id=payload.repo_id,
+                    branch=payload.branch,
+                    file_path=payload.file_path,
+                    commit_message=payload.commit_message,
+                    base_sha=payload.base_sha,
+                    updated_content=payload.updated_content
+                )
+                result.append(self.github.commit_patch(patch_obj))
 
             conn.commit()
             return {"status": "committed", "results": result}
@@ -181,6 +180,7 @@ class FederationService:
         finally:
             if conn:
                 self.db.release_connection(conn)
+
 
 
     def propose_patch(self, payload):
