@@ -114,8 +114,10 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 @router.get("/graph/query")
-async def query_federation_graph(repo_id: int = Query(..., description="Repo PK ID")):
+async def query_federation_graph(repo_id: int):
+
     try:
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(repo_id)
         graph_nodes = service.graph_manager.query_graph(logical_repo_id)
