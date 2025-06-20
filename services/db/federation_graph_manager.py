@@ -1,6 +1,7 @@
 from settings import Database
 from services.db.repo_manager import RepoManager
 import traceback
+import psycopg2.extras
 import sys
 
 class FederationGraphManager:
@@ -55,7 +56,7 @@ class FederationGraphManager:
 
         conn = self.db.get_connection()
         try:
-            with conn.cursor() as cur:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("SELECT * FROM federation_graph WHERE repo_id = %s", (repo_id,))
                 return cur.fetchall()
         finally:
