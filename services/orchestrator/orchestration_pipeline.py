@@ -10,23 +10,17 @@ class OrchestrationPipeline:
         self.executor = ReplicationExecutor()
 
     def run_full_replication(self, source_repo_id: int, target_repo_id: int):
-        # ✅ Optional — only needed if testing ingestion again
-        # import_payload = ImportRepoRequest(
-        #     owner="AlexSeisler",
-        #     repo="DevbotKernelBackend",
-        #     default_branch="main"
-        # )
-        # self.federation_service.import_repo(import_payload)
+        try:
+            analyze_payload = AnalyzeRepoRequest(repo_id=source_repo_id)
+            self.federation_service.analyze_repo(analyze_payload)
 
-        # ✅ Correctly construct and call semantic analysis
-        analyze_payload = AnalyzeRepoRequest(repo_id=source_repo_id)
-        self.federation_service.analyze_repo(analyze_payload)
+            plan = self.plan_builder.build_plan(
+                source_repo_id=source_repo_id,
+                target_repo_id=target_repo_id
+            )
 
-        # ✅ Build full semantic replication plan
-        plan = self.plan_builder.build_plan(
-            source_repo_id=source_repo_id,
-            target_repo_id=target_repo_id
-        )
+            result = self.executor.execute_replication(plan)
+            return result
 
-        result = self.executor.execute_replication(plan)
-        return result
+        except Exception as e:
+            return {"error": "Full orchestration failed", "detail": str(e)}
