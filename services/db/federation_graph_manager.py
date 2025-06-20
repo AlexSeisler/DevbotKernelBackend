@@ -50,6 +50,15 @@ class FederationGraphManager:
         finally:
             self.db.release_connection(conn)
 
+    def query_graph(self, repo_id):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM federation_graph WHERE repo_id = %s", (repo_id,))
+                return cur.fetchall()
+        finally:
+            self.db.release_connection(conn)
+
     def _verify_file_existence(self, logical_repo_id, file_path):
         """
         ✅ Temporary: Always return True to fully bypass in synthetic + limited test environments.
