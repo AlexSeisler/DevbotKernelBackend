@@ -8,7 +8,9 @@ from services.db.semantic_manager import SemanticManager
 from settings import Database
 from services.github_service import GitHubService
 from models.federation_schemas import CommitPatchObject
-
+from services.db.proposal_manager import ProposalManager
+from models.federation_schemas import CommitPatchRequest
+import uuid
 
 
 class FederationService:
@@ -30,6 +32,7 @@ class FederationService:
         self.semantic_parser = SemanticParser()
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
+        self.proposal_manager = ProposalManager()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
@@ -95,7 +98,7 @@ class FederationService:
         semantic_results = []
 
         # ✅ Step 1: Get branch SHA
-        branch_sha = self.github.get_branch_sha("test-kernel-branch")["object"]["sha"]
+        branch_sha = self.github.get_branch_sha("main")["object"]["sha"]
 
         # ✅ Step 2: Get full repo tree (recursive)
         repo_tree_data = self.github.get_repo_tree(branch_sha, recursive=True)
@@ -150,22 +153,22 @@ class FederationService:
         data = res.json()
         return base64.b64decode(data["content"]).decode()
 
-    def commit_patch(self, payload):
+    def commit_patch(self, payload: CommitPatchRequest):
         conn = None
         result = []
 
         try:
             conn = self.db.get_connection()
             with conn.cursor() as cur:
-                for patch in payload["patches"]:
-                    patch_obj = CommitPatchObject(**patch)
-                    patch_obj.repo_id = payload["repo_id"]
-                    patch_obj.commit_message = payload["commit_message"]
-                    patch_obj.branch = payload["branch"]
-
-                    result.append(
-                        self.github.commit_patch(patch_obj)
-                    )
+                patch_obj = CommitPatchObject(
+                    repo_id=payload.repo_id,
+                    branch=payload.branch,
+                    file_path=payload.file_path,
+                    commit_message=payload.commit_message,
+                    base_sha=payload.base_sha,
+                    updated_content=payload.updated_content
+                )
+                result.append(self.github.commit_patch(patch_obj))
 
             conn.commit()
             return {"status": "committed", "results": result}
@@ -179,3 +182,17 @@ class FederationService:
             if conn:
                 self.db.release_connection(conn)
 
+
+
+    def propose_patch(self, payload):
+        proposal = {
+            "proposal_id": str(uuid.uuid4()),
+            "repo_id": int(payload.repo_id),  # ensure PK int if required
+            "branch": payload.branch,
+            "proposed_by": payload.proposed_by,
+            "commit_message": payload.commit_message,
+            "patches": [patch.dict() for patch in payload.patches],
+            "status": "pending"
+        }
+        self.proposal_manager.save_proposal(proposal)
+        return {"message": "Patch proposal saved"}

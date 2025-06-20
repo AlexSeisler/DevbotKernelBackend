@@ -53,3 +53,12 @@ class CommitPatchObject(BaseModel):
 class ReplicateSaaSRequest(BaseModel):
     source_repo: str
     target_repo: str
+
+class FederationGraphLinkRequest(BaseModel):
+    repo_id: int
+    file_path: str
+    node_type: str
+    name: str
+    cross_linked_to: Optional[str] = ""
+    federation_weight: Optional[float] = 1.0
+    notes: Optional[str] = ""
