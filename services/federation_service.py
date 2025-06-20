@@ -26,7 +26,7 @@ class FederationService:
         }
 
         # Setup a shared DB pool (not a raw connection)
-        self.db = Database()  # store pool object
+        self.db = Database() 
         self.repo_manager = RepoManager()
         self.graph_manager = FederationGraphManager()
         self.semantic_parser = SemanticParser()

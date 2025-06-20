@@ -11,14 +11,23 @@ load_dotenv()
 class GitHubService:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        self.token = os.getenv("FEDERATION_GITHUB_TOKEN")
-        self.owner = os.getenv("GITHUB_OWNER")       # ✅ REQUIRED
-        self.repo = os.getenv("GITHUB_REPO")         # ✅ REQUIRED
+        self.tokens = os.getenv("FEDERATION_GITHUB_TOKENS", "").split(",")
+        self.current_token_index = 0
+        self.token = self.tokens[self.current_token_index].strip() if self.tokens else None
+        self.owner = os.getenv("GITHUB_OWNER")
+        self.repo = os.getenv("GITHUB_REPO")
         self.timeout = 10
         self.headers = {
             "Authorization": f"token {self.token}",
             "Accept": "application/vnd.github.v3+json"
         }
+
+    def _rotate_token(self):
+        if len(self.tokens) > 1:
+            self.current_token_index = (self.current_token_index + 1) % len(self.tokens)
+            self.token = self.tokens[self.current_token_index].strip()
+            self.headers["Authorization"] = f"token {self.token}"
+            print(f"[GITHUB] Token rotated to index {self.current_token_index}")
 
     def _request(self, method, url, **kwargs):
         try:
@@ -26,6 +35,11 @@ class GitHubService:
             response.raise_for_status()
             return response.json()
         except RequestException as e:
+            if hasattr(e.response, 'status_code') and e.response.status_code == 403:
+                if "rate limit" in str(e).lower():
+                    print(f"[GITHUB RATE LIMIT] rotating token...")
+                    self._rotate_token()
+                    return self._request(method, url, **kwargs)
             print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
             raise
 
