@@ -60,6 +60,22 @@ class FederationGraphManager:
         finally:
             self.db.release_connection(conn)
 
+    def insert_graph_link(self, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                self.insert_graph_link_tx(
+                    cur, repo_id, file_path, node_type, name,
+                    cross_linked_to, federation_weight, notes
+                )
+            conn.commit()
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            self.db.release_connection(conn)
+
 
 
     def _verify_file_existence(self, logical_repo_id, file_path):
