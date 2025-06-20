@@ -8,7 +8,8 @@ from services.db.semantic_manager import SemanticManager
 from settings import Database
 from services.github_service import GitHubService
 from models.federation_schemas import CommitPatchObject
-
+from services.db.proposal_manager import ProposalManager
+import uuid
 
 
 class FederationService:
@@ -30,6 +31,7 @@ class FederationService:
         self.semantic_parser = SemanticParser()
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
+        self.proposal_manager = ProposalManager()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
@@ -179,3 +181,16 @@ class FederationService:
             if conn:
                 self.db.release_connection(conn)
 
+
+    def propose_patch(self, payload):
+        proposal = {
+            "proposal_id": str(uuid.uuid4()),
+            "repo_id": int(payload.repo_id),  # ensure PK int if required
+            "branch": payload.branch,
+            "proposed_by": payload.proposed_by,
+            "commit_message": payload.commit_message,
+            "patches": [patch.dict() for patch in payload.patches],
+            "status": "pending"
+        }
+        self.proposal_manager.save_proposal(proposal)
+        return {"message": "Patch proposal saved"}
