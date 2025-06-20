@@ -91,39 +91,35 @@ class FederationService:
 
 
 
-    def analyze_repo(self, payload: AnalyzeRepoRequest):
-        repo_pk = payload.repo_id  # 🔧 Correct use of typed Pydantic input
-        logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_pk)
-        owner, repo = logical_repo_id.split("/")
-        semantic_results = []
+        def analyze_repo(self, payload: AnalyzeRepoRequest):
+            repo_pk = payload.repo_id
+            logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_pk)
+            owner, repo = logical_repo_id.split("/")
+            semantic_results = []
 
-        # ✅ Step 1: Get branch SHA
-        branch_sha = self.github.get_branch_sha("main")["object"]["sha"]
+            branch_sha = self.github.get_branch_sha("main")["object"]["sha"]
+            repo_tree_data = self.github.get_repo_tree(branch_sha, recursive=True)
+            repo_tree = repo_tree_data["tree"]
 
-        # ✅ Step 2: Get full repo tree (recursive)
-        repo_tree_data = self.github.get_repo_tree(branch_sha, recursive=True)
-        repo_tree = repo_tree_data["tree"]
+            for file in repo_tree:
+                file_path = file.get("path", "")
+                if not file_path.endswith(".py"):
+                    continue
 
-        # ✅ Step 3: Scan .py files and parse AST
-        for file in repo_tree:
-            file_path = file.get("path", "")
-            if not file_path.endswith(".py"):
-                continue
+                try:
+                    raw_file = self.github.get_file(file_path, "main", fallback=True)
+                    file_content = base64.b64decode(raw_file["content"]).decode()
+                except Exception as e:
+                    print(f"⚠️ Skipped file {file_path} due to fetch error: {e}")
+                    continue
 
-            try:
-                raw_file = self.github.get_file(file_path, "test-kernel-branch")
-                file_content = base64.b64decode(raw_file["content"]).decode()
-            except Exception as e:
-                print(f"⚠️ Skipped file {file_path} due to fetch error: {e}")
-                continue
+                nodes = self.semantic_parser.parse_python_file(file_content)
+                for node in nodes:
+                    node["file_path"] = file_path
+                    self.semantic_manager.save_semantic_node(repo_pk, node)
+                    semantic_results.append(node)
 
-            nodes = self.semantic_parser.parse_python_file(file_content)
-            for node in nodes:
-                node["file_path"] = file_path
-                self.semantic_manager.save_semantic_node(repo_pk, node)
-                semantic_results.append(node)
-
-        return {"repo_id": repo_pk, "semantic_nodes": semantic_results}
+            return {"repo_id": repo_pk, "semantic_nodes": semantic_results}
 
 
 
