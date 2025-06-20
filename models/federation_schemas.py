@@ -15,17 +15,24 @@ class PatchObject(BaseModel):
     updated_content: str
 
 class CommitPatchRequest(BaseModel):
-    repo_id: int
+    repo_id: str
     branch: str
+    file_path: str
     commit_message: str
-    patches: List[PatchObject]
+    base_sha: str
+    updated_content: str
+
+class PatchProposal(BaseModel):
+    file_path: str
+    base_sha: str
+    updated_content: str
 
 class ProposePatchRequest(BaseModel):
-    repo_id: int
+    repo_id: str
     branch: str
-    commit_message: str
     proposed_by: str
-    patches: List[PatchObject]
+    commit_message: str
+    patches: List[PatchProposal]
 
 class ApprovePatchRequest(BaseModel):
     proposal_id: str
