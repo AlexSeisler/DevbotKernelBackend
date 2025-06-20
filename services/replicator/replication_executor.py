@@ -2,6 +2,7 @@ from services.replicator.module_extractor import ModuleExtractor
 from services.replicator.patch_composer import PatchComposer
 from services.federation_service import FederationService
 from services.db.repo_manager import RepoManager
+from models.federation_schemas import CommitPatchRequest
 
 class ReplicationExecutor:
     def __init__(self):
@@ -43,7 +44,7 @@ class ReplicationExecutor:
 
         # ✅ Use commit_patch, which internally manages its own DB connection
         try:
-            result = self.federation_service.commit_patch(commit_payload)
+            result = self.federation_service.commit_patch(CommitPatchRequest(**commit_payload))
             return result
         except Exception as e:
             raise Exception(f"Replication failed: {str(e)}")
