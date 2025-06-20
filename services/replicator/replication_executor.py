@@ -32,9 +32,9 @@ class ReplicationExecutor:
 
         commit_payloads = []
         for p in patches:
-            file_path = p["file_path"]
+            file_path = p.file_path
             base_sha = self.github_service.get_latest_file_sha(file_path, branch)
-            updated_content = p["updated_content"]
+            updated_content = p.updated_content
 
             commit_payloads.append(CommitPatchRequest(
                 repo_id=target_repo,
