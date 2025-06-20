@@ -50,7 +50,9 @@ class FederationGraphManager:
         finally:
             self.db.release_connection(conn)
 
-    def query_graph(self, repo_id):
+    def query_graph(self, logical_repo_id):
+        repo_id = self.repo_manager.resolve_repo_pk(logical_repo_id)  # ✅ Convert to integer
+
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
@@ -58,6 +60,7 @@ class FederationGraphManager:
                 return cur.fetchall()
         finally:
             self.db.release_connection(conn)
+
 
     def _verify_file_existence(self, logical_repo_id, file_path):
         """
