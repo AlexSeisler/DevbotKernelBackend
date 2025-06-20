@@ -1,7 +1,7 @@
 from settings import Database
 from services.db.repo_manager import RepoManager
 import traceback
-
+import sys
 class FederationGraphManager:
     def __init__(self):
         self.db = Database()
@@ -29,7 +29,8 @@ class FederationGraphManager:
 
         except Exception as e:
             print("❌ insert_graph_link_tx FAILED")
-            print(traceback.format_exc())  # ✅ Detailed trace
+            print(traceback.format_exc())
+            sys.stdout.flush()  # ✅ Forces output to show in Render logs
             raise
 
     def query_graph(self, logical_repo_id):
@@ -71,12 +72,12 @@ class FederationGraphManager:
                 )
             conn.commit()
         except Exception as e:
-            print("🔍 Graph insert error:")
-            print(traceback.format_exc())  # ✅ full trace
+            print("❌ insert_graph_link FAILED")
+            print(traceback.format_exc())
+            sys.stdout.flush()  # ✅ Ensures log visibility on Render
             if conn:
                 conn.rollback()
             raise
-
         finally:
             self.db.release_connection(conn)
 
