@@ -22,11 +22,18 @@ class ReplicationExecutor:
         source_owner, source_repo_name = source_repo.split("/")
         target_owner, target_repo_name = target_repo.split("/")
 
+        # Deduplicate by file path
+        unique_paths = list({m["file_path"] for m in plan["modules"]})
+        print(f"[REPLICATION PLAN] Total modules: {len(plan['modules'])}, Unique file paths: {len(unique_paths)}")
+        print(f"[REPLICATION FILES] {unique_paths}")
+
         extraction_results = []
-        for module in plan["modules"]:
-            extraction_results.append(
-                self.extractor.fetch_file_content(source_owner, source_repo_name, module["file_path"], branch)
-            )
+        for path in unique_paths:
+            try:
+                result = self.extractor.fetch_file_content(source_owner, source_repo_name, path, branch)
+                extraction_results.append(result)
+            except Exception as e:
+                print(f"[REPLICATION ERROR] Failed to extract {path}: {e}")
 
         patches = self.composer.compose_patch(extraction_results, branch)
 
