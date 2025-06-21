@@ -122,7 +122,47 @@ class GitHubService:
             raise Exception(f"Commit failed: {response.status_code} {response.text}")
 
         return response.json()
+    def multi_file_commit(self, message, files, branch="main"):
+        ref_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{branch}"
+        latest_commit_sha = self._request("GET", ref_url)["object"]["sha"]
 
+        commit_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/commits/{latest_commit_sha}"
+        base_tree_sha = self._request("GET", commit_url)["tree"]["sha"]
+
+        blobs = []
+        for file in files:
+            blob_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/blobs"
+            blob_resp = self._request("POST", blob_url, json={
+                "content": file["content"],
+                "encoding": "utf-8"
+            })
+            blobs.append({
+                "path": file["path"],
+                "mode": "100644",
+                "type": "blob",
+                "sha": blob_resp["sha"]
+            })
+
+        tree_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/trees"
+        tree_resp = self._request("POST", tree_url, json={
+            "base_tree": base_tree_sha,
+            "tree": blobs
+        })
+        new_tree_sha = tree_resp["sha"]
+
+        commit_create_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/commits"
+        commit_create_resp = self._request("POST", commit_create_url, json={
+            "message": message,
+            "tree": new_tree_sha,
+            "parents": [latest_commit_sha]
+        })
+        new_commit_sha = commit_create_resp["sha"]
+
+        update_ref_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{branch}"
+        self._request("PATCH", update_ref_url, json={"sha": new_commit_sha})
+
+        return {"status": "committed", "commit_sha": new_commit_sha}
+    
     def delete_file(self, owner, repo, file_path, message, sha, branch="main"):
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}"
