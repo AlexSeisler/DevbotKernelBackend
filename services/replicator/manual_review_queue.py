@@ -2,6 +2,8 @@ import os
 import json
 from datetime import datetime
 
+# DEBUG: Testing AST patch integration with a trailing comment
+
 REVIEW_QUEUE_DIR = "queues/manual_review_queue"
 os.makedirs(REVIEW_QUEUE_DIR, exist_ok=True)
 
