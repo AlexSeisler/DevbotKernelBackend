@@ -37,7 +37,7 @@ class FederationService:
     def import_repo(self, payload: ImportRepoRequest):
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
         logical_repo_id = f"{owner}/{repo}"
-
+        print(f"[FEDERATION IMPORT] Attempting import for: {logical_repo_id}")
         # ✅ Cleanroom ingest stub
         files = [
             {
@@ -60,7 +60,11 @@ class FederationService:
             with conn.cursor() as cur:
                 existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
                 if existing_id:
-                    raise Exception(f"Repo already ingested: {logical_repo_id} (ID={existing_id})")
+                    print(f"[FEDERATION IMPORT] Repo already ingested: {logical_repo_id} (ID={existing_id})")
+                    return existing_id
+                else:
+                    print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
+
 
                 pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
 
@@ -80,6 +84,7 @@ class FederationService:
             return {"repo_id": pk_id, "files_ingested": len(files)}
 
         except Exception as e:
+            print(f"[FEDERATION IMPORT ERROR] {type(e).__name__}: {e}")
             if conn:
                 conn.rollback()
             raise Exception(f"Federation ingestion transaction failed: {str(e)}")
