@@ -8,27 +8,40 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# FULL PATCH: GitHubService Token Rotation and Safe Request
+
 class GitHubService:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        override_token = os.getenv("FEDERATION_GITHUB_TOKEN")
-        self.tokens = [override_token] if override_token else os.getenv("FEDERATION_GITHUB_TOKENS", "").split(",")
+        self.tokens = []
+
+        # Prefer single classic token
+        primary = os.getenv("FEDERATION_GITHUB_TOKEN")
+        if primary:
+            self.tokens = [primary.strip()]
+        else:
+            multi = os.getenv("FEDERATION_GITHUB_TOKENS", "")
+            self.tokens = [t.strip() for t in multi.split(",") if t.strip()]
+
+        if not self.tokens:
+            raise ValueError("No valid GitHub token found in environment.")
 
         self.current_token_index = 0
-        self.token = self.tokens[self.current_token_index].strip() if self.tokens else None
-        self.owner = os.getenv("GITHUB_OWNER")
-        self.repo = os.getenv("GITHUB_REPO")
+        self.token = self.tokens[0]
         self.timeout = 10
-        self.headers = {
-            "Authorization": f"token {self.token}",
+        self.headers = self._build_headers(self.token)
+
+    def _build_headers(self, token):
+        return {
+            "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3+json"
         }
 
     def _rotate_token(self):
         if len(self.tokens) > 1:
             self.current_token_index = (self.current_token_index + 1) % len(self.tokens)
-            self.token = self.tokens[self.current_token_index].strip()
-            self.headers["Authorization"] = f"token {self.token}"
+            self.token = self.tokens[self.current_token_index]
+            self.headers = self._build_headers(self.token)
             print(f"[GITHUB] Token rotated to index {self.current_token_index}")
 
     def _request(self, method, url, **kwargs):
@@ -44,6 +57,7 @@ class GitHubService:
                     return self._request(method, url, **kwargs)
             print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
             raise
+
 
     def get_repo_tree(self, branch, recursive):
         url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/trees/{branch}?recursive={1 if recursive else 0}"
