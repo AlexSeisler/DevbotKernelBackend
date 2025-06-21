@@ -53,10 +53,17 @@ class RepoManager:
         finally:
             self.db.release_connection(conn)
     def get_slug_by_id(self, repo_id: int) -> str:
-        session = self.db.get_session()
-        record = session.query(FederationRepo).filter_by(id=repo_id).first()
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT owner, repo FROM federation_repo WHERE id = %s", (repo_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise Exception(f"Repo with ID {repo_id} not found.")
+                return f"{row[0]}/{row[1]}"
+        finally:
+            self.db.release_connection(conn)
 
-        if not record:
-            raise Exception(f"Repo with ID {repo_id} not found.")
-        return f"{record.owner}/{record.repo}"
     
