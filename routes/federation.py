@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from services.federation_service import FederationService
 from models.federation_schemas import (
     ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest,
-    ApprovePatchRequest, LinkFederationNodeRequest
+    ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
 )
 
 router = APIRouter(prefix="/federation")
@@ -18,15 +18,14 @@ async def import_repo(payload: ImportRepoRequest):
 @router.post("/analyze-repo")
 async def analyze_repo(payload: AnalyzeRepoRequest):
     try:
-        result = service.analyze_repo(payload)  # full Pydantic object
+        result = service.analyze_repo(payload)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/propose-patch")
+@router.post("/propose-patch", response_model=PatchProposalResponse)
 async def propose_patch(payload: ProposePatchRequest):
     try:
-        # Look up logical slug from repo_id
         logical = service.repo_manager.resolve_repo_id_by_pk(int(payload.repo_id))
         owner, repo = logical.split("/")
 
@@ -35,7 +34,7 @@ async def propose_patch(payload: ProposePatchRequest):
             composed = service.propose_patch(owner, repo, patch.file_path, payload.branch)
             patches.extend(composed.patches)
 
-        return {"status": "proposed", "patches": patches}
+        return PatchProposalResponse(patches=patches)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
