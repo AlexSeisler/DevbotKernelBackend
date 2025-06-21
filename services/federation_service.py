@@ -13,6 +13,7 @@ from models.federation_schemas import CommitPatchRequest
 from services.replicator.ast_patch_composer import ASTPatchComposer
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
+from models.federation_schemas import PatchProposalResponse
 
 
 class FederationService:
@@ -209,15 +210,20 @@ class FederationService:
 
 
 
-    def propose_patch(self, payload):
-        proposal = {
-            "proposal_id": str(uuid.uuid4()),
-            "repo_id": int(payload.repo_id),  # ensure PK int if required
-            "branch": payload.branch,
-            "proposed_by": payload.proposed_by,
-            "commit_message": payload.commit_message,
-            "patches": [patch.dict() for patch in payload.patches],
-            "status": "pending"
-        }
-        self.proposal_manager.save_proposal(proposal)
-        return {"message": "Patch proposal saved"}
+    def propose_patch(self, owner, repo, file_path, branch="main"):
+        try:
+            print(f"[PATCH PROPOSAL] Fetching file for: {file_path} @ {branch}")
+            file_data = self.github.get_file(owner, repo, file_path, branch)
+            b64_content = file_data.get("content")
+            sha = file_data.get("sha")
+
+            if not b64_content:
+                raise Exception("File has no content")
+
+            extraction_results = [(file_path, sha, b64_content)]
+            patches = self.ast_composer.compose_patch(extraction_results, branch)
+            return PatchProposalResponse(patches=patches)
+
+        except Exception as e:
+            print(f"[ERROR] propose_patch failed: {str(e)}")
+            raise
