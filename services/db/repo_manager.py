@@ -62,11 +62,14 @@ class RepoManager:
                 row = cur.fetchone()
                 if not row:
                     raise Exception(f"Repo with ID {repo_id} not found.")
+                print(f"[SLUG LOOKUP] Loaded owner/repo = {row}")
+
                 return f"{row[0]}/{row[1]}"
         finally:
             self.db.release_connection(conn)
     def insert_or_update_repo(self, repo_id, owner, repo, branch, root_sha):
         conn = self.db.get_connection()
+        print(f"[DB WRITE] repo_id={repo_id}, owner={owner}, repo={repo}, branch={branch}")
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -79,6 +82,9 @@ class RepoManager:
                         root_sha = EXCLUDED.root_sha
                 """, (repo_id, owner, repo, branch, root_sha))
                 conn.commit()
+                cur.execute("SELECT * FROM federation_repo")
+                print(cur.fetchall())
+
         finally:
             self.db.release_connection(conn)
     
