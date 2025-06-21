@@ -69,22 +69,21 @@ class RepoManager:
             self.db.release_connection(conn)
     def insert_or_update_repo(self, repo_id, owner, repo, branch, root_sha):
         conn = self.db.get_connection()
-        print(f"[DB WRITE] repo_id={repo_id}, owner={owner}, repo={repo}, branch={branch}")
+        logical_repo_id = f"{owner}/{repo}"
+        print(f"[DB WRITE] repo_id={repo_id}, logical_repo_id={logical_repo_id}, owner={owner}, repo={repo}, branch={branch}")
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO federation_repo (repo_id, owner, repo, branch, root_sha)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO federation_repo (repo_id, logical_repo_id, owner, repo, branch, root_sha)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (repo_id) DO UPDATE SET
+                        logical_repo_id = EXCLUDED.logical_repo_id,
                         owner = EXCLUDED.owner,
                         repo = EXCLUDED.repo,
                         branch = EXCLUDED.branch,
                         root_sha = EXCLUDED.root_sha
-                """, (repo_id, owner, repo, branch, root_sha))
+                """, (repo_id, logical_repo_id, owner, repo, branch, root_sha))
                 conn.commit()
-                cur.execute("SELECT * FROM federation_repo")
-                print(cur.fetchall())
-
         finally:
             self.db.release_connection(conn)
-    
+
