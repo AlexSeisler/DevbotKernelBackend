@@ -90,30 +90,36 @@ class GitHubService:
             print(f"[❌] create_branch failed: {str(e)}")
             raise
 
-    def commit_patch(self, payload):
-        encoded_path = urllib.parse.quote(payload.file_path, safe="")
-        owner, repo = payload.repo_id.split("/")
+    def commit_patch(self, repo_name, branch, file_path, commit_message, base_sha, updated_content):
+        """
+        Commits a file to GitHub using the full file content.
 
-        if not payload.base_sha or payload.base_sha == "latest":
-            payload.base_sha = self.get_latest_file_sha(payload.file_path, payload.branch)
+        Parameters:
+            repo_name (str): GitHub owner/repo slug (e.g., "AlexSeisler/DevbotKernelBackend")
+            branch (str): Target branch
+            file_path (str): Path to the file
+            commit_message (str): Git commit message
+            base_sha (str): SHA of the current file version
+            updated_content (str): New content to commit
+        """
+        encoded_path = urllib.parse.quote(file_path, safe="")
+        url = f"{self.base_url}/repos/{repo_name}/contents/{encoded_path}"
 
-        url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}"
-        content_encoded = encode_file_content(payload.updated_content)
+        content_encoded = encode_file_content(updated_content)
 
         body = {
-            "message": payload.commit_message,
+            "message": commit_message,
             "content": content_encoded,
-            "branch": payload.branch
+            "branch": branch,
+            "sha": base_sha
         }
-        if payload.base_sha:
-            body["sha"] = payload.base_sha
 
-        r = requests.put(url, headers=self.headers, json=body)
+        response = requests.put(url, headers=self.headers, json=body)
 
-        if r.status_code not in [200, 201]:
-            raise Exception(f"Commit failed: {r.status_code} {r.text}")
+        if response.status_code not in [200, 201]:
+            raise Exception(f"Commit failed: {response.status_code} {response.text}")
 
-        return r.json()
+        return response.json()
 
     def multi_file_commit(self, message, files, branch="main"):
         ref_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{branch}"
