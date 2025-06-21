@@ -10,6 +10,8 @@ from services.github_service import GitHubService
 from models.federation_schemas import CommitPatchObject
 from services.db.proposal_manager import ProposalManager
 from models.federation_schemas import CommitPatchRequest
+from services.replicator.ast_patch_composer import ASTPatchComposer
+from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
 
 
@@ -33,6 +35,7 @@ class FederationService:
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
         self.proposal_manager = ProposalManager()
+        self.ast_composer = ASTPatchComposer()
 
     def import_repo(self, payload: ImportRepoRequest):
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
@@ -155,33 +158,41 @@ class FederationService:
         return base64.b64decode(data["content"]).decode()
 
     def commit_patch(self, payload: CommitPatchRequest):
-        conn = None
-        result = []
-
         try:
-            conn = self.db.get_connection()
-            with conn.cursor() as cur:
-                patch_obj = CommitPatchObject(
-                    repo_id=payload.repo_id,
-                    branch=payload.branch,
-                    file_path=payload.file_path,
-                    commit_message=payload.commit_message,
-                    base_sha=payload.base_sha,
-                    updated_content=payload.updated_content
-                )
-                result.append(self.github.commit_patch(patch_obj))
+            # Assume we already have updated_content from AST composer
+            if not payload.updated_content:
+                old_content = self.github.get_file_content(payload.file_path, payload.branch)
+                base_sha = self.github.get_latest_file_sha(payload.file_path, payload.branch)
 
-            conn.commit()
-            return {"status": "committed", "results": result}
+                def noop_mutator(tree): return tree
+                patch = self.ast_composer.compose_patch(
+                    old_content=old_content,
+                    new_ast_mutator=noop_mutator,
+                    file_path=payload.file_path,
+                    base_sha=base_sha
+                )
+                payload.updated_content = patch.updated_content
+
+            result = self.github.commit_patch(
+                repo_id=payload.repo_id,
+                branch=payload.branch,
+                file_path=payload.file_path,
+                commit_message=payload.commit_message,
+                base_sha=payload.base_sha,
+                updated_content=payload.updated_content
+            )
+            return {"status": "committed", "result": result}
 
         except Exception as e:
-            if conn:
-                conn.rollback()
-            raise Exception(f"Commit patch failed: {str(e)}")
+            submit_to_manual_review_queue(
+                file_path=payload.file_path,
+                old_content=old_content if 'old_content' in locals() else "",
+                new_content=payload.updated_content if payload.updated_content else "",
+                base_sha=payload.base_sha,
+                error_reason=str(e)
+            )
+            raise Exception(f"Commit patch failed and was routed to review queue: {str(e)}")
 
-        finally:
-            if conn:
-                self.db.release_connection(conn)
 
 
 
