@@ -13,6 +13,10 @@ repo_manager = RepoManager()
 @router.post("/pull-request")
 async def create_pull_request(payload: PullRequestCreateRequest):
     try:
+        # 🧩 Temporary fallback: auto-resolve repo_id for dev-mode usage
+        if payload.repo_id is None and os.getenv("GITHUB_REPO") == "DevbotKernelBackend":
+            payload.repo_id = 20
+
         logical_repo_id = repo_manager.resolve_repo_id_by_pk(payload.repo_id)
         if not logical_repo_id or "/" not in logical_repo_id:
             raise ValueError(f"Invalid logical_repo_id: {logical_repo_id}")

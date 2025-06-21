@@ -1,4 +1,4 @@
-# Base Python image — stable for SaaS Kernel ops
+# Base Python image – stable for SaaS Kernel ops
 FROM python:3.11-slim
 
 # Install full system dependencies (Postgres, SSL, Compiler, Build Tools)
@@ -28,4 +28,5 @@ COPY . .
 EXPOSE 8000
 
 # Kernel entrypoint
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV DEV_MODE=1
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

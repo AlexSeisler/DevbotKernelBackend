@@ -25,7 +25,7 @@ class PullRequestCreateRequest(BaseModel):
     target_branch: str
     title: str
     body: str
-    repo_id: int  # 🆕 Added to support federation PR resolution
+    repo_id: Optional[int] = None  # 🔧 Made optional for fallback handling
 
 class ReplicationExecutionRequest(BaseModel):
     source_repo_id: int
