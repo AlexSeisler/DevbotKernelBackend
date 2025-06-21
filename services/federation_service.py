@@ -10,7 +10,8 @@ from services.github_service import GitHubService
 from models.federation_schemas import CommitPatchObject
 from services.db.proposal_manager import ProposalManager
 from models.federation_schemas import CommitPatchRequest
-from services.replicator.ast_patch_composer import ASTPatchComposer
+from services.replicator.patch_composer import ASTPatchComposerV2
+
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
 from models.federation_schemas import PatchProposalResponse
@@ -36,7 +37,7 @@ class FederationService:
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
         self.proposal_manager = ProposalManager()
-        self.ast_composer = ASTPatchComposer()
+        self.ast_composer = ASTPatchComposerV2()
 
     # PATCHED import_repo WITH owner/repo PERSISTENCE
 

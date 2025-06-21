@@ -1,7 +1,7 @@
 import base64
 from models.federation_schemas import PatchObject, PatchASTProposal
 
-class ASTPatchComposer:
+class ASTPatchComposerV2:
     def compose_patch(self, extraction_results, branch):
         patches = []
         for file_path, base_sha, b64_content in extraction_results:
