@@ -1,3 +1,5 @@
+# PATCHED: RepoManager with logical_repo_id support
+
 from settings import Database
 from models.federation_models import FederationRepo
 
@@ -7,7 +9,7 @@ class RepoManager:
 
     def save_repo_tx(self, cur, logical_repo_id, branch, root_sha):
         cur.execute("""
-            INSERT INTO federation_repo (repo_id, branch, root_sha)
+            INSERT INTO federation_repo (logical_repo_id, branch, root_sha)
             VALUES (%s, %s, %s)
             RETURNING id
         """, (logical_repo_id, branch, root_sha))
@@ -17,7 +19,7 @@ class RepoManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (logical_repo_id,))
+                cur.execute("SELECT id FROM federation_repo WHERE logical_repo_id = %s", (logical_repo_id,))
                 row = cur.fetchone()
                 if not row:
                     raise Exception(f"Repo {logical_repo_id} not found")
@@ -45,28 +47,27 @@ class RepoManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (logical_repo_id,))
+                cur.execute("SELECT id FROM federation_repo WHERE logical_repo_id = %s", (logical_repo_id,))
                 row = cur.fetchone()
                 return row[0] if row else None
         except Exception as e:
             raise e
         finally:
             self.db.release_connection(conn)
+
     def get_slug_by_id(self, repo_id: int) -> str:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT owner, repo FROM federation_repo WHERE id = %s", (repo_id,)
-                )
+                cur.execute("SELECT owner, repo FROM federation_repo WHERE id = %s", (repo_id,))
                 row = cur.fetchone()
                 if not row:
                     raise Exception(f"Repo with ID {repo_id} not found.")
                 print(f"[SLUG LOOKUP] Loaded owner/repo = {row}")
-
                 return f"{row[0]}/{row[1]}"
         finally:
             self.db.release_connection(conn)
+
     def insert_or_update_repo(self, repo_id, owner, repo, branch, root_sha):
         conn = self.db.get_connection()
         logical_repo_id = f"{owner}/{repo}"
@@ -86,4 +87,3 @@ class RepoManager:
                 conn.commit()
         finally:
             self.db.release_connection(conn)
-
