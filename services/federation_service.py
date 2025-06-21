@@ -173,8 +173,9 @@ class FederationService:
                 )
                 payload.updated_content = patch.updated_content
 
+            repo_name = self.repo_manager.get_slug_by_id(payload.repo_id)
             result = self.github.commit_patch(
-                repo_id=payload.repo_id,
+                repo_name=repo_name,  # ✅ use owner/repo slug
                 branch=payload.branch,
                 file_path=payload.file_path,
                 commit_message=payload.commit_message,
