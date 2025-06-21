@@ -9,13 +9,11 @@ router = APIRouter(prefix="/repo")
 github_service = GitHubService()
 repo_manager = RepoManager()
 
-# 🧠 GPT-controlled Pull Request Creation with resolved repo_id
+# 🚀 GPT-controlled Pull Request Creation with resolved repo_id
 @router.post("/pull-request")
 async def create_pull_request(payload: PullRequestCreateRequest):
     try:
-        # ⚠️ Hardcoded for repo_id=20 (DevbotKernelBackend)
-        repo_pk = 20
-        logical_repo_id = repo_manager.resolve_repo_id_by_pk(repo_pk)
+        logical_repo_id = repo_manager.resolve_repo_id_by_pk(payload.repo_id)
         if not logical_repo_id or "/" not in logical_repo_id:
             raise ValueError(f"Invalid logical_repo_id: {logical_repo_id}")
 
