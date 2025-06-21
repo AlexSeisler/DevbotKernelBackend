@@ -10,7 +10,7 @@ from services.github_service import GitHubService
 from models.federation_schemas import CommitPatchObject
 from services.db.proposal_manager import ProposalManager
 from models.federation_schemas import CommitPatchRequest
-from services.replicator.patch_composer import ASTPatchComposerV2
+from services.replicator.ast_patch_composer import ASTPatchComposer
 
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
@@ -37,7 +37,7 @@ class FederationService:
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
         self.proposal_manager = ProposalManager()
-        self.ast_composer = ASTPatchComposerV2()
+        self.ast_composer = ASTPatchComposer()
 
     # PATCHED import_repo WITH owner/repo PERSISTENCE
 
@@ -173,42 +173,33 @@ class FederationService:
 
     def commit_patch(self, payload: CommitPatchRequest):
         try:
-            # Assume we already have updated_content from AST composer
-            if not payload.updated_content:
-                old_content = self.github.get_file_content(payload.file_path, payload.branch)
-                base_sha = self.github.get_latest_file_sha(payload.file_path, payload.branch)
-
-                def noop_mutator(tree): return tree
-                patch = self.ast_composer.compose_patch(
-                    old_content=old_content,
-                    new_ast_mutator=noop_mutator,
-                    file_path=payload.file_path,
-                    base_sha=base_sha
-                )
-                payload.updated_content = patch.updated_content
-
-            repo_name = self.repo_manager.get_slug_by_id(payload.repo_id)
-            result = self.github.commit_patch(
-                repo_name=repo_name,  # ✅ use owner/repo slug
-                branch=payload.branch,
-                file_path=payload.file_path,
-                commit_message=payload.commit_message,
-                base_sha=payload.base_sha,
-                updated_content=payload.updated_content
+            # Fetch original file
+            old_content = self.github.get_file_content(
+                payload.file_path,
+                branch="main"  # or payload.branch
             )
-            return {"status": "committed", "result": result}
+
+            # Compose patch (will raise if AST unsafe)
+            def noop_mutator(tree): return tree  # No mutation expected at commit stage
+            patch = self.ast_composer.compose_patch(
+                old_content=old_content,
+                new_ast_mutator=noop_mutator,
+                file_path=payload.file_path,
+                base_sha=payload.base_sha
+            )
+
+            # Check if payload matches the safe patch
+            if payload.updated_content.strip() != patch.updated_content.strip():
+                raise Exception("Payload does not match safe AST content")
+
+            return self.github.commit_patch(
+                file_path=payload.file_path,
+                updated_content=patch.updated_content,
+                commit_message="Safe AST patch commit"
+            )
 
         except Exception as e:
-            submit_to_manual_review_queue(
-                file_path=payload.file_path,
-                old_content=old_content if 'old_content' in locals() else "",
-                new_content=payload.updated_content if payload.updated_content else "",
-                base_sha=payload.base_sha,
-                error_reason=str(e)
-            )
-            raise Exception(f"Commit patch failed and was routed to review queue: {str(e)}")
-
-
+            raise Exception(f"Patch commit blocked: {e}")
 
 
     def propose_patch(self, owner, repo, file_path, branch="main"):

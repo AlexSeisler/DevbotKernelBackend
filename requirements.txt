@@ -5,3 +5,4 @@ requests==2.32.3
 pydantic==2.7.1
 psycopg2==2.9.9
 sqlalchemy==2.0.30
+astdiff==0.2.5
