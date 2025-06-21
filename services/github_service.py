@@ -198,3 +198,9 @@ class GitHubService:
             return r.json()["sha"]
         raise Exception(f"Failed to fetch latest SHA: {r.status_code} {r.text}")
 
+    def get_repo_id(self, owner: str, repo: str) -> int:
+        url = f"{self.base_url}/repos/{owner}/{repo}"
+        response = requests.get(url, headers=self.headers)
+        if response.status_code != 200:
+            raise Exception(f"Failed to fetch repo ID: {response.status_code} {response.text}")
+        return response.json()["id"]
