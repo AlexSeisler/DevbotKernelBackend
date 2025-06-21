@@ -11,7 +11,9 @@ load_dotenv()
 class GitHubService:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        self.tokens = os.getenv("FEDERATION_GITHUB_TOKENS", "").split(",")
+        override_token = os.getenv("FEDERATION_GITHUB_TOKEN")
+        self.tokens = [override_token] if override_token else os.getenv("FEDERATION_GITHUB_TOKENS", "").split(",")
+
         self.current_token_index = 0
         self.token = self.tokens[self.current_token_index].strip() if self.tokens else None
         self.owner = os.getenv("GITHUB_OWNER")
