@@ -70,7 +70,9 @@ class FederationService:
                     return {"repo_id": existing_id, "files_ingested": 0}
 
                 print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
-                print(f"[INSERT CALL] About to insert repo_id={resolved_id}, owner={owner}, repo={repo}")
+                print(f"[INSERT CALL] About to insert logical_repo_id={logical_repo_id}, owner={owner}, repo={repo}")
+
+
 
                 pk_id = self.repo_manager.insert_or_update_repo(
                     repo_id=self.github.get_repo_id(owner, repo),
