@@ -104,6 +104,7 @@ class GitHubService:
         """
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{repo_name}/contents/{encoded_path}"
+        print(f"Committing to GitHub repo: {repo_name}, file: {file_path}, branch: {branch}")
 
         content_encoded = encode_file_content(updated_content)
 
