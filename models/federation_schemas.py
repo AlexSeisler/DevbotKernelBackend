@@ -15,12 +15,11 @@ class PatchObject(BaseModel):
     updated_content: str
 
 class CommitPatchRequest(BaseModel):
-    repo_id: str
-    branch: str
+    proposal_id: int
     file_path: str
-    commit_message: str
     base_sha: str
     updated_content: str
+
 
 class PatchProposal(BaseModel):
     file_path: str
