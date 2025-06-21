@@ -65,5 +65,20 @@ class RepoManager:
                 return f"{row[0]}/{row[1]}"
         finally:
             self.db.release_connection(conn)
-
+    def insert_or_update_repo(self, repo_id, owner, repo, branch, root_sha):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO federation_repo (repo_id, owner, repo, branch, root_sha)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (repo_id) DO UPDATE SET
+                        owner = EXCLUDED.owner,
+                        repo = EXCLUDED.repo,
+                        branch = EXCLUDED.branch,
+                        root_sha = EXCLUDED.root_sha
+                """, (repo_id, owner, repo, branch, root_sha))
+                conn.commit()
+        finally:
+            self.db.release_connection(conn)
     

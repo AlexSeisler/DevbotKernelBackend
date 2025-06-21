@@ -11,8 +11,7 @@ service = FederationService()
 @router.post("/import-repo")
 async def import_repo(payload: ImportRepoRequest):
     try:
-        result = service.import_repo(payload)
-        return {"status": "repo_imported", "data": result}
+        return service.import_repo(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

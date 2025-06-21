@@ -37,10 +37,13 @@ class FederationService:
         self.proposal_manager = ProposalManager()
         self.ast_composer = ASTPatchComposer()
 
+    # PATCHED import_repo WITH owner/repo PERSISTENCE
+
     def import_repo(self, payload: ImportRepoRequest):
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
         logical_repo_id = f"{owner}/{repo}"
         print(f"[FEDERATION IMPORT] Attempting import for: {logical_repo_id}")
+
         # ✅ Cleanroom ingest stub
         files = [
             {
@@ -56,25 +59,30 @@ class FederationService:
         ]
 
         static_root_sha = "bootstrap-root-sha"
-        
         conn = None
+
         try:
             conn = self.db.get_connection()
             with conn.cursor() as cur:
                 existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
                 if existing_id:
                     print(f"[FEDERATION IMPORT] Repo already ingested: {logical_repo_id} (ID={existing_id})")
-                    return existing_id
-                else:
-                    print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
+                    return {"repo_id": existing_id, "files_ingested": 0}
 
+                print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
 
-                pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
+                pk_id = self.repo_manager.insert_or_update_repo(
+                    repo_id=self.github.get_repo_id(owner, repo),
+                    owner=owner,
+                    repo=repo,
+                    branch=branch,
+                    root_sha=static_root_sha
+                )
 
                 for file in files:
                     self.graph_manager.insert_graph_link_tx(
                         cur,
-                        logical_repo_id,  # Will be resolved to PK
+                        logical_repo_id,
                         file["path"],
                         file["type"],
                         file["path"].split("/")[-1],
@@ -95,6 +103,7 @@ class FederationService:
         finally:
             if conn:
                 self.db.release_connection(conn)
+
 
 
 
