@@ -77,3 +77,9 @@ uvicorn main:app --reload --port 8000
 C:\Program Files\PostgreSQL\16\bin
 
 
+Patch queue commands
+python scripts/review_queue_cli.py list
+python scripts/review_queue_cli.py show 0
+python scripts/review_queue_cli.py approve 0 --repo AlexSeisler/DevTest --branch fix-patch --message "Manual patch approve"
+
+python scripts/dry_run_cli.py path/to/replication_plan.json
