@@ -62,3 +62,10 @@ class FederationGraphLinkRequest(BaseModel):
     cross_linked_to: Optional[str] = ""
     federation_weight: Optional[float] = 1.0
     notes: Optional[str] = ""
+class PatchASTProposal(BaseModel):
+    file_path: str
+    base_sha: str
+    updated_content: str
+
+class PatchProposalResponse(BaseModel):
+    patches: List[PatchASTProposal]

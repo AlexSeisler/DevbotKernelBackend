@@ -1,3 +1,5 @@
+# FULLY PATCHED GitHubService - No self.owner/repo usage
+
 import os
 import requests
 import base64
@@ -11,24 +13,34 @@ load_dotenv()
 class GitHubService:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        override_token = os.getenv("FEDERATION_GITHUB_TOKEN")
-        self.tokens = [override_token] if override_token else os.getenv("FEDERATION_GITHUB_TOKENS", "").split(",")
+        self.tokens = []
+
+        primary = os.getenv("FEDERATION_GITHUB_TOKEN")
+        if primary:
+            self.tokens = [primary.strip()]
+        else:
+            multi = os.getenv("FEDERATION_GITHUB_TOKENS", "")
+            self.tokens = [t.strip() for t in multi.split(",") if t.strip()]
+
+        if not self.tokens:
+            raise ValueError("No valid GitHub token found in environment.")
 
         self.current_token_index = 0
-        self.token = self.tokens[self.current_token_index].strip() if self.tokens else None
-        self.owner = os.getenv("GITHUB_OWNER")
-        self.repo = os.getenv("GITHUB_REPO")
+        self.token = self.tokens[0]
         self.timeout = 10
-        self.headers = {
-            "Authorization": f"token {self.token}",
+        self.headers = self._build_headers(self.token)
+
+    def _build_headers(self, token):
+        return {
+            "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3+json"
         }
 
     def _rotate_token(self):
         if len(self.tokens) > 1:
             self.current_token_index = (self.current_token_index + 1) % len(self.tokens)
-            self.token = self.tokens[self.current_token_index].strip()
-            self.headers["Authorization"] = f"token {self.token}"
+            self.token = self.tokens[self.current_token_index]
+            self.headers = self._build_headers(self.token)
             print(f"[GITHUB] Token rotated to index {self.current_token_index}")
 
     def _request(self, method, url, **kwargs):
@@ -45,38 +57,38 @@ class GitHubService:
             print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
             raise
 
-    def get_repo_tree(self, branch, recursive):
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/trees/{branch}?recursive={1 if recursive else 0}"
+    def get_repo_tree(self, owner, repo, branch, recursive):
+        url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}?recursive={1 if recursive else 0}"
         return self._request("GET", url)
 
-    def get_file(self, file_path, branch, fallback=True):
+    def get_file(self, owner, repo, file_path, branch, fallback=True):
         encoded_path = urllib.parse.quote(file_path, safe="")
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/contents/{encoded_path}?ref={branch}"
+        url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
         try:
             return self._request("GET", url)
         except RequestException as e:
             if fallback and "404" in str(e):
                 print(f"⚠️ File {file_path} not found on branch {branch}, retrying on 'main'")
-                fallback_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/contents/{encoded_path}?ref=main"
+                fallback_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref=main"
                 return self._request("GET", fallback_url)
             raise
 
-    def get_file_history(self, file_path, branch):
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/commits?path={file_path}&sha={branch}"
+    def get_file_history(self, owner, repo, file_path, branch):
+        url = f"{self.base_url}/repos/{owner}/{repo}/commits?path={file_path}&sha={branch}"
         return self._request("GET", url)
 
-    def get_branch_sha(self, branch):
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{branch}"
+    def get_branch_sha(self, owner, repo, branch):
+        url = f"{self.base_url}/repos/{owner}/{repo}/git/refs/heads/{branch}"
         return self._request("GET", url)
 
-    def create_branch(self, new_branch: str, base_branch: str):
+    def create_branch(self, owner, repo, new_branch: str, base_branch: str):
         try:
-            sha_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{base_branch}"
+            sha_url = f"{self.base_url}/repos/{owner}/{repo}/git/refs/heads/{base_branch}"
             response = requests.get(sha_url, headers=self.headers)
             response.raise_for_status()
             base_sha = response.json()["object"]["sha"]
 
-            url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs"
+            url = f"{self.base_url}/repos/{owner}/{repo}/git/refs"
             payload = {
                 "ref": f"refs/heads/{new_branch}",
                 "sha": base_sha
@@ -90,31 +102,26 @@ class GitHubService:
             print(f"[❌] create_branch failed: {str(e)}")
             raise
 
-    def commit_patch(self, payload):
-        encoded_path = urllib.parse.quote(payload.file_path, safe="")
-        owner, repo = payload.repo_id.split("/")
+    def commit_patch(self, repo_name, branch, file_path, commit_message, base_sha, updated_content):
+        encoded_path = urllib.parse.quote(file_path, safe="")
+        url = f"{self.base_url}/repos/{repo_name}/contents/{encoded_path}"
+        print(f"Committing to GitHub repo: {repo_name}, file: {file_path}, branch: {branch}")
 
-        if not payload.base_sha or payload.base_sha == "latest":
-            payload.base_sha = self.get_latest_file_sha(payload.file_path, payload.branch)
-
-        url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}"
-        content_encoded = encode_file_content(payload.updated_content)
+        content_encoded = encode_file_content(updated_content)
 
         body = {
-            "message": payload.commit_message,
+            "message": commit_message,
             "content": content_encoded,
-            "branch": payload.branch
+            "branch": branch,
+            "sha": base_sha
         }
-        if payload.base_sha:
-            body["sha"] = payload.base_sha
 
-        r = requests.put(url, headers=self.headers, json=body)
+        response = requests.put(url, headers=self.headers, json=body)
 
-        if r.status_code not in [200, 201]:
-            raise Exception(f"Commit failed: {r.status_code} {r.text}")
+        if response.status_code not in [200, 201]:
+            raise Exception(f"Commit failed: {response.status_code} {response.text}")
 
-        return r.json()
-
+        return response.json()
     def multi_file_commit(self, message, files, branch="main"):
         ref_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{branch}"
         latest_commit_sha = self._request("GET", ref_url)["object"]["sha"]
@@ -155,10 +162,10 @@ class GitHubService:
         self._request("PATCH", update_ref_url, json={"sha": new_commit_sha})
 
         return {"status": "committed", "commit_sha": new_commit_sha}
-
-    def delete_file(self, file_path, message, sha, branch="main"):
+    
+    def delete_file(self, owner, repo, file_path, message, sha, branch="main"):
         encoded_path = urllib.parse.quote(file_path, safe="")
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/contents/{encoded_path}"
+        url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}"
 
         body = {
             "message": message,
@@ -183,11 +190,20 @@ class GitHubService:
 
         return self._request("POST", url, json=payload)
 
-    def get_latest_file_sha(self, file_path: str, branch: str = "main") -> str:
+    def get_latest_file_sha(self, owner, repo, file_path: str, branch: str = "main") -> str:
         encoded_path = urllib.parse.quote(file_path, safe="")
-        url = f"{self.base_url}/repos/{self.owner}/{self.repo}/contents/{encoded_path}?ref={branch}"
+        url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
         r = requests.get(url, headers=self.headers)
         if r.status_code == 200:
             return r.json()["sha"]
         raise Exception(f"Failed to fetch latest SHA: {r.status_code} {r.text}")
 
+    def get_repo_id(self, owner: str, repo: str) -> int:
+        url = f"{self.base_url}/repos/{owner}/{repo}"
+        response = requests.get(url, headers=self.headers)
+        print(f"[DEBUG] Calling GitHub repo: https://api.github.com/repos/{owner}/{repo}")
+        print(f"[DEBUG] Headers: {self.headers}")
+
+        if response.status_code != 200:
+            raise Exception(f"Failed to fetch repo ID: {response.status_code} {response.text}")
+        return response.json()["id"]

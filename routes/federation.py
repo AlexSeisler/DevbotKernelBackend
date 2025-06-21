@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query
 from services.federation_service import FederationService
 from models.federation_schemas import (
-    ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest
+    ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest,
+    ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
 )
-
 
 router = APIRouter(prefix="/federation")
 service = FederationService()
@@ -11,27 +11,31 @@ service = FederationService()
 @router.post("/import-repo")
 async def import_repo(payload: ImportRepoRequest):
     try:
-        result = service.import_repo(payload)
-        return {"status": "repo_imported", "data": result}
+        return service.import_repo(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/analyze-repo")
 async def analyze_repo(payload: AnalyzeRepoRequest):
     try:
-        result = service.analyze_repo(payload)  # ✅ pass full Pydantic object
+        result = service.analyze_repo(payload)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-
-@router.post("/propose-patch")
+@router.post("/propose-patch", response_model=PatchProposalResponse)
 async def propose_patch(payload: ProposePatchRequest):
     try:
-        result = service.propose_patch(payload)
-        return result
+        logical = service.repo_manager.resolve_repo_id_by_pk(int(payload.repo_id))
+        owner, repo = logical.split("/")
+
+        patches = []
+        for patch in payload.patches:
+            composed = service.propose_patch(owner, repo, patch.file_path, payload.branch)
+            patches.extend(composed.patches)
+
+        return PatchProposalResponse(patches=patches)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -73,33 +77,24 @@ async def reject_patch(payload: ApprovePatchRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/graph/link")
 async def link_federation_node(payload: LinkFederationNodeRequest):
     try:
-        # Synthetic override logic: activate bypass for PK >= 4 (your synthetic seed)
-        synthetic_safe_zone = int(payload.repo_id) >= 4
-
-        if not synthetic_safe_zone:
-            # ⚠ Live file existence checks would normally occur here (omitted)
-            pass
-
-        # Resolve logical repo_id (string) from PK to match GraphManager contract
-        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(int(payload.repo_id))
-
+        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(payload.repo_id)
         conn = service.db.get_connection()
         try:
             with conn.cursor() as cur:
-                # ✅ Perform INSERT or update logic here
-                service.graph_manager.insert_graph_link(
-                logical_repo_id,
-                payload.file_path,
-                "file",
-                payload.name,
-                payload.cross_linked_to or "",
-                1.0,
-                payload.notes or ""
-            )
-
+                service.graph_manager.insert_graph_link_tx(
+                    cur,
+                    logical_repo_id,
+                    payload.file_path,
+                    payload.node_type,
+                    payload.name,
+                    payload.cross_linked_to or "",
+                    payload.federation_weight or 1.0,
+                    payload.notes or ""
+                )
             conn.commit()
         except Exception as e:
             conn.rollback()
@@ -107,17 +102,13 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         finally:
             service.db.release_connection(conn)
 
-
         return {"status": "success"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
 @router.get("/graph/query")
 async def query_federation_graph(repo_id: int = Query(...)):
-
     try:
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(repo_id)
         graph_nodes = service.graph_manager.query_graph(logical_repo_id)

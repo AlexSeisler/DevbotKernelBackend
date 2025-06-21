@@ -11,7 +11,12 @@ class FederationGraphManager:
 
     def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
         try:
-            pk = self.repo_manager.resolve_repo_pk(logical_repo_id)
+            cur.execute("SELECT id FROM federation_repo WHERE logical_repo_id = %s", (logical_repo_id,))
+            row = cur.fetchone()
+            if not row:
+                raise Exception(f"Repo {logical_repo_id} not found during graph link insert.")
+            pk = row[0]
+
 
             # 🔧 Synthetic SHA Validation Bypass Logic
             if logical_repo_id.startswith("Synthetic/"):

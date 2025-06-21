@@ -1,0 +1,13 @@
+{
+  "source_repo_id": "AlexSeisler/DevbotKernelBackend",
+  "target_repo_id": "AlexSeisler/DevTest",
+  "target_branch": "dry-run-test",
+  "commit_message": "Dry run patch test",
+  "modules": [
+    {
+      "file_path": "services/replicator/patch_composer.py",
+      "node_name": "PatchComposer",
+      "linked_to": ""
+    }
+  ]
+}

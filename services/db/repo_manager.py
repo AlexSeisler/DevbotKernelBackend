@@ -1,4 +1,5 @@
 from settings import Database
+from models.federation_models import FederationRepo
 
 class RepoManager:
     def __init__(self):
@@ -30,11 +31,11 @@ class RepoManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT repo_id FROM federation_repo WHERE id = %s", (repo_pk_id,))
+                cur.execute("SELECT owner, repo FROM federation_repo WHERE id = %s", (repo_pk_id,))
                 row = cur.fetchone()
                 if not row:
                     raise Exception(f"PK {repo_pk_id} not found")
-                return row[0]
+                return f"{row[0]}/{row[1]}"
         except Exception as e:
             raise e
         finally:
@@ -49,5 +50,42 @@ class RepoManager:
                 return row[0] if row else None
         except Exception as e:
             raise e
+        finally:
+            self.db.release_connection(conn)
+
+    def get_slug_by_id(self, repo_id: int) -> str:
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT owner, repo FROM federation_repo WHERE id = %s", (repo_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise Exception(f"Repo with ID {repo_id} not found.")
+                print(f"[SLUG LOOKUP] Loaded owner/repo = {row}")
+
+                return f"{row[0]}/{row[1]}"
+        finally:
+            self.db.release_connection(conn)
+
+    def insert_or_update_repo(self, repo_id, owner, repo, branch, root_sha):
+        conn = self.db.get_connection()
+        print(f"[DB WRITE] repo_id={repo_id}, owner={owner}, repo={repo}, branch={branch}")
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO federation_repo (repo_id, owner, repo, branch, root_sha)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (repo_id) DO UPDATE SET
+                        owner = EXCLUDED.owner,
+                        repo = EXCLUDED.repo,
+                        branch = EXCLUDED.branch,
+                        root_sha = EXCLUDED.root_sha
+                """, (repo_id, owner, repo, branch, root_sha))
+                conn.commit()
+                cur.execute("SELECT * FROM federation_repo")
+                print(cur.fetchall())
+
         finally:
             self.db.release_connection(conn)

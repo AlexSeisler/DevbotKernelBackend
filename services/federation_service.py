@@ -10,7 +10,11 @@ from services.github_service import GitHubService
 from models.federation_schemas import CommitPatchObject
 from services.db.proposal_manager import ProposalManager
 from models.federation_schemas import CommitPatchRequest
+from services.replicator.patch_composer import ASTPatchComposerV2
+
+from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
+from models.federation_schemas import PatchProposalResponse
 
 
 class FederationService:
@@ -33,11 +37,15 @@ class FederationService:
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
         self.proposal_manager = ProposalManager()
+        self.ast_composer = ASTPatchComposerV2()
+
+    # PATCHED import_repo WITH owner/repo PERSISTENCE
 
     def import_repo(self, payload: ImportRepoRequest):
         owner, repo, branch = payload.owner, payload.repo, payload.default_branch
         logical_repo_id = f"{owner}/{repo}"
         print(f"[FEDERATION IMPORT] Attempting import for: {logical_repo_id}")
+
         # ✅ Cleanroom ingest stub
         files = [
             {
@@ -53,25 +61,33 @@ class FederationService:
         ]
 
         static_root_sha = "bootstrap-root-sha"
-        
         conn = None
+
         try:
             conn = self.db.get_connection()
             with conn.cursor() as cur:
                 existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
                 if existing_id:
                     print(f"[FEDERATION IMPORT] Repo already ingested: {logical_repo_id} (ID={existing_id})")
-                    return existing_id
-                else:
-                    print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
+                    return {"repo_id": existing_id, "files_ingested": 0}
+
+                print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
+                print(f"[INSERT CALL] About to insert logical_repo_id={logical_repo_id}, owner={owner}, repo={repo}")
 
 
-                pk_id = self.repo_manager.save_repo_tx(cur, logical_repo_id, branch, static_root_sha)
+
+                pk_id = self.repo_manager.insert_or_update_repo(
+                    repo_id=self.github.get_repo_id(owner, repo),
+                    owner=owner,
+                    repo=repo,
+                    branch=branch,
+                    root_sha=static_root_sha
+                )
 
                 for file in files:
                     self.graph_manager.insert_graph_link_tx(
                         cur,
-                        logical_repo_id,  # Will be resolved to PK
+                        logical_repo_id,
                         file["path"],
                         file["type"],
                         file["path"].split("/")[-1],
@@ -92,6 +108,7 @@ class FederationService:
         finally:
             if conn:
                 self.db.release_connection(conn)
+
 
 
 
@@ -155,45 +172,59 @@ class FederationService:
         return base64.b64decode(data["content"]).decode()
 
     def commit_patch(self, payload: CommitPatchRequest):
-        conn = None
-        result = []
-
         try:
-            conn = self.db.get_connection()
-            with conn.cursor() as cur:
-                patch_obj = CommitPatchObject(
-                    repo_id=payload.repo_id,
-                    branch=payload.branch,
-                    file_path=payload.file_path,
-                    commit_message=payload.commit_message,
-                    base_sha=payload.base_sha,
-                    updated_content=payload.updated_content
-                )
-                result.append(self.github.commit_patch(patch_obj))
+            # Assume we already have updated_content from AST composer
+            if not payload.updated_content:
+                old_content = self.github.get_file_content(payload.file_path, payload.branch)
+                base_sha = self.github.get_latest_file_sha(payload.file_path, payload.branch)
 
-            conn.commit()
-            return {"status": "committed", "results": result}
+                def noop_mutator(tree): return tree
+                patch = self.ast_composer.compose_patch(
+                    old_content=old_content,
+                    new_ast_mutator=noop_mutator,
+                    file_path=payload.file_path,
+                    base_sha=base_sha
+                )
+                payload.updated_content = patch.updated_content
+
+            repo_name = self.repo_manager.get_slug_by_id(payload.repo_id)
+            result = self.github.commit_patch(
+                repo_name=repo_name,  # ✅ use owner/repo slug
+                branch=payload.branch,
+                file_path=payload.file_path,
+                commit_message=payload.commit_message,
+                base_sha=payload.base_sha,
+                updated_content=payload.updated_content
+            )
+            return {"status": "committed", "result": result}
 
         except Exception as e:
-            if conn:
-                conn.rollback()
-            raise Exception(f"Commit patch failed: {str(e)}")
+            submit_to_manual_review_queue(
+                file_path=payload.file_path,
+                old_content=old_content if 'old_content' in locals() else "",
+                new_content=payload.updated_content if payload.updated_content else "",
+                base_sha=payload.base_sha,
+                error_reason=str(e)
+            )
+            raise Exception(f"Commit patch failed and was routed to review queue: {str(e)}")
 
-        finally:
-            if conn:
-                self.db.release_connection(conn)
 
 
 
-    def propose_patch(self, payload):
-        proposal = {
-            "proposal_id": str(uuid.uuid4()),
-            "repo_id": int(payload.repo_id),  # ensure PK int if required
-            "branch": payload.branch,
-            "proposed_by": payload.proposed_by,
-            "commit_message": payload.commit_message,
-            "patches": [patch.dict() for patch in payload.patches],
-            "status": "pending"
-        }
-        self.proposal_manager.save_proposal(proposal)
-        return {"message": "Patch proposal saved"}
+    def propose_patch(self, owner, repo, file_path, branch="main"):
+        try:
+            print(f"[PATCH PROPOSAL] Fetching file for: {file_path} @ {branch}")
+            file_data = self.github.get_file(owner, repo, file_path, branch)
+            b64_content = file_data.get("content")
+            sha = file_data.get("sha")
+
+            if not b64_content:
+                raise Exception("File has no content")
+
+            extraction_results = [(file_path, sha, b64_content)]
+            patches = self.ast_composer.compose_patch(extraction_results, branch)
+            return PatchProposalResponse(patches=patches)
+
+        except Exception as e:
+            print(f"[ERROR] propose_patch failed: {str(e)}")
+            raise

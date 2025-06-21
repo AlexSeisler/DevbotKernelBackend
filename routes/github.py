@@ -8,11 +8,15 @@ router = APIRouter(prefix="/repo")
 # ✅ Load service layer
 github_service = GitHubService()
 
+# ✅ Hardcoded owner/repo for now (should be dynamic in future)
+OWNER = "AlexSeisler"
+REPO = "DevbotKernelBackend"
+
 # ✅ 1️⃣ Hardened Repo Tree Retrieval
 @router.get("/tree")
 async def get_repo_tree(branch: str = "main", recursive: bool = True):
     try:
-        result = github_service.get_repo_tree(branch, recursive)
+        result = github_service.get_repo_tree(OWNER, REPO, branch, recursive)
         return result
     except Exception as e:
         print(f"[ERROR] get_repo_tree failed: {str(e)}")
@@ -23,7 +27,7 @@ async def get_repo_tree(branch: str = "main", recursive: bool = True):
 async def get_file_content(file_path: str, branch: str = "main"):
     try:
         encoded_path = urllib.parse.quote(file_path, safe="")
-        result = github_service.get_file(file_path, branch)
+        result = github_service.get_file(OWNER, REPO, file_path, branch)
         return result
     except Exception as e:
         print(f"[ERROR] get_file_content failed: {str(e)}")
@@ -33,7 +37,7 @@ async def get_file_content(file_path: str, branch: str = "main"):
 @router.get("/history")
 async def get_file_history(file_path: str, branch: str = "main"):
     try:
-        result = github_service.get_file_history(file_path, branch)
+        result = github_service.get_file_history(OWNER, REPO, file_path, branch)
         return result
     except Exception as e:
         print(f"[ERROR] get_file_history failed: {str(e)}")
@@ -43,7 +47,7 @@ async def get_file_history(file_path: str, branch: str = "main"):
 @router.get("/sha")
 async def get_branch_sha(branch: str = "main"):
     try:
-        result = github_service.get_branch_sha(branch)
+        result = github_service.get_branch_sha(OWNER, REPO, branch)
         return result
     except Exception as e:
         print(f"[ERROR] get_branch_sha failed: {str(e)}")
@@ -53,7 +57,7 @@ async def get_branch_sha(branch: str = "main"):
 @router.post("/branch")
 async def create_branch(payload: BranchCreateRequest):
     try:
-        result = github_service.create_branch(payload.new_branch, payload.base_branch)
+        result = github_service.create_branch(OWNER, REPO, payload.new_branch, payload.base_branch)
         return result
     except Exception as e:
         print(f"[ERROR] create_branch failed: {str(e)}")
