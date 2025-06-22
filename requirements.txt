@@ -6,4 +6,5 @@ pydantic==2.7.1
 psycopg2==2.9.9
 sqlalchemy==2.0.30
 email_validator==2.1.0.post1
+astdiff==0.2.5
 --constraint constraints.txt
