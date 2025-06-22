@@ -200,27 +200,26 @@ class FederationService:
             old_content = base64.b64decode(b64_content).decode()
             base_sha = sha
 
-            def noop_mutator(tree): return tree  # Just test identity patching
+            def noop_mutator(tree): return tree  # Just identity patching
+
             patch = self.ast_composer.compose_patch(
                 old_content=old_content,
                 new_ast_mutator=noop_mutator,
                 file_path=file_path,
                 base_sha=base_sha
             )
-            # Persist patch proposal in database
+
             proposal_id = str(uuid.uuid4())
             self.proposal_manager.save_proposal({
                 "proposal_id": proposal_id,
-                "repo_id": self.repo_manager.try_resolve_pk(f"{owner}/{repo}"),
+                "repo_id": self.repo_manager.get_repo_id(owner, repo),
                 "branch": branch,
-                "proposed_by": "DevBot",  # or dynamic agent if available
+                "proposed_by": "DevBot",
                 "commit_message": f"Proposed patch for {file_path}",
-                "patches": json.dumps([{
-                    "file_path": patch.file_path,
-                    "base_sha": patch.base_sha,
-                    "updated_content": patch.updated_content
-                }]),
-                "status": "pending"
+                "patches": [patch.dict()],
+                "status": "pending",
+                "risk_class": patch.risk_class,
+                "diff_summary": patch.diff_summary
             })
 
             return PatchProposalResponse(patches=[patch])
@@ -228,3 +227,4 @@ class FederationService:
         except Exception as e:
             print(f"[ERROR] propose_patch failed: {str(e)}")
             raise
+
