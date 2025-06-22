@@ -1,6 +1,6 @@
 import ast
 import astunparse
-from astdiff.diff import compare_ast_strings
+from astdiff.astdiff import compare_ast
 
 from models.federation_schemas import PatchObject
 
@@ -16,7 +16,7 @@ class ASTPatchComposer:
         except Exception as e:
             raise Exception(f"[AST Composer Error] {str(e)}")
 
-        diff_score = compare_ast_strings(old_content, updated_content)
+        diff_score = compare_ast(old_content, updated_content)
         if diff_score > self.threshold:
             raise Exception(f"[Patch Blocked] Semantic diff score {diff_score:.2f} exceeds threshold {self.threshold:.2f}")
 

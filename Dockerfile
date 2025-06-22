@@ -23,9 +23,10 @@ RUN pip install --upgrade pip setuptools wheel && \
 
 # ✅ Install all Python dependencies without cache, respecting version pins
 RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
-RUN curl -sSL https://raw.githubusercontent.com/erikbern/astdiff/42c6f4e6c9644d6d4282e8bff3ea71c2e0c6cde0/astdiff/diff.py \
-    -o /usr/local/lib/python3.11/site-packages/astdiff/diff.py && \
-    echo "from .diff import compare_ast_strings" >> /usr/local/lib/python3.11/site-packages/astdiff/__init__.py
+# Fetch working astdiff.py and expose compare_ast_strings at top level
+RUN curl -sSL https://raw.githubusercontent.com/auntbertha/ASTdiff/master/astdiff/astdiff.py \
+    -o /usr/local/lib/python3.11/site-packages/astdiff/astdiff.py && \
+    echo "from .astdiff import compare_ast" >> /usr/local/lib/python3.11/site-packages/astdiff/__init__.py
 
 
 
