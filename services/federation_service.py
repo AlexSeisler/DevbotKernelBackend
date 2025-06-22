@@ -89,7 +89,8 @@ class FederationService:
         repo_tree_data = self.github.get_repo_tree(
             "AlexSeisler",
             "DevbotKernelBackend",
-            "main"
+            "main",
+            recursive=True
         )
 
         repo_tree = repo_tree_data["tree"]
