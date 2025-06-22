@@ -1,6 +1,7 @@
 import ast
 import astunparse
-from astdiff import compare_ast_strings
+from astdiff.diff import compare_ast_strings
+
 from models.federation_schemas import PatchObject
 
 class ASTPatchComposer:

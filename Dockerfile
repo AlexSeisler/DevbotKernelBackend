@@ -23,8 +23,8 @@ RUN pip install --upgrade pip setuptools wheel && \
 
 # ✅ Install all Python dependencies without cache, respecting version pins
 RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
-# Patch astdiff's broken top-level import
-RUN echo "from .diff import compare_ast_strings" >> /usr/local/lib/python3.11/site-packages/astdiff/__init__.py
+RUN pip install git+https://github.com/erikbern/astdiff.git@42c6f4e6c9644d6d4282e8bff3ea71c2e0c6cde0
+
 
 # ✅ Copy application code (after deps to leverage Docker layer caching)
 COPY . .
