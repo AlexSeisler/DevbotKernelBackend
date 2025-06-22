@@ -20,7 +20,6 @@ class Database:
                     dsn=self.dsn
                 )
                 if self.pool:
-                    print("✅ Connection pool established")
                     break
             except psycopg2.OperationalError as e:
                 print(f"DB connection pool failed (attempt {attempt+1}): {e}")

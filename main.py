@@ -44,9 +44,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 async def print_routes():
     print("\n🚀 REGISTERED ROUTES:")
-    for route in app.routes:
-        if hasattr(route, "path"):
-            print(f"{route.methods} --> {route.path}")
 
 # 🔍 Request Logger for audit tracking
 @app.middleware("http")
