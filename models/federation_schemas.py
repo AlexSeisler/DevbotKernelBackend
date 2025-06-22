@@ -15,7 +15,7 @@ class PatchObject(BaseModel):
     updated_content: str
     risk_score: Optional[float] = 0.0  # Existing field
     risk_class: Optional[str] = "UNKNOWN"  # Phase 2: Risk classification
-
+    diff_summary: Optional[str] = None  # 🆕 Phase 3
 
 class CommitPatchRequest(BaseModel):
     proposal_id: int

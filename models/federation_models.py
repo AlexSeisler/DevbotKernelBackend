@@ -13,4 +13,5 @@ class FederationRepo(Base):
     repo = Column(String)
     branch = Column(String)
     root_sha = Column(String)
-    risk_class = Column(String, nullable=True)     # ✅ Added for AST Phase 2
+    risk_class = Column(String, nullable=True)  
+    diff_summary = Column(String, nullable=True)   # ✅ Added for AST Phase 2

@@ -13,9 +13,9 @@ class ProposalManager:
                 cur.execute("""
                     INSERT INTO patch_proposal (
                         proposal_id, repo_id, branch, proposed_by,
-                        commit_message, patches, status, risk_class
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        commit_message, patches, status, risk_class, diff_summary
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+
                 """, (
                     proposal["proposal_id"],
                     proposal["repo_id"],
@@ -24,7 +24,8 @@ class ProposalManager:
                     proposal["commit_message"],
                     json.dumps(proposal["patches"]),
                     proposal["status"],
-                    proposal.get("risk_class", "UNKNOWN")
+                    proposal.get("risk_class", "UNKNOWN"),
+                    proposal.get("diff_summary", "")
                 ))
                 conn.commit()
         except Exception as e:
