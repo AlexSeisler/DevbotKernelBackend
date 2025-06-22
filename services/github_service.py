@@ -206,4 +206,10 @@ class GitHubService:
 
         if response.status_code != 200:
             raise Exception(f"Failed to fetch repo ID: {response.status_code} {response.text}")
-        return response.json()["id"]
+        
+        repo_data = response.json()
+        if "id" not in repo_data:
+            raise Exception(f"GitHub response missing 'id': {repo_data}")
+        
+        return repo_data["id"]
+

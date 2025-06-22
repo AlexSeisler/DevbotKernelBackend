@@ -7,19 +7,19 @@ class ImportRepoRequest(BaseModel):
     default_branch: str
 
 class AnalyzeRepoRequest(BaseModel):
-    repo_id: int  # 🔧 integer PK now
+    repo_id: int  # 🕊️ integer PK now
 
 class PatchObject(BaseModel):
     file_path: str
     base_sha: str
     updated_content: str
+    risk_score: Optional[float] = 0.0  # 🔒 New field: set by AST engine
 
 class CommitPatchRequest(BaseModel):
     proposal_id: int
     file_path: str
     base_sha: str
     updated_content: str
-
 
 class PatchProposal(BaseModel):
     file_path: str
@@ -35,19 +35,21 @@ class ProposePatchRequest(BaseModel):
 
 class ApprovePatchRequest(BaseModel):
     proposal_id: str
+
 class LinkFederationNodeRequest(BaseModel):
     repo_id: int
     file_path: str
     name: str
     cross_linked_to: str = ""
     notes: str
+
 class CommitPatchObject(BaseModel):
     file_path: str
     branch: str
     commit_message: str
     updated_content: str
     base_sha: str
-    repo_id: Optional[str] = None  # ✅ Add this field
+    repo_id: Optional[str] = None  # 🕵️ Add this field
 
 class ReplicateSaaSRequest(BaseModel):
     source_repo: str
@@ -61,6 +63,7 @@ class FederationGraphLinkRequest(BaseModel):
     cross_linked_to: Optional[str] = ""
     federation_weight: Optional[float] = 1.0
     notes: Optional[str] = ""
+
 class PatchASTProposal(BaseModel):
     file_path: str
     base_sha: str
