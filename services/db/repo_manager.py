@@ -69,7 +69,7 @@ class RepoManager:
         finally:
             self.db.release_connection(conn)
             
-    def get_id_by_slug(self, slug: str) -> int:
+    def get_repo_by_slug(self, slug: str) -> int:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
