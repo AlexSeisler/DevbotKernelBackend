@@ -1,7 +1,6 @@
 import ast
 import astunparse
 from astdiff.astdiff import compare_ast
-
 from models.federation_schemas import PatchObject
 
 class ASTPatchComposer:
@@ -13,16 +12,10 @@ class ASTPatchComposer:
             old_ast = ast.parse(old_content)
             new_ast = new_ast_mutator(old_ast)
             updated_content = astunparse.unparse(new_ast)
-
-            # 🧠 Parse the updated string to AST for comparison
             updated_ast = ast.parse(updated_content)
-
-            # 🔍 Perform AST comparison
             compare_ast(old_ast, updated_ast)
-
         except AssertionError as e:
             raise Exception(f"[Patch Blocked] Semantic mismatch detected: {str(e)}")
-
         except Exception as e:
             raise Exception(f"[AST Composer Error] {str(e)}")
 
