@@ -13,9 +13,14 @@ class ASTPatchComposer:
             new_ast = new_ast_mutator(old_ast)
             updated_content = astunparse.unparse(new_ast)
             updated_ast = ast.parse(updated_content)
-            compare_ast(old_ast, updated_ast)
-        except AssertionError as e:
-            raise Exception(f"[Patch Blocked] Semantic mismatch detected: {str(e)}")
+
+            # 🔐 AST drift check — raises if logic changes
+            try:
+                compare_ast(old_ast, updated_ast)
+            except AssertionError as e:
+                print(f"[AST Check Failed] {e}")
+                raise Exception(f"[Patch Blocked] Semantic mismatch detected.")
+
         except Exception as e:
             raise Exception(f"[AST Composer Error] {str(e)}")
 
@@ -32,4 +37,3 @@ class ASTPatchComposer:
             risk_class=risk_class,
             diff_summary=scorecard["summary"]
         )
-
