@@ -101,7 +101,14 @@ class FederationService:
                 continue
 
             try:
-                raw_file = self.github.get_file(file_path, "main", fallback=True)
+                raw_file = self.github.get_file(
+                    "AlexSeisler",
+                    "DevbotKernelBackend",
+                    file_path,
+                    "main",
+                    fallback=True
+                )
+
                 file_content = base64.b64decode(raw_file["content"]).decode()
             except Exception as e:
                 print(f"⚠️ Skipped file {file_path} due to fetch error: {e}")
