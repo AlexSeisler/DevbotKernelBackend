@@ -19,8 +19,12 @@ class ASTPatchComposer:
         except Exception as e:
             raise Exception(f"[AST Composer Error] {str(e)}")
 
+        from .risk_classifier import classify_ast_diff
+        risk_class = classify_ast_diff(old_ast, updated_ast)
+
         return PatchObject(
             file_path=file_path,
             base_sha=base_sha,
-            updated_content=updated_content
+            updated_content=updated_content,
+            risk_class=risk_class  # Will require extending PatchObject
         )

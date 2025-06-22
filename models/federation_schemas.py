@@ -13,7 +13,9 @@ class PatchObject(BaseModel):
     file_path: str
     base_sha: str
     updated_content: str
-    risk_score: Optional[float] = 0.0  # 🔒 New field: set by AST engine
+    risk_score: Optional[float] = 0.0  # Existing field
+    risk_class: Optional[str] = "UNKNOWN"  # Phase 2: Risk classification
+
 
 class CommitPatchRequest(BaseModel):
     proposal_id: int
