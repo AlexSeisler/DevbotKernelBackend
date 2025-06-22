@@ -1,12 +1,29 @@
+# --- CORE FASTAPI STACK ---
+fastapi==0.95.2
+uvicorn[standard]==0.29.0
+python-dotenv==1.0.1
+requests==2.32.3
+pydantic==2.7.1
+psycopg2==2.9.9
+sqlalchemy==2.0.30
+
+# --- PHASE 1: AST PATCH DIFFING ---
+astdiff==0.2.5
+astunparse==1.6.3
+
+# --- RENDER-SAFE CLI STACK ---
+click==8.1.7
+typer==0.4.2
+
+# --- SUPPORTING CORE DEPENDENCIES ---
 certifi==2023.7.22
 urllib3==2.2.2
 email_validator==2.1.0.post1
 dnspython==2.7.0
 colorful==0.4.4
 annotated-types==0.5.0
-
 idna==3.10
 six==1.16.0
-anyio==4.9.0
+anyio==4.2.0
 typing==3.7.4.3
 charset-normalizer==3.4.1
