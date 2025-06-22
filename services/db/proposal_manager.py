@@ -6,8 +6,19 @@ class ProposalManager:
         self.db = Database()
 
     def save_proposal(self, proposal):
-        conn = self.db.get_connection()
+        if not proposal.get("patches"):
+            raise Exception("Empty patch cannot be saved.")
 
+        if not isinstance(proposal["patches"], list) or not proposal["patches"][0].get("updated_content"):
+            raise Exception("Patch must contain updated_content.")
+
+        if proposal.get("risk_class") in (None, "", "UNKNOWN"):
+            raise Exception("Risk classification must be explicitly set before saving.")
+
+        if not proposal.get("diff_summary"):
+            print("[WARNING] Saving proposal with empty diff_summary.")
+
+        conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -15,7 +26,6 @@ class ProposalManager:
                         proposal_id, repo_id, branch, proposed_by,
                         commit_message, patches, status, risk_class, diff_summary
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-
                 """, (
                     proposal["proposal_id"],
                     proposal["repo_id"],
@@ -24,8 +34,8 @@ class ProposalManager:
                     proposal["commit_message"],
                     json.dumps(proposal["patches"]),
                     proposal["status"],
-                    proposal.get("risk_class", "UNKNOWN"),
-                    proposal.get("diff_summary", "")
+                    proposal["risk_class"],
+                    proposal["diff_summary"]
                 ))
                 conn.commit()
         except Exception as e:
@@ -33,6 +43,7 @@ class ProposalManager:
             raise Exception(f"Failed to save patch proposal: {str(e)}")
         finally:
             self.db.release_connection(conn)
+
     def get_pending_proposals(self, risk_class_whitelist):
         conn = self.db.get_connection()
         try:
