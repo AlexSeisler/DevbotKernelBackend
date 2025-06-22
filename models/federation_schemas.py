@@ -13,7 +13,9 @@ class PatchObject(BaseModel):
     file_path: str
     base_sha: str
     updated_content: str
-    risk_score: Optional[float] = 0.0  # 🔒 New field: set by AST engine
+    risk_score: Optional[float] = 0.0  # Existing field
+    risk_class: Optional[str] = "UNKNOWN"  # Phase 2: Risk classification
+    diff_summary: Optional[str] = None  # 🆕 Phase 3
 
 class CommitPatchRequest(BaseModel):
     proposal_id: int
@@ -68,6 +70,12 @@ class PatchASTProposal(BaseModel):
     file_path: str
     base_sha: str
     updated_content: str
+
+    # Phase 3 risk classification + audit fields
+    risk_score: Optional[float] = 0.0  # Future use: automated score
+    risk_class: Optional[str] = "UNKNOWN"  # Must be explicitly set at save time
+    diff_summary: Optional[str] = None  # Summarized diff changes (e.g., "added def foo")
+
 
 class PatchProposalResponse(BaseModel):
     patches: List[PatchASTProposal]

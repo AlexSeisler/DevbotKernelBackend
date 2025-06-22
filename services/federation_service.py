@@ -136,42 +136,53 @@ class FederationService:
         data = res.json()
         return base64.b64decode(data["content"]).decode()
 
-    def commit_patch(self, payload: CommitPatchRequest):
+    def commit_patch(self, proposal_id: str):
         try:
-            # Assume we already have updated_content from AST composer
-            if not payload.updated_content:
-                old_content = self.github.get_file_content(payload.file_path, payload.branch)
-                base_sha = self.github.get_latest_file_sha(payload.file_path, payload.branch)
+            # Step 1: Load proposal from DB
+            proposal = self.proposal_manager.get_proposal_by_id(proposal_id)
+            if not proposal:
+                raise Exception(f"Patch proposal ID '{proposal_id}' not found.")
 
-                def noop_mutator(tree): return tree
-                patch = self.ast_composer.compose_patch(
-                    old_content=old_content,
-                    new_ast_mutator=noop_mutator,
-                    file_path=payload.file_path,
-                    base_sha=base_sha
-                )
-                payload.updated_content = patch.updated_content
+            file_path = proposal["patches"][0]["file_path"]
+            updated_content = proposal["patches"][0]["updated_content"]
+            base_sha = proposal["patches"][0]["base_sha"]
+            repo_id = proposal["repo_id"]
 
-            repo_name = self.repo_manager.get_slug_by_id(payload.repo_id)
+            # Step 2: Resolve repo + get latest from GitHub
+            slug = self.repo_manager.get_slug_by_id(repo_id)
+            owner, repo = slug.split("/")
+
+            current_file = self.github.get_file(owner, repo, file_path, proposal["branch"])
+            current_content = base64.b64decode(current_file["content"]).decode()
+            current_sha = current_file["sha"]
+
+            # Step 3: AST revalidation
+            import ast
+            from services.replicator.ast_patch_composer import compare_ast
+
+            old_ast = ast.parse(current_content)
+            new_ast = ast.parse(updated_content)
+
+            compare_ast(old_ast, new_ast)  # raises if semantically different
+
+            # Step 4: Validate SHA
+            if current_sha != base_sha:
+                raise Exception(f"File SHA has changed since proposal: now {current_sha}, was {base_sha}")
+
+            # Step 5: Proceed to commit
             result = self.github.commit_patch(
-                repo_name=repo_name,  # ✅ use owner/repo slug
-                branch=payload.branch,
-                file_path=payload.file_path,
-                commit_message=payload.commit_message,
-                base_sha=payload.base_sha,
-                updated_content=payload.updated_content
+                repo_name=slug,
+                branch=proposal["branch"],
+                file_path=file_path,
+                commit_message=proposal["commit_message"],
+                base_sha=base_sha,
+                updated_content=updated_content
             )
             return {"status": "committed", "result": result}
 
         except Exception as e:
-            submit_to_manual_review_queue(
-                file_path=payload.file_path,
-                old_content=old_content if 'old_content' in locals() else "",
-                new_content=payload.updated_content if payload.updated_content else "",
-                base_sha=payload.base_sha,
-                error_reason=str(e)
-            )
-            raise Exception(f"Commit patch failed and was routed to review queue: {str(e)}")
+            raise Exception(f"Commit failed: {str(e)}")
+
 
 
 
@@ -189,27 +200,26 @@ class FederationService:
             old_content = base64.b64decode(b64_content).decode()
             base_sha = sha
 
-            def noop_mutator(tree): return tree  # Just test identity patching
+            def noop_mutator(tree): return tree  # Just identity patching
+
             patch = self.ast_composer.compose_patch(
                 old_content=old_content,
                 new_ast_mutator=noop_mutator,
                 file_path=file_path,
                 base_sha=base_sha
             )
-            # Persist patch proposal in database
+
             proposal_id = str(uuid.uuid4())
             self.proposal_manager.save_proposal({
                 "proposal_id": proposal_id,
-                "repo_id": self.repo_manager.try_resolve_pk(f"{owner}/{repo}"),
+                "repo_id": self.repo_manager.get_repo_by_slug(f"{owner}/{repo}"),
                 "branch": branch,
-                "proposed_by": "DevBot",  # or dynamic agent if available
+                "proposed_by": "DevBot",
                 "commit_message": f"Proposed patch for {file_path}",
-                "patches": json.dumps([{
-                    "file_path": patch.file_path,
-                    "base_sha": patch.base_sha,
-                    "updated_content": patch.updated_content
-                }]),
-                "status": "pending"
+                "patches": [patch.dict()],
+                "status": "pending",
+                "risk_class": patch.risk_class,
+                "diff_summary": patch.diff_summary
             })
 
             return PatchProposalResponse(patches=[patch])
@@ -217,3 +227,4 @@ class FederationService:
         except Exception as e:
             print(f"[ERROR] propose_patch failed: {str(e)}")
             raise
+

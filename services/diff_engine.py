@@ -57,7 +57,14 @@ class DiffEngine:
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}?ref={branch}"
         resp = requests.get(url, headers=self.headers)
         resp.raise_for_status()
-        return resp.json()["sha"]
+        content = resp.json()
+
+        # Validate that the file SHA matches what's expected in the patch proposal
+        if "sha" not in content:
+            raise Exception(f"Missing SHA for file {file_path}")
+        
+        return content["sha"]
+
 
     def _create_blob(self, owner, repo, content):
         url = f"{self.base_url}/repos/{owner}/{repo}/git/blobs"
