@@ -30,7 +30,7 @@ async def execute_replication(payload: ReplicationExecutionRequest):
     try:
         print("[DEBUG] Raw payload:", payload)
 
-        # ✅ Enforce that both are integers (strict contract)
+        # Enforce integer casting
         source_repo_pk = int(payload.source_repo_id)
         target_repo_pk = int(payload.target_repo_id)
 
@@ -40,7 +40,7 @@ async def execute_replication(payload: ReplicationExecutionRequest):
         print("[DEBUG] Resolved Source:", source_repo_id)
         print("[DEBUG] Resolved Target:", target_repo_id)
 
-        # Build plan
+        # Build and normalize execution plan
         plan = planner.build_plan(
             source_repo_id=source_repo_id,
             target_repo_id=target_repo_id
@@ -48,11 +48,11 @@ async def execute_replication(payload: ReplicationExecutionRequest):
 
         print("[DEBUG] Plan:", plan)
 
-        # Inject commit metadata
+        # Inject metadata
         plan["commit_message"] = payload.commit_message or "DevBot: Apply semantic replication plan"
         plan["target_branch"] = payload.target_branch or "main"
 
-        # Execute
+        # Execute safely
         result = executor.execute_replication(plan)
         return result
 

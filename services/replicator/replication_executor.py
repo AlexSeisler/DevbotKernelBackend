@@ -45,7 +45,7 @@ class ReplicationExecutor:
                 old_content = self.github_service.get_file_content(file_path, branch)
 
                 def noop_mutator(tree):
-                    return tree  # Replace with GPT logic when ready
+                    return tree
 
                 patch = self.ast_composer.compose_patch(
                     old_content=old_content,
@@ -67,7 +67,7 @@ class ReplicationExecutor:
                 submit_to_manual_review_queue(
                     file_path=file_path,
                     old_content=old_content,
-                    new_content="",  # failed mutation, so no update
+                    new_content="",
                     base_sha=base_sha,
                     error_reason=str(e)
                 )

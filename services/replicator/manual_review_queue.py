@@ -9,15 +9,20 @@ os.makedirs(REVIEW_QUEUE_DIR, exist_ok=True)
 
 def submit_to_manual_review_queue(file_path, old_content, new_content, base_sha, error_reason):
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"patch_{os.path.basename(file_path).replace('/', '_')}_{timestamp}.json"
+    safe_file = os.path.basename(file_path).replace("/", "_")
+    filename = f"patch_{safe_file}_{timestamp}.json"
+
     payload = {
         "file_path": file_path,
         "base_sha": base_sha,
         "error_reason": error_reason,
-        "old_content": old_content,
-        "new_content": new_content
+        "old_content": old_content.strip() if old_content else "",
+        "new_content": new_content.strip() if new_content else "",
+        "timestamp": timestamp
     }
+
     full_path = os.path.join(REVIEW_QUEUE_DIR, filename)
     with open(full_path, "w") as f:
         json.dump(payload, f, indent=2)
+
     print(f"[QUEUE] Patch for {file_path} routed to manual review: {full_path}")

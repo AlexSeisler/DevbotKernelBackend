@@ -76,7 +76,7 @@ git fetch --all
 
 DB Connection: psql "postgresql://devbot_kernel_db_user:QXHzyHjiuoUUKbTKZQcXrcwqsRdume7N@dpg-d186jf0dl3ps738sqo40-a.virginia-postgres.render.com/devbot_kernel_db"
 uvicorn main:app --reload --port 8000
-C:\Program Files\PostgreSQL\16\bin
+cd C:\Program Files\PostgreSQL\16\bin
 
 
 Patch queue commands
@@ -91,6 +91,9 @@ FROM pg_stat_activity
 WHERE state = 'idle';
 
 
+solid we have changed a solid amount but the core is still their so be adaptable... 
+
+We are going to be patching your backend... when I say pull file context or provide patches you should pull the full file before providing patches to ensure full logic flow and match...I will now give you the handoff from the previous devbot
 scope through your knowledge base and get familiar with the system... 
 somethings to clarify when I ask you to pull full context its so you can implment the new sysstems into the current logic so pull the full file and use it as full context....
 

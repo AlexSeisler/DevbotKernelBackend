@@ -71,5 +71,11 @@ class PatchASTProposal(BaseModel):
     base_sha: str
     updated_content: str
 
+    # Phase 3 risk classification + audit fields
+    risk_score: Optional[float] = 0.0  # Future use: automated score
+    risk_class: Optional[str] = "UNKNOWN"  # Must be explicitly set at save time
+    diff_summary: Optional[str] = None  # Summarized diff changes (e.g., "added def foo")
+
+
 class PatchProposalResponse(BaseModel):
     patches: List[PatchASTProposal]

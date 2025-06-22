@@ -50,9 +50,11 @@ async def commit_patch(payload: CommitPatchRequest):
         if proposal.status not in ["approved", "manual"]:
             raise HTTPException(status_code=403, detail="Patch not approved")
 
-        if (proposal.file_path != payload.file_path or
+        if (
+            proposal.file_path != payload.file_path or
             proposal.base_sha != payload.base_sha or
-            proposal.updated_content.strip() != payload.updated_content.strip()):
+            proposal.updated_content.strip() != payload.updated_content.strip()
+        ):
             raise HTTPException(status_code=409, detail="Patch payload does not match proposal")
 
         result = service.commit_patch(proposal)

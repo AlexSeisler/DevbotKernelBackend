@@ -15,34 +15,44 @@ class ProposalManager:
         if proposal.get("risk_class") in (None, "", "UNKNOWN"):
             raise Exception("Risk classification must be explicitly set before saving.")
 
-        if not proposal.get("diff_summary"):
-            print("[WARNING] Saving proposal with empty diff_summary.")
+        # Normalize updated_content
+        for patch in proposal["patches"]:
+            if "updated_content" in patch:
+                patch["updated_content"] = patch["updated_content"].strip()
+
+        # Optional: inject basic diff summary if missing
+        if "diff_summary" not in proposal or not proposal.get("diff_summary"):
+            proposal["diff_summary"] = f"Patches: {len(proposal['patches'])}, Risk: {proposal.get('risk_class', 'UNKNOWN')}"
 
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO patch_proposal (
                         proposal_id, repo_id, branch, proposed_by,
                         commit_message, patches, status, risk_class, diff_summary
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    proposal["proposal_id"],
-                    proposal["repo_id"],
-                    proposal["branch"],
-                    proposal["proposed_by"],
-                    proposal["commit_message"],
-                    json.dumps(proposal["patches"]),
-                    proposal["status"],
-                    proposal["risk_class"],
-                    proposal["diff_summary"]
-                ))
+                    """,
+                    (
+                        proposal["proposal_id"],
+                        proposal["repo_id"],
+                        proposal["branch"],
+                        proposal["proposed_by"],
+                        proposal["commit_message"],
+                        json.dumps(proposal["patches"]),
+                        proposal["status"],
+                        proposal["risk_class"],
+                        proposal["diff_summary"]
+                    )
+                )
                 conn.commit()
         except Exception as e:
             conn.rollback()
             raise Exception(f"Failed to save patch proposal: {str(e)}")
         finally:
             self.db.release_connection(conn)
+
 
     def get_pending_proposals(self, risk_class_whitelist):
         conn = self.db.get_connection()

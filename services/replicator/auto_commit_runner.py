@@ -17,13 +17,12 @@ class AutoCommitRunner:
                 for proposal in pending:
                     proposal_id = proposal["proposal_id"]
 
-
-                    if proposal["patches"][0]["updated_content"].strip() == "":
+                    patches = proposal.get("patches", [])
+                    if not patches or not patches[0].get("updated_content", "").strip():
                         print(f"[AutoCommitRunner] Skipping empty patch: {proposal_id}")
                         continue
-                    
-                    print(f"[AutoCommitRunner] Attempting commit for patch ID: {proposal_id}")
 
+                    print(f"[AutoCommitRunner] Attempting commit for patch ID: {proposal_id}")
                     try:
                         result = self.federation.commit_patch(proposal_id)
                         print(f"[AutoCommitRunner] Patch {proposal_id} committed: {result}")
