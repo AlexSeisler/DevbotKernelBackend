@@ -1,6 +1,14 @@
+# Existing pins
 certifi==2023.7.22
 urllib3==2.2.2
 email_validator==2.1.0.post1
 dnspython==2.7.0
 astdiff==0.2.5
 annotated-types==0.5.0
+
+# New pins (from your environment)
+idna==3.10
+six==1.16.0
+anyio==4.9.0
+typing==3.7.4.3
+typer==0.13.1
