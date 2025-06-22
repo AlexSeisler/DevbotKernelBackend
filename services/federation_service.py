@@ -204,7 +204,9 @@ class FederationService:
 
     def propose_patch(self, owner, repo, file_path, branch, manual: bool = False, updated_content: str = None):
         try:
-            print(f"[PATCH PROPOSAL] Fetching file for: {file_path} @ {branch}")
+            print("[SERVICE DEBUG] Manual flag:", manual)
+            print("[SERVICE DEBUG] Incoming updated_content:\n", updated_content)
+            print(f"[PATCH PROPOSAL] Processing file: {file_path} @ {branch}")
 
             if manual:
                 patch_dict = {
@@ -215,6 +217,7 @@ class FederationService:
                     "diff_summary": "Manual override patch",
                     "manual": True
                 }
+                print("[SERVICE DEBUG] Final Manual Patch Dict:", patch_dict)
             else:
                 file_data = self.github.get_file(owner, repo, file_path, branch)
                 b64_content = file_data.get("content")
@@ -236,6 +239,7 @@ class FederationService:
                     manual=False
                 )
                 patch_dict = patch.dict() | {"manual": False}
+                print("[SERVICE DEBUG] Final Auto Patch Dict:", patch_dict)
 
             proposal_id = str(uuid.uuid4())
             self.proposal_manager.save_proposal({
@@ -255,4 +259,3 @@ class FederationService:
         except Exception as e:
             print(f"[ERROR] propose_patch failed: {str(e)}")
             raise
-

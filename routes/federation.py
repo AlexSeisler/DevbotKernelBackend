@@ -31,6 +31,9 @@ async def propose_patch(payload: ProposePatchRequest):
 
         patches = []
         for patch in payload.patches:
+            print("[ROUTE DEBUG] Incoming patch manual:", patch.manual)
+            print("[ROUTE DEBUG] Incoming updated_content:\n", patch.updated_content)
+
             composed = service.propose_patch(
             owner=owner,
             repo=repo,
