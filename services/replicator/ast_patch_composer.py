@@ -1,7 +1,7 @@
 # PATCH ENGINE UPGRADE: AST-NATIVE PATCH COMPOSER
 
 import ast
-from astdiff.diff import compare_ast_strings
+from astdiff import compare_ast_strings
 
 from models.federation_schemas import PatchObject
 
