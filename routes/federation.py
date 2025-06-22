@@ -31,8 +31,15 @@ async def propose_patch(payload: ProposePatchRequest):
 
         patches = []
         for patch in payload.patches:
-            composed = service.propose_patch(owner, repo, patch.file_path, payload.branch)
+            composed = service.propose_patch(
+                owner=owner,
+                repo=repo,
+                file_path=patch.file_path,
+                branch=payload.branch,
+                manual=getattr(patch, "manual", False)  # Preserve override flag
+            )
             patches.extend(composed.patches)
+
 
         return PatchProposalResponse(patches=patches)
 
