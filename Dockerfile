@@ -15,14 +15,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy requirements separately for Docker caching
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --upgrade pip
 COPY requirements.txt constraints.txt ./
+
+# Upgrade pip and force full cache flush
+RUN pip install --upgrade pip && pip cache purge
+
+# Install pinned Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-
-
 
 # Copy full application codebase
 COPY . .
