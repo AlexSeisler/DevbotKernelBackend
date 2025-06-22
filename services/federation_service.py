@@ -220,8 +220,10 @@ class FederationService:
                 old_content=old_content,
                 new_ast_mutator=noop_mutator,
                 file_path=file_path,
-                base_sha=base_sha
+                base_sha=base_sha,
+                manual=manual
             )
+
 
             proposal_id = str(uuid.uuid4())
             self.proposal_manager.save_proposal({
