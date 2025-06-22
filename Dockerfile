@@ -19,13 +19,8 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Precompile critical dependencies to avoid on-server pip recursion
-RUN pip install --no-cache-dir --upgrade \
-    certifi==2023.7.22 \
-    annotated-types==0.5.0 \
-    astdiff==0.2.5
 
 # Copy full application codebase
 COPY . .
