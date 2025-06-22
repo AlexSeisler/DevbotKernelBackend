@@ -12,7 +12,7 @@ class PatchProposalBuilder:
         for file_path, base_sha, b64_content in extraction_results:
             decoded = base64.b64decode(b64_content).decode('utf-8')
 
-            # TRUST PATCH CONTENT IF MANUAL OVERRIDE IS SET
+            # BYPASS AST composer if manual mode is active
             if hasattr(self, "manual") and self.manual:
                 patch = PatchASTProposal(
                     file_path=file_path,
@@ -22,7 +22,7 @@ class PatchProposalBuilder:
                 patches.append(patch)
                 continue
 
-            # Otherwise compare against GitHub to skip no-ops
+            # Otherwise check for no-op
             current = gh.get_file_content(file_path, branch)
             if current and current.strip() == decoded.strip():
                 print(f"[PatchComposer] No-op patch skipped for {file_path}")
@@ -34,6 +34,7 @@ class PatchProposalBuilder:
                 updated_content=decoded
             )
             patches.append(patch)
+
 
 
         return patches

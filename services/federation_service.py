@@ -232,7 +232,7 @@ class FederationService:
                 "branch": branch,
                 "proposed_by": "DevBot",
                 "commit_message": f"Proposed patch for {file_path}",
-                "patches": [patch.dict()],
+                "patches": [patch.dict() | {"manual": True}],
                 "status": "pending",
                 "risk_class": patch.risk_class,
                 "diff_summary": patch.diff_summary

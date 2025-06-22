@@ -73,6 +73,7 @@ git fetch --all
 - Use `code <file>` to open specific files (e.g., `code dashboard/new_module.py`)
 - Always confirm you're on the correct branch before making commits
 
+psql "host=dpg-d1c7kveuk2gs73aeu6fg-a.virginia-postgres.render.com dbname=devbot_kernel_db_foy6 user=devbot_kernel_db_foy6_user password=dQHWp9jv6w17aMuYAKIHGPfLxKktahbW sslmode=require"
 
 DB Connection: psql "postgresql://devbot_kernel_db_user:QXHzyHjiuoUUKbTKZQcXrcwqsRdume7N@dpg-d186jf0dl3ps738sqo40-a.virginia-postgres.render.com/devbot_kernel_db"
 uvicorn main:app --reload --port 8000
