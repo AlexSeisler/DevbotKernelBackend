@@ -11,6 +11,7 @@ from models.federation_schemas import CommitPatchObject
 from services.db.proposal_manager import ProposalManager
 from models.federation_schemas import CommitPatchRequest
 from services.replicator.ast_patch_composer import ASTPatchComposer
+from models.federation_schemas import PatchASTProposal
 
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
@@ -201,32 +202,41 @@ class FederationService:
 
 
 
-    def propose_patch(self, owner, repo, file_path, branch, manual: bool = False):
+    def propose_patch(self, owner, repo, file_path, branch, manual: bool = False, updated_content: str = None):
         try:
             print(f"[PATCH PROPOSAL] Fetching file for: {file_path} @ {branch}")
-            file_data = self.github.get_file(owner, repo, file_path, branch)
-            b64_content = file_data.get("content")
-            sha = file_data.get("sha")
 
-            if not b64_content:
-                raise Exception("File has no content")
+            if manual:
+                patch_dict = {
+                    "file_path": file_path,
+                    "base_sha": "MANUAL",
+                    "updated_content": updated_content,
+                    "risk_class": "MANUAL",
+                    "diff_summary": "Manual override patch",
+                    "manual": True
+                }
+            else:
+                file_data = self.github.get_file(owner, repo, file_path, branch)
+                b64_content = file_data.get("content")
+                sha = file_data.get("sha")
 
-            old_content = base64.b64decode(b64_content).decode()
-            base_sha = sha
+                if not b64_content:
+                    raise Exception("File has no content")
 
-            def noop_mutator(tree): return tree  # Just identity patching
+                old_content = base64.b64decode(b64_content).decode()
+                base_sha = sha
 
-            patch = self.ast_composer.compose_patch(
-                old_content=old_content,
-                new_ast_mutator=noop_mutator,
-                file_path=file_path,
-                base_sha=base_sha,
-                manual=manual
-            )
+                def noop_mutator(tree): return tree
 
-            patch_data = patch.dict()
-            print("[DEBUG] Patch Dict:", patch_data)
-            
+                patch = self.ast_composer.compose_patch(
+                    old_content=old_content,
+                    new_ast_mutator=noop_mutator,
+                    file_path=file_path,
+                    base_sha=base_sha,
+                    manual=False
+                )
+                patch_dict = patch.dict() | {"manual": False}
+
             proposal_id = str(uuid.uuid4())
             self.proposal_manager.save_proposal({
                 "proposal_id": proposal_id,
@@ -234,13 +244,13 @@ class FederationService:
                 "branch": branch,
                 "proposed_by": "DevBot",
                 "commit_message": f"Proposed patch for {file_path}",
-                "patches": [patch.dict() | {"manual": True}],
+                "patches": [patch_dict],
                 "status": "pending",
-                "risk_class": patch.risk_class,
-                "diff_summary": patch.diff_summary
+                "risk_class": patch_dict["risk_class"],
+                "diff_summary": patch_dict["diff_summary"]
             })
 
-            return PatchProposalResponse(patches=[patch])
+            return PatchProposalResponse(patches=[PatchASTProposal(**patch_dict)])
 
         except Exception as e:
             print(f"[ERROR] propose_patch failed: {str(e)}")

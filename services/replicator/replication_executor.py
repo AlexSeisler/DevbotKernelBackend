@@ -78,8 +78,16 @@ class ReplicationExecutor:
         try:
             results = []
             for payload in commit_payloads:
+                # Fetch current GitHub file content for safety
+                current_content = self.github_service.get_file_content(payload.file_path, payload.branch)
+
+                if current_content.strip() == payload.updated_content.strip():
+                    print(f"[REPLICATION] Skipped no-op commit: {payload.file_path}")
+                    continue
+
                 result = self.federation_service.commit_patch(payload)
                 results.append(result)
+
             return results
         except Exception as e:
             raise Exception(f"Replication failed: {str(e)}")
