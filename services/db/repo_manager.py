@@ -74,8 +74,9 @@ class RepoManager:
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT id FROM federation_repo WHERE repo_id = %s", (slug,)
+                    "SELECT id FROM federation_repo WHERE logical_repo_id = %s", (slug,)
                 )
+
                 row = cur.fetchone()
                 if not row:
                     raise Exception(f"Repo with slug {slug} not found.")
