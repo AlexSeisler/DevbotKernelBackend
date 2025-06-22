@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class ImportRepoRequest(BaseModel):
@@ -75,7 +75,8 @@ class PatchASTProposal(BaseModel):
     risk_score: Optional[float] = 0.0  # Future use: automated score
     risk_class: Optional[str] = "UNKNOWN"  # Must be explicitly set at save time
     diff_summary: Optional[str] = None  # Summarized diff changes (e.g., "added def foo")
-    manual: bool = False  # NEW: Trust caller input and skip AST composer
+    manual: bool = Field(default=True)
+ # NEW: Trust caller input and skip AST composer
 
 
 class PatchProposalResponse(BaseModel):

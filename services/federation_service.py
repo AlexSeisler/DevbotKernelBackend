@@ -224,7 +224,9 @@ class FederationService:
                 manual=manual
             )
 
-
+            patch_data = patch.dict()
+            print("[DEBUG] Patch Dict:", patch_data)
+            
             proposal_id = str(uuid.uuid4())
             self.proposal_manager.save_proposal({
                 "proposal_id": proposal_id,
