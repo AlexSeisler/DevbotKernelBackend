@@ -86,7 +86,12 @@ class FederationService:
 
         branch_sha = self.github.get_branch_sha("AlexSeisler", "DevbotKernelBackend", "main")["object"]["sha"]
 
-        repo_tree_data = self.github.get_repo_tree(branch_sha, recursive=True)
+        repo_tree_data = self.github.get_repo_tree(
+            "AlexSeisler",
+            "DevbotKernelBackend",
+            "main"
+        )
+
         repo_tree = repo_tree_data["tree"]
 
         for file in repo_tree:
