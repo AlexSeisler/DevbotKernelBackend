@@ -75,6 +75,7 @@ class PatchASTProposal(BaseModel):
     risk_score: Optional[float] = 0.0  # Future use: automated score
     risk_class: Optional[str] = "UNKNOWN"  # Must be explicitly set at save time
     diff_summary: Optional[str] = None  # Summarized diff changes (e.g., "added def foo")
+    manual: bool = False  # NEW: Trust caller input and skip AST composer
 
 
 class PatchProposalResponse(BaseModel):

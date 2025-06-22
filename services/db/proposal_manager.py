@@ -15,12 +15,12 @@ class ProposalManager:
         if proposal.get("risk_class") in (None, "", "UNKNOWN"):
             raise Exception("Risk classification must be explicitly set before saving.")
 
-        # Normalize updated_content
+        # Normalize line endings only — DO NOT modify content structure
         for patch in proposal["patches"]:
             if "updated_content" in patch:
-                patch["updated_content"] = patch["updated_content"].strip()
+                patch["updated_content"] = patch["updated_content"].strip("\r\n")
 
-        # Optional: inject basic diff summary if missing
+        # Inject diff summary if not present
         if "diff_summary" not in proposal or not proposal.get("diff_summary"):
             proposal["diff_summary"] = f"Patches: {len(proposal['patches'])}, Risk: {proposal.get('risk_class', 'UNKNOWN')}"
 

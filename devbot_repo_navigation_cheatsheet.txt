@@ -90,6 +90,38 @@ SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
 WHERE state = 'idle';
 
+✅ Connection pool established
+DB connection pool failed (attempt 1): connection to server at "dpg-d186jf0dl3ps738sqo40-a" (10.227.96.92), port 5432 failed: FATAL:  remaining connection slots are reserved for roles with the SUPERUSER attribute
+HEAD http://devbotkernelbackend.onrender.com/ --> 404
+INFO:     127.0.0.1:55456 - "HEAD / HTTP/1.1" 404 Not Found
+Exception in thread Thread-1 (start_runner):
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/threading.py", line 1045, in _bootstrap_inner
+    self.run()
+  File "/usr/local/lib/python3.11/threading.py", line 982, in run
+    self._target(*self._args, **self._kwargs)
+  File "/app/main.py", line 71, in start_runner
+    runner = AutoCommitRunner(poll_interval=15)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/services/replicator/auto_commit_runner.py", line 9, in __init__
+    self.federation = FederationService()
+                      ^^^^^^^^^^^^^^^^^^^
+  File "/app/services/federation_service.py", line 35, in __init__
+    self.repo_manager = RepoManager()
+                        ^^^^^^^^^^^^^
+  File "/app/services/db/repo_manager.py", line 6, in __init__
+    self.db = Database()
+              ^^^^^^^^^^
+  File "/app/settings.py", line 31, in __init__
+    raise Exception("Database connection pool failed after retries.")
+Exception: Database connection pool failed after retries.
+==> Your service is live 🎉
+DB connection pool failed (attempt 2): connection to server at "dpg-d186jf0dl3ps738sqo40-a" (10.227.96.92), port 5432 failed: FATAL:  remaining connection slots are reserved for roles with the SUPERUSER attribute
+DB connection pool failed (attempt 3): connection to server at "dpg-d186jf0dl3ps738sqo40-a" (10.227.96.92), port 5432 failed: FATAL:  remaining connection slots are reserved for roles with the SUPERUSER attribute
+DB connection pool failed (attempt 4): connection to server at "dpg-d186jf0dl3ps738sqo40-a" (10.227.96.92), port 5432 failed: FATAL:  remaining connection slots are reserved for roles with the SUPERUSER attribute
+DB connection pool failed (attempt 5): connection to server at "dpg-d186jf0dl3ps738sqo40-a" (10.227.96.92), port 5432 failed: FATAL:  remaining connection slots are reserved for roles with the SUPERUSER attribute
+
+
 
 solid we have changed a solid amount but the core is still their so be adaptable... 
 

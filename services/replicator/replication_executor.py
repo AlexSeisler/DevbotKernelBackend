@@ -51,8 +51,10 @@ class ReplicationExecutor:
                     old_content=old_content,
                     new_ast_mutator=noop_mutator,
                     file_path=file_path,
-                    base_sha=base_sha
+                    base_sha=base_sha,
+                    manual=True  # Signal override to trust updated content
                 )
+
 
                 commit_payloads.append(CommitPatchRequest(
                     repo_id=target_repo,
