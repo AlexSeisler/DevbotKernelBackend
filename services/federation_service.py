@@ -253,6 +253,9 @@ class FederationService:
                 "risk_class": patch_dict["risk_class"],
                 "diff_summary": patch_dict["diff_summary"]
             })
+            print("[PATCH FINAL OUT] patch_dict:", patch_dict)
+            print("[PATCH FINAL OUT] Returning:", PatchASTProposal(**patch_dict).dict())
+            
 
             return PatchProposalResponse(patches=[PatchASTProposal(**patch_dict)])
 

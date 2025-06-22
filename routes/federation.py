@@ -31,6 +31,11 @@ async def propose_patch(payload: ProposePatchRequest):
 
         patches = []
         for patch in payload.patches:
+            print("[ROUTE TRACE] Patch as received:", patch.dict())
+            print("[ROUTE DEBUG] type(patch):", type(patch))
+            print("[ROUTE DEBUG] patch.manual:", getattr(patch, "manual", None))
+            print("[ROUTE DEBUG] patch.updated_content:", getattr(patch, "updated_content", "[missing]"))
+
             manual_flag = getattr(patch, "manual", False)
             content_body = getattr(patch, "updated_content", "")
 
