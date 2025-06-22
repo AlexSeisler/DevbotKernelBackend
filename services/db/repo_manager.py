@@ -82,10 +82,11 @@ class RepoManager:
                         repo = EXCLUDED.repo,
                         branch = EXCLUDED.branch,
                         root_sha = EXCLUDED.root_sha
+                    RETURNING id
                 """, (repo_id, owner, repo, branch, root_sha))
-                conn.commit()
-                cur.execute("SELECT * FROM federation_repo")
-                print(cur.fetchall())
-
+                row = cur.fetchone()
+                if not row:
+                    raise Exception(f"[ERROR] Repo insert/update failed: repo_id={repo_id}")
+                return row[0]
         finally:
             self.db.release_connection(conn)

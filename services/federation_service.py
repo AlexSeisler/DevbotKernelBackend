@@ -14,6 +14,7 @@ from services.replicator.ast_patch_composer import ASTPatchComposer
 
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
+import json
 from models.federation_schemas import PatchProposalResponse
 
 
@@ -46,68 +47,32 @@ class FederationService:
         logical_repo_id = f"{owner}/{repo}"
         print(f"[FEDERATION IMPORT] Attempting import for: {logical_repo_id}")
 
-        # ✅ Cleanroom ingest stub
-        files = [
-            {
-                "path": "dashboard/README.md",
-                "type": "file",
-                "sha": "bootstrap-sha-readme"
-            },
-            {
-                "path": "dashboard/new_module.py",
-                "type": "file",
-                "sha": "bootstrap-sha-newmodule"
-            }
-        ]
+        # 🛡️ Early exit if already exists
+        existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
+        if existing_id:
+            print(f"[FEDERATION IMPORT] Repo already ingested: {logical_repo_id} (ID={existing_id})")
+            return {"repo_id": existing_id, "files_ingested": 0}
 
-        static_root_sha = "bootstrap-root-sha"
-        conn = None
+        print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
+        print(f"[INSERT CALL] About to insert logical_repo_id={logical_repo_id}, owner={owner}, repo={repo}")
 
+        # 🔑 Resolve GitHub repo ID safely
         try:
-            conn = self.db.get_connection()
-            with conn.cursor() as cur:
-                existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
-                if existing_id:
-                    print(f"[FEDERATION IMPORT] Repo already ingested: {logical_repo_id} (ID={existing_id})")
-                    return {"repo_id": existing_id, "files_ingested": 0}
-
-                print(f"[FEDERATION IMPORT] New repo detected: {logical_repo_id}")
-                print(f"[INSERT CALL] About to insert logical_repo_id={logical_repo_id}, owner={owner}, repo={repo}")
-
-
-
-                pk_id = self.repo_manager.insert_or_update_repo(
-                    repo_id=self.github.get_repo_id(owner, repo),
-                    owner=owner,
-                    repo=repo,
-                    branch=branch,
-                    root_sha=static_root_sha
-                )
-
-                for file in files:
-                    self.graph_manager.insert_graph_link_tx(
-                        cur,
-                        logical_repo_id,
-                        file["path"],
-                        file["type"],
-                        file["path"].split("/")[-1],
-                        None,
-                        1.0,
-                        "Bootstrap ingestion"
-                    )
-
-            conn.commit()
-            return {"repo_id": pk_id, "files_ingested": len(files)}
-
+            gh_repo_id = self.github.get_repo_id(owner, repo)
         except Exception as e:
-            print(f"[FEDERATION IMPORT ERROR] {type(e).__name__}: {e}")
-            if conn:
-                conn.rollback()
-            raise Exception(f"Federation ingestion transaction failed: {str(e)}")
+            raise Exception(f"GitHub repo ID resolution failed: {str(e)}")
 
-        finally:
-            if conn:
-                self.db.release_connection(conn)
+        # 🧠 Write to internal federation DB
+        pk_id = self.repo_manager.insert_or_update_repo(
+            repo_id=gh_repo_id,
+            owner=owner,
+            repo=repo,
+            branch=branch,
+            root_sha="bootstrap-root-sha"
+        )
+
+        print(f"[FEDERATION IMPORT] Finalized ingest: logical={logical_repo_id}, pk={pk_id}")
+        return {"repo_id": pk_id, "files_ingested": 0}
 
 
 
@@ -231,6 +196,21 @@ class FederationService:
                 file_path=file_path,
                 base_sha=base_sha
             )
+            # Persist patch proposal in database
+            proposal_id = str(uuid.uuid4())
+            self.proposal_manager.save_proposal({
+                "proposal_id": proposal_id,
+                "repo_id": self.repo_manager.get_slug_by_id(self.repo_manager.get_repo_id(owner, repo)),
+                "branch": branch,
+                "proposed_by": "DevBot",  # or dynamic agent if available
+                "commit_message": f"Proposed patch for {file_path}",
+                "patches": json.dumps([{
+                    "file_path": patch.file_path,
+                    "base_sha": patch.base_sha,
+                    "updated_content": patch.updated_content
+                }]),
+                "status": "pending"
+            })
 
             return PatchProposalResponse(patches=[patch])
 
