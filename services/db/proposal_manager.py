@@ -51,7 +51,7 @@ class ProposalManager:
                         "branch": row[2],
                         "proposed_by": row[3],
                         "commit_message": row[4],
-                        "patches": json.loads(row[5]),
+                        "patches": row[5] if isinstance(row[5], list) else json.loads(row[5]),
                         "status": row[6],
                         "risk_class": row[7]
                     }
