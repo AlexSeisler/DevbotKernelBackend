@@ -32,12 +32,14 @@ async def propose_patch(payload: ProposePatchRequest):
         patches = []
         for patch in payload.patches:
             composed = service.propose_patch(
-                owner=owner,
-                repo=repo,
-                file_path=patch.file_path,
-                branch=payload.branch,
-                manual=getattr(patch, "manual", False)  # Preserve override flag
-            )
+            owner=owner,
+            repo=repo,
+            file_path=patch.file_path,
+            branch=payload.branch,
+            manual=getattr(patch, "manual", False),
+            updated_content=patch.updated_content
+        )
+
             patches.extend(composed.patches)
 
 
