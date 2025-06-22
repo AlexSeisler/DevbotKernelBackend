@@ -201,7 +201,7 @@ class FederationService:
 
 
 
-    def propose_patch(self, owner, repo, file_path, branch="main"):
+    def propose_patch(self, owner, repo, file_path, branch, manual: bool = False):
         try:
             print(f"[PATCH PROPOSAL] Fetching file for: {file_path} @ {branch}")
             file_data = self.github.get_file(owner, repo, file_path, branch)
