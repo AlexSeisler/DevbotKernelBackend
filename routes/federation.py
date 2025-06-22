@@ -31,17 +31,21 @@ async def propose_patch(payload: ProposePatchRequest):
 
         patches = []
         for patch in payload.patches:
-            print("[ROUTE DEBUG] Incoming patch manual:", patch.manual)
-            print("[ROUTE DEBUG] Incoming updated_content:\n", patch.updated_content)
+            manual_flag = getattr(patch, "manual", False)
+            content_body = getattr(patch, "updated_content", "")
+
+            print("[ROUTE DEBUG] Incoming patch manual:", manual_flag)
+            print("[ROUTE DEBUG] Incoming updated_content:\n", content_body)
 
             composed = service.propose_patch(
-            owner=owner,
-            repo=repo,
-            file_path=patch.file_path,
-            branch=payload.branch,
-            manual=getattr(patch, "manual", False),
-            updated_content=patch.updated_content
-        )
+                owner=owner,
+                repo=repo,
+                file_path=patch.file_path,
+                branch=payload.branch,
+                manual=manual_flag,
+                updated_content=content_body
+            )
+
 
             patches.extend(composed.patches)
 
