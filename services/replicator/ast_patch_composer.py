@@ -13,12 +13,18 @@ class ASTPatchComposer:
             old_ast = ast.parse(old_content)
             new_ast = new_ast_mutator(old_ast)
             updated_content = astunparse.unparse(new_ast)
+
+            # 🧠 Parse the updated string to AST for comparison
+            updated_ast = ast.parse(updated_content)
+
+            # 🔍 Perform AST comparison
+            compare_ast(old_ast, updated_ast)
+
+        except AssertionError as e:
+            raise Exception(f"[Patch Blocked] Semantic mismatch detected: {str(e)}")
+
         except Exception as e:
             raise Exception(f"[AST Composer Error] {str(e)}")
-
-        diff_score = compare_ast(old_content, updated_content)
-        if diff_score > self.threshold:
-            raise Exception(f"[Patch Blocked] Semantic diff score {diff_score:.2f} exceeds threshold {self.threshold:.2f}")
 
         return PatchObject(
             file_path=file_path,
