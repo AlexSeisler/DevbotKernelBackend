@@ -73,3 +73,29 @@ class ProposalManager:
                 conn.commit()
         finally:
             self.db.release_connection(conn)
+    def get_proposal_by_id(self, proposal_id):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT proposal_id, repo_id, branch, proposed_by,
+                        commit_message, patches, status, risk_class, diff_summary
+                    FROM patch_proposal
+                    WHERE proposal_id = %s
+                """, (proposal_id,))
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    "proposal_id": row[0],
+                    "repo_id": row[1],
+                    "branch": row[2],
+                    "proposed_by": row[3],
+                    "commit_message": row[4],
+                    "patches": json.loads(row[5]) if isinstance(row[5], str) else row[5],
+                    "status": row[6],
+                    "risk_class": row[7],
+                    "diff_summary": row[8]
+                }
+        finally:
+            self.db.release_connection(conn)
