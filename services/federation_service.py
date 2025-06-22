@@ -212,7 +212,7 @@ class FederationService:
             proposal_id = str(uuid.uuid4())
             self.proposal_manager.save_proposal({
                 "proposal_id": proposal_id,
-                "repo_id": self.repo_manager.get_repo_by_slug(f"{owner}/{repo}")["id"],
+                "repo_id": self.repo_manager.get_repo_by_slug(f"{owner}/{repo}"),
                 "branch": branch,
                 "proposed_by": "DevBot",
                 "commit_message": f"Proposed patch for {file_path}",
