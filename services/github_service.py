@@ -78,6 +78,7 @@ class GitHubService:
         return self._request("GET", url)
 
     def get_branch_sha(self, owner, repo, branch):
+        print(f"[DEBUG] get_branch_sha called with: {owner}, {repo}, {branch}")
         url = f"{self.base_url}/repos/{owner}/{repo}/git/refs/heads/{branch}"
         return self._request("GET", url)
 
