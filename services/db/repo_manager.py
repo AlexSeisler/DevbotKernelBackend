@@ -68,6 +68,20 @@ class RepoManager:
                 return f"{row[0]}/{row[1]}"
         finally:
             self.db.release_connection(conn)
+            
+    def get_id_by_slug(self, slug: str) -> int:
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id FROM federation_repo WHERE repo_id = %s", (slug,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise Exception(f"Repo with slug {slug} not found.")
+                return row[0]
+        finally:
+            self.db.release_connection(conn)
 
     def insert_or_update_repo(self, repo_id, owner, repo, branch, root_sha):
         conn = self.db.get_connection()
