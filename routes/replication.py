@@ -28,7 +28,6 @@ async def create_plan(payload: dict = Body(...)):
 @router.post("/execute")
 async def execute_replication(payload: ReplicationExecutionRequest):
     try:
-        print("[DEBUG] Raw payload:", payload)
 
         # Enforce integer casting
         source_repo_pk = int(payload.source_repo_id)
@@ -37,8 +36,6 @@ async def execute_replication(payload: ReplicationExecutionRequest):
         source_repo_id = repo_manager.resolve_repo_id_by_pk(source_repo_pk)
         target_repo_id = repo_manager.resolve_repo_id_by_pk(target_repo_pk)
 
-        print("[DEBUG] Resolved Source:", source_repo_id)
-        print("[DEBUG] Resolved Target:", target_repo_id)
 
         # Build and normalize execution plan
         plan = planner.build_plan(
@@ -46,7 +43,6 @@ async def execute_replication(payload: ReplicationExecutionRequest):
             target_repo_id=target_repo_id
         )
 
-        print("[DEBUG] Plan:", plan)
 
         # Inject metadata
         plan["commit_message"] = payload.commit_message or "DevBot: Apply semantic replication plan"
