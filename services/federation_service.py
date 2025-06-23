@@ -162,57 +162,6 @@ class FederationService:
             updated_content = proposal["patches"][0]["updated_content"]
             base_sha = proposal["patches"][0]["base_sha"]
             repo_id = proposal["repo_id"]
-
-            # Step 2: Resolve repo + get latest from GitHub
-            slug = self.repo_manager.get_slug_by_id(repo_id)
-            owner, repo = slug.split("/")
-
-            current_file = self.github.get_file(owner, repo, file_path, proposal["branch"])
-            current_content = base64.b64decode(current_file["content"]).decode()
-            current_sha = current_file["sha"]
-
-            # Step 3: AST revalidation
-            import ast
-            from services.replicator.ast_patch_composer import compare_ast
-
-            old_ast = ast.parse(current_content)
-            new_ast = ast.parse(updated_content)
-
-            compare_ast(old_ast, new_ast)  # raises if semantically different
-
-            # Step 4: Validate SHA
-            if current_sha != base_sha:
-                raise Exception(f"File SHA has changed since proposal: now {current_sha}, was {base_sha}")
-
-            # Step 5: Proceed to commit
-            result = self.github.commit_patch(
-                repo_name=slug,
-                branch=proposal["branch"],
-                file_path=file_path,
-                commit_message=proposal["commit_message"],
-                base_sha=base_sha,
-                updated_content=updated_content
-            )
-            return {"status": "committed", "result": result}
-
-        except Exception as e:
-            raise Exception(f"Commit failed: {str(e)}")
-
-
-
-
-
-    def commit_patch(self, proposal_id: str):
-        try:
-            # Step 1: Load proposal from DB
-            proposal = self.proposal_manager.get_proposal_by_id(proposal_id)
-            if not proposal:
-                raise Exception(f"Patch proposal ID '{proposal_id}' not found.")
-
-            file_path = proposal["patches"][0]["file_path"]
-            updated_content = proposal["patches"][0]["updated_content"]
-            base_sha = proposal["patches"][0]["base_sha"]
-            repo_id = proposal["repo_id"]
             manual = proposal["patches"][0].get("manual", False)
 
             # Step 2: Resolve repo + get latest from GitHub
@@ -251,3 +200,67 @@ class FederationService:
 
         except Exception as e:
             raise Exception(f"Commit failed: {str(e)}")
+
+
+
+
+    def propose_patch(self, owner, repo, file_path, branch, manual: bool = False, updated_content: str = None):
+        try:
+            print("[SERVICE DEBUG] Manual flag:", manual)
+            print("[SERVICE DEBUG] Incoming updated_content:\n", updated_content)
+            print(f"[PATCH PROPOSAL] Processing file: {file_path} @ {branch}")
+
+            if manual:
+                patch_dict = {
+                    "file_path": file_path,
+                    "base_sha": "MANUAL",
+                    "updated_content": updated_content,
+                    "risk_class": "MANUAL",
+                    "diff_summary": "Manual override patch",
+                    "manual": True
+                }
+                print("[SERVICE DEBUG] Final Manual Patch Dict:", patch_dict)
+            else:
+                file_data = self.github.get_file(owner, repo, file_path, branch)
+                b64_content = file_data.get("content")
+                sha = file_data.get("sha")
+
+                if not b64_content:
+                    raise Exception("File has no content")
+
+                old_content = base64.b64decode(b64_content).decode()
+                base_sha = sha
+
+                def noop_mutator(tree): return tree
+
+                patch = self.ast_composer.compose_patch(
+                    old_content=old_content,
+                    new_ast_mutator=noop_mutator,
+                    file_path=file_path,
+                    base_sha=base_sha,
+                    manual=False
+                )
+                patch_dict = patch.dict() | {"manual": False}
+                print("[SERVICE DEBUG] Final Auto Patch Dict:", patch_dict)
+
+            proposal_id = str(uuid.uuid4())
+            self.proposal_manager.save_proposal({
+                "proposal_id": proposal_id,
+                "repo_id": self.repo_manager.get_repo_by_slug(f"{owner}/{repo}"),
+                "branch": branch,
+                "proposed_by": "DevBot",
+                "commit_message": f"Proposed patch for {file_path}",
+                "patches": [patch_dict],
+                "status": "pending",
+                "risk_class": patch_dict["risk_class"],
+                "diff_summary": patch_dict["diff_summary"]
+            })
+            print("[PATCH FINAL OUT] patch_dict:", patch_dict)
+            print("[PATCH FINAL OUT] Returning:", PatchASTProposal(**patch_dict).dict())
+            
+
+            return PatchProposalResponse(patches=[PatchASTProposal(**patch_dict)])
+
+        except Exception as e:
+            print(f"[ERROR] propose_patch failed: {str(e)}")
+            raise
