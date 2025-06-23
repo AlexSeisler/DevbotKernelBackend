@@ -27,6 +27,7 @@ class PatchProposal(BaseModel):
     file_path: str
     base_sha: str
     updated_content: str
+    manual: Optional[bool] = False
 
 class ProposePatchRequest(BaseModel):
     repo_id: str
