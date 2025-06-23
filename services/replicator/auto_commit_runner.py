@@ -15,13 +15,16 @@ class AutoCommitRunner:
             try:
                 pending = self.manager.get_pending_proposals(risk_class_whitelist=["SAFE", "RENAME", "MANUAL"])
                 for proposal in pending:
-                    print(f"[AutoCommitRunner] Processing patch: {proposal.get('commit_message')} (risk={proposal.get('risk_class')}, manual={patches[0].get('manual')})")
+                    print(f"[AutoCommitRunner] Processing patch: {proposal.get('commit_message')} "
+                        f"(risk={proposal.get('risk_class')}, manual={proposal.get('patches', [{}])[0].get('manual')})")
+
                     if proposal.get("risk_class") not in ["SAFE", "RENAME", "MANUAL"]:
                         print(f"[AutoCommitRunner] Skipping proposal with risk class: {proposal.get('risk_class')}")
                         continue
-                    proposal_id = proposal["proposal_id"]
 
+                    proposal_id = proposal["proposal_id"]
                     patches = proposal.get("patches", [])
+
                     if not patches or not patches[0].get("updated_content", "").strip():
                         print(f"[AutoCommitRunner] Skipping empty patch: {proposal_id}")
                         continue
@@ -37,3 +40,4 @@ class AutoCommitRunner:
                 print(f"[AutoCommitRunner] Loop error: {str(e)}")
 
             time.sleep(self.poll_interval)
+
