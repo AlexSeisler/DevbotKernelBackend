@@ -10,27 +10,21 @@ class AutoCommitRunner():
         self.poll_interval = poll_interval
 
     def run(self):
-        print('[AutoCommitRunner] Starting auto-commit loop...')
+        print('[AutoCommitRunner] Loop started')
         while True:
             try:
                 pending = self.manager.get_pending_proposals(risk_class_whitelist=['SAFE', 'RENAME', 'MANUAL'])
                 for proposal in pending:
-                    print(f"[AutoCommitRunner] Processing patch: {proposal.get('commit_message')} (risk={proposal.get('risk_class')}, manual={proposal.get('patches', [{}])[0].get('manual')})")
-                    if (proposal.get('risk_class') not in ['SAFE', 'RENAME', 'MANUAL']):
-                        print(f"[AutoCommitRunner] Skipping proposal with risk class: {proposal.get('risk_class')}")
-                        continue
                     proposal_id = proposal['proposal_id']
                     patches = proposal.get('patches', [])
-                    if ((not patches) or (not patches[0].get('updated_content', '').strip())):
-                        print(f'[AutoCommitRunner] Skipping empty patch: {proposal_id}')
+                    if not patches or not patches[0].get('updated_content', '').strip():
                         continue
-                    print(f'[AutoCommitRunner] Attempting commit for patch ID: {proposal_id}')
                     try:
                         result = self.federation.commit_patch(proposal_id)
-                        print(f'[AutoCommitRunner] Patch {proposal_id} committed: {result}')
+                        print(f'[AutoCommitRunner] ✅ Committed patch: {proposal_id}')
                         self.manager.mark_proposal_committed(proposal_id)
                     except Exception as e:
-                        print(f'[AutoCommitRunner] Patch {proposal_id} failed to commit: {str(e)}')
+                        print(f'[AutoCommitRunner] ❌ Failed to commit patch {proposal_id}: {e}')
             except Exception as e:
-                print(f'[AutoCommitRunner] Loop error: {str(e)}')
+                print(f'[AutoCommitRunner] ⚠️ Loop error: {e}')
             time.sleep(self.poll_interval)
