@@ -1,4 +1,5 @@
 def greet_user(name):
+    """Greet a user by name."""
     return f'Hello, {name}!'
 
 def get_total():
