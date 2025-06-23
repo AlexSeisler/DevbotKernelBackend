@@ -50,6 +50,7 @@ def f1():
     return 1
 
 def f2():
+    """Return integer 2"""
     return 2
 
 def f3():
