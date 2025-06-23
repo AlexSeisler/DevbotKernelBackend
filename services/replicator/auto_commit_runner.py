@@ -13,7 +13,7 @@ class AutoCommitRunner:
         print("[AutoCommitRunner] Starting auto-commit loop...")
         while True:
             try:
-                pending = self.manager.get_pending_proposals(risk_class_whitelist=["SAFE", "RENAME"])
+                pending = self.manager.get_pending_proposals(risk_class_whitelist=["SAFE", "RENAME", "MANUAL"])
                 for proposal in pending:
                     proposal_id = proposal["proposal_id"]
 
