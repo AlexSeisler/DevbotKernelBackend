@@ -13,7 +13,7 @@ class AutoCommitRunner:
         self.poll_interval = poll_interval
 
     def run(self):
-        logger.info('[AutoCommitRunner] Loop started')
+        logger.info('[AutoCommitRunner] Loop started — CLEAN RUN')
         while True:
             try:
                 pending = self.manager.get_pending_proposals(
