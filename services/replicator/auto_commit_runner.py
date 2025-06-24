@@ -44,10 +44,9 @@ class AutoCommitRunner:
                                 logger.warning(f"[AutoCommitRunner] Could not fetch live file for noop check: {e}")
 
                         if noop:
-                            continue  # skip committing already-marked proposals
+                            continue
 
-                        result = self.federation.commit_patch(proposal_id)
-                        print(f'[AutoCommitRunner] ✅ Committed patch: {proposal_id}')
+                        self.federation.commit_patch(proposal_id)
                         self.manager.mark_proposal_committed(proposal_id)
                     except Exception as e:
                         logger.error(f"[AutoCommitRunner] ❌ Failed to commit patch {proposal_id}: {e}", exc_info=True)
