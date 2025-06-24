@@ -13,7 +13,7 @@ class AutoCommitRunner:
         self.poll_interval = poll_interval
 
     def run(self):
-        print('[AutoCommitRunner] Loop started')
+        logger.info('[AutoCommitRunner] Loop started')
         while True:
             try:
                 pending = self.manager.get_pending_proposals(
@@ -46,6 +46,7 @@ class AutoCommitRunner:
                         if noop:
                             continue
 
+                        logger.info(f"Committing patch {proposal_id}")
                         self.federation.commit_patch(proposal_id)
                         self.manager.mark_proposal_committed(proposal_id)
                     except Exception as e:
