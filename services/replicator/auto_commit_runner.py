@@ -13,7 +13,7 @@ class AutoCommitRunner:
         self.poll_interval = poll_interval
 
     def run(self):
-        logger.info('[AutoCommitRunner] Loop started — CLEAN RUN')
+        logger.info('[AutoCommitRunner] Loop started 🧼 CLEAN RUN')
         while True:
             try:
                 pending = self.manager.get_pending_proposals(
@@ -25,6 +25,7 @@ class AutoCommitRunner:
                         patches = proposal.get("patches", [])
                         if not patches or not patches[0].get("updated_content", "").strip():
                             logger.warning(f"Skipping empty patch in proposal {proposal_id}")
+                            self.manager.mark_proposal_committed(proposal_id)
                             continue
 
                         noop = False
@@ -49,8 +50,11 @@ class AutoCommitRunner:
                         logger.info(f"Committing patch {proposal_id}")
                         self.federation.commit_patch(proposal_id)
                         self.manager.mark_proposal_committed(proposal_id)
+
                     except Exception as e:
                         logger.error(f"[AutoCommitRunner] ❌ Failed to commit patch {proposal_id}: {e}", exc_info=True)
+
             except Exception as e:
-                logger.error(f"[AutoCommitRunner] 🚨 Loop error: {e}", exc_info=True)
+                logger.error(f"[AutoCommitRunner] 🧨 Loop error: {e}", exc_info=True)
+
             time.sleep(self.poll_interval)

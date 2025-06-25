@@ -168,18 +168,23 @@ class FederationService():
                 old_content = base64.b64decode(b64_content).decode()
                 base_sha = sha
 
-                # LibCST Transformer path (real patch)
                 from services.replicator.transformers import DocstringUpdateTransformer
                 from services.replicator.libcst_patch_core import LibCSTMutator, LibCSTDeltaEngine
                 import json
 
-                transformer = lambda: DocstringUpdateTransformer("Patched by LibCST engine")
-                updated_content = LibCSTMutator.apply(old_content, transformer)
-                deltas = LibCSTDeltaEngine.compare(old_content, updated_content)
+                try:
+                    transformer = lambda: DocstringUpdateTransformer("Patched by LibCST engine")
+                    updated_content = LibCSTMutator.apply(old_content, transformer)
+                except Exception as e:
+                    raise Exception(f"[LibCST] Transformer crashed: {str(e)}")
 
+                deltas = LibCSTDeltaEngine.compare(old_content, updated_content)
                 summary = [delta.detail for delta in deltas]
                 risk_class = 'SAFE' if len(deltas) <= 3 else 'REVIEW'
                 diff_summary = json.dumps(summary, indent=2)
+
+                if not deltas:
+                    raise Exception("No changes detected — skipping patch")
 
                 patch_dict = {
                     'file_path': file_path,
@@ -208,3 +213,4 @@ class FederationService():
         except Exception as e:
             print(f'[ERROR] propose_patch failed: {str(e)}')
             raise
+

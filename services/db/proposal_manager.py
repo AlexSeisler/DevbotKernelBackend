@@ -54,30 +54,50 @@ class ProposalManager:
             self.db.release_connection(conn)
 
 
-    def get_pending_proposals(self, risk_class_whitelist):
+
+    def get_pending_proposals(self, risk_class_whitelist=None, limit=10):
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT proposal_id, repo_id, branch, proposed_by, commit_message, patches, status, risk_class
+                query = """
+                    SELECT proposal_id, patches, repo_id, branch
                     FROM patch_proposal
                     WHERE status = 'pending'
-                    AND risk_class = ANY(%s)
-                """, (risk_class_whitelist,))
+                """
+                params = []
+
+                if risk_class_whitelist:
+                    placeholders = ','.join(['%s'] * len(risk_class_whitelist))
+                    query += f" AND risk_class IN ({placeholders})"
+                    params.extend(risk_class_whitelist)
+
+                query += " ORDER BY created_at ASC LIMIT %s"
+                params.append(limit)
+
+                cur.execute(query, tuple(params))
                 rows = cur.fetchall()
-                return [
-                    {
-                        "proposal_id": row[0],
-                        "repo_id": row[1],
-                        "branch": row[2],
-                        "proposed_by": row[3],
-                        "commit_message": row[4],
-                        "patches": row[5] if isinstance(row[5], list) else json.loads(row[5]),
-                        "status": row[6],
-                        "risk_class": row[7]
-                    }
-                    for row in rows
-                ]
+
+                proposals = []
+                for row in rows:
+                    proposal_id, patches_json, repo_id, branch = row
+                    try:
+                        patches = json.loads(patches_json)
+                        if not isinstance(patches, list) or not patches:
+                            continue
+                        # Skip if empty update
+                        if not patches[0].get("updated_content", "").strip():
+                            continue
+                        proposals.append({
+                            "proposal_id": proposal_id,
+                            "patches": patches,
+                            "repo_id": repo_id,
+                            "branch": branch
+                        })
+                    except Exception as e:
+                        print(f"[ProposalManager] Invalid patch data skipped: {e}")
+                        continue
+
+                return proposals
         finally:
             self.db.release_connection(conn)
 

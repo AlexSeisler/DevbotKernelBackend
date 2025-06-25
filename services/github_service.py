@@ -64,14 +64,16 @@ class GitHubService:
     def get_file(self, owner, repo, file_path, branch, fallback=True):
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
+
         try:
             return self._request("GET", url)
         except RequestException as e:
             if fallback and "404" in str(e):
-                print(f"⚠️ File {file_path} not found on branch {branch}, retrying on 'main'")
+                print(f"🛡️ File {file_path} not found on branch {branch}, retrying on 'main'")
                 fallback_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref=main"
                 return self._request("GET", fallback_url)
             raise
+
 
     def get_file_history(self, owner, repo, file_path, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/commits?path={file_path}&sha={branch}"
