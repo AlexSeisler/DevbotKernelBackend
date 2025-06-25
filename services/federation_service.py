@@ -169,7 +169,8 @@ class FederationService():
                 base_sha = sha
 
                 from services.replicator.transformers import DocstringUpdateTransformer
-                from services.replicator.libcst_patch_core import LibCSTMutator, LibCSTDeltaEngine
+                from services.replicator.libcst_patch_core import LibCSTMutator
+                from services.replicator.libcst_comparator import LibCSTDeltaEngine
                 import json
 
                 try:
