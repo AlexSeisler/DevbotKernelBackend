@@ -101,53 +101,110 @@ class FederationService():
     def commit_patch(self, proposal_id: str):
         try:
             proposal = self.proposal_manager.get_proposal_by_id(proposal_id)
-            if (not proposal):
+            if not proposal:
                 raise Exception(f"Patch proposal ID '{proposal_id}' not found.")
+
             file_path = proposal['patches'][0]['file_path']
             updated_content = proposal['patches'][0]['updated_content']
             base_sha = proposal['patches'][0]['base_sha']
             repo_id = proposal['repo_id']
             manual = proposal['patches'][0].get('manual', False)
+
             slug = self.repo_manager.get_slug_by_id(repo_id)
             (owner, repo) = slug.split('/')
             current_file = self.github.get_file(owner, repo, file_path, proposal['branch'])
             current_content = base64.b64decode(current_file['content']).decode()
             current_sha = current_file['sha']
-            if (not manual):
+
+            if not manual:
                 import ast
                 from services.replicator.ast_patch_composer import compare_ast
                 old_ast = ast.parse(current_content)
                 new_ast = ast.parse(updated_content)
                 compare_ast(old_ast, new_ast)
             else:
-                print('[COMMIT PATCH] Skipping AST compare for manual patch')
-            if ((current_sha != base_sha) and (base_sha != 'MANUAL')):
-                raise Exception(f'File SHA has changed since proposal: now {current_sha}, was {base_sha}')
-            result = self.github.commit_patch(repo_name=slug, branch=proposal['branch'], file_path=file_path, commit_message=proposal['commit_message'], base_sha=current_sha, updated_content=updated_content)
+                if (current_sha != base_sha) and (base_sha != 'MANUAL'):
+                    raise Exception(f"File SHA has changed since proposal: now {current_sha}, was {base_sha}")
+
+            # New: Re-run LibCST comparison to validate final patch diff
+            from services.replicator.libcst_comparator import LibCSTDeltaEngine
+            deltas = LibCSTDeltaEngine.compare(current_content, updated_content)
+            if not deltas:
+                raise Exception("LibCST validation failed: no meaningful delta found.")
+
+            # Commit
+            result = self.github.commit_patch(
+                repo_name=slug,
+                branch=proposal['branch'],
+                file_path=file_path,
+                commit_message=proposal['commit_message'],
+                base_sha=current_sha,
+                updated_content=updated_content
+            )
             return {'status': 'committed', 'result': result}
+
         except Exception as e:
             raise Exception(f'Commit failed: {str(e)}')
 
-    def propose_patch(self, owner, repo, file_path, branch, manual: bool=False, updated_content: str=None):
+
+    def propose_patch(self, owner, repo, file_path, branch, manual: bool = False, updated_content: str = None):
         try:
             if manual:
-                patch_dict = {'file_path': file_path, 'base_sha': 'MANUAL', 'updated_content': updated_content, 'risk_class': 'MANUAL', 'diff_summary': 'Manual override patch', 'manual': True}
+                patch_dict = {
+                    'file_path': file_path,
+                    'base_sha': 'MANUAL',
+                    'updated_content': updated_content,
+                    'risk_class': 'MANUAL',
+                    'diff_summary': 'Manual override patch',
+                    'manual': True
+                }
             else:
                 file_data = self.github.get_file(owner, repo, file_path, branch)
                 b64_content = file_data.get('content')
                 sha = file_data.get('sha')
-                if (not b64_content):
+                if not b64_content:
                     raise Exception('File has no content')
+
                 old_content = base64.b64decode(b64_content).decode()
                 base_sha = sha
 
-                def noop_mutator(tree):
-                    return tree
-                patch = self.ast_composer.compose_patch(old_content=old_content, new_ast_mutator=noop_mutator, file_path=file_path, base_sha=base_sha, manual=False)
-                patch_dict = (patch.dict() | {'manual': False})
+                # LibCST Transformer path (real patch)
+                from services.replicator.transformers import DocstringUpdateTransformer
+                from services.replicator.libcst_patch_core import LibCSTMutator, LibCSTDeltaEngine
+                import json
+
+                transformer = lambda: DocstringUpdateTransformer("Patched by LibCST engine")
+                updated_content = LibCSTMutator.apply(old_content, transformer)
+                deltas = LibCSTDeltaEngine.compare(old_content, updated_content)
+
+                summary = [delta.detail for delta in deltas]
+                risk_class = 'SAFE' if len(deltas) <= 3 else 'REVIEW'
+                diff_summary = json.dumps(summary, indent=2)
+
+                patch_dict = {
+                    'file_path': file_path,
+                    'base_sha': base_sha,
+                    'updated_content': updated_content,
+                    'risk_class': risk_class,
+                    'diff_summary': diff_summary,
+                    'manual': False
+                }
+
             proposal_id = str(uuid.uuid4())
-            self.proposal_manager.save_proposal({'proposal_id': proposal_id, 'repo_id': self.repo_manager.get_repo_by_slug(f'{owner}/{repo}'), 'branch': branch, 'proposed_by': 'DevBot', 'commit_message': f'Proposed patch for {file_path}', 'patches': [patch_dict], 'status': 'pending', 'risk_class': patch_dict['risk_class'], 'diff_summary': patch_dict['diff_summary']})
+            self.proposal_manager.save_proposal({
+                'proposal_id': proposal_id,
+                'repo_id': self.repo_manager.get_repo_by_slug(f'{owner}/{repo}'),
+                'branch': branch,
+                'proposed_by': 'DevBot',
+                'commit_message': f'Proposed patch for {file_path}',
+                'patches': [patch_dict],
+                'status': 'pending',
+                'risk_class': patch_dict['risk_class'],
+                'diff_summary': patch_dict['diff_summary']
+            })
+
             return PatchProposalResponse(patches=[PatchASTProposal(**patch_dict)])
+
         except Exception as e:
             print(f'[ERROR] propose_patch failed: {str(e)}')
             raise
