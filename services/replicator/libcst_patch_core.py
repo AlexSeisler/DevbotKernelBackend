@@ -1,6 +1,6 @@
 import libcst as cst
 from services.replicator.libcst_comparator import compare_function_defs
-from services.replicator.libcst_patch_types import PatchDelta, PatchASTProposal
+from models.libcst_patch_types import PatchDelta, PatchASTProposal
 from typing import Callable, List
 
 

@@ -1,6 +1,6 @@
 import libcst as cst
 from typing import List
-from services.replicator.libcst_patch_types import PatchDelta, PatchDeltaType, ChangeClass
+from models.libcst_patch_types import PatchDelta, PatchDeltaType, ChangeClass
 
 def compare_function_defs(old_node: cst.FunctionDef, new_node: cst.FunctionDef) -> List[PatchDelta]:
     '\n    Compare two FunctionDef nodes for docstring and signature changes.\n    Return a list of PatchDelta instances.\n    '
