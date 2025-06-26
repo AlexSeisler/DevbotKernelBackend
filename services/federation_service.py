@@ -38,45 +38,102 @@ class FederationService():
     def import_repo(self, payload: ImportRepoRequest):
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
         logical_repo_id = f'{owner}/{repo}'
-        print(f'[FEDERATION IMPORT] Attempting import for: {logical_repo_id}')
+        print(f'[FEDERATION IMPORT] Starting import for: {logical_repo_id}')
+
         existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
         if existing_id:
             print(f'[FEDERATION IMPORT] Repo already ingested: {logical_repo_id} (ID={existing_id})')
             return {'repo_id': existing_id, 'files_ingested': 0}
+
         print(f'[FEDERATION IMPORT] New repo detected: {logical_repo_id}')
-        print(f'[INSERT CALL] About to insert logical_repo_id={logical_repo_id}, owner={owner}, repo={repo}')
         try:
             gh_repo_id = self.github.get_repo_id(owner, repo)
         except Exception as e:
             raise Exception(f'GitHub repo ID resolution failed: {str(e)}')
-        pk_id = self.repo_manager.insert_or_update_repo(repo_id=gh_repo_id, owner=owner, repo=repo, branch=branch, root_sha='bootstrap-root-sha')
+
+        pk_id = self.repo_manager.insert_or_update_repo(
+            repo_id=gh_repo_id,
+            owner=owner,
+            repo=repo,
+            branch=branch,
+            root_sha='bootstrap-root-sha'
+        )
         print(f'[FEDERATION IMPORT] Finalized ingest: logical={logical_repo_id}, pk={pk_id}')
-        return {'repo_id': pk_id, 'files_ingested': 0}
+
+        # Tree load (chunk-safe)
+        repo_tree_data = self.github.get_repo_tree(owner, repo, branch)
+        repo_tree = repo_tree_data['tree']
+
+        chunk_size = 50
+        semantic_results = []
+
+        for i in range(0, len(repo_tree), chunk_size):
+            chunk = repo_tree[i:i+chunk_size]
+            for file in chunk:
+                file_path = file.get('path', '')
+                if not file_path.endswith('.py'):
+                    continue
+                try:
+                    raw_file = self.github.get_file(owner, repo, file_path, branch)
+                    file_content = base64.b64decode(raw_file['content']).decode()
+                except Exception as e:
+                    print(f'⚠ Skipped file {file_path} due to fetch/decode error: {e}')
+                    continue
+
+                try:
+                    nodes = self.semantic_parser.parse_python_file(file_content)
+                    for node in nodes:
+                        node['file_path'] = file_path
+                        self.semantic_manager.save_semantic_node(pk_id, node)
+                        semantic_results.append(node)
+                except Exception as e:
+                    print(f'⚠ Skipped file {file_path} due to parsing error: {e}')
+                    continue
+
+        return {'repo_id': pk_id, 'semantic_nodes': semantic_results}
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        repo_pk = payload.repo_id
-        logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_pk)
-        (owner, repo) = logical_repo_id.split('/')
-        semantic_results = []
-        branch_sha = self.github.get_branch_sha('AlexSeisler', 'DevbotKernelBackend', 'main')['object']['sha']
-        repo_tree_data = self.github.get_repo_tree('AlexSeisler', 'DevbotKernelBackend', 'main', recursive=True)
-        repo_tree = repo_tree_data['tree']
-        for file in repo_tree:
-            file_path = file.get('path', '')
-            if (not file_path.endswith('.py')):
-                continue
-            try:
-                raw_file = self.github.get_file('AlexSeisler', 'DevbotKernelBackend', file_path, 'main', fallback=True)
-                file_content = base64.b64decode(raw_file['content']).decode()
-            except Exception as e:
-                print(f'⚠️ Skipped file {file_path} due to fetch error: {e}')
-                continue
-            nodes = self.semantic_parser.parse_python_file(file_content)
-            for node in nodes:
-                node['file_path'] = file_path
-                self.semantic_manager.save_semantic_node(repo_pk, node)
-                semantic_results.append(node)
-        return {'repo_id': repo_pk, 'semantic_nodes': semantic_results}
+        owner, repo, branch = payload.owner, payload.repo, payload.default_branch
+        logical_repo_id = f"{owner}/{repo}"
+        print(f"[FEDERATION ANALYZE] Triggered for: {logical_repo_id}")
+
+        repo_pk = self.repo_manager.try_resolve_pk(logical_repo_id)
+        if not repo_pk:
+            raise Exception(f"[FEDERATION ANALYZE] Repo {logical_repo_id} not ingested yet.")
+
+        repo_tree_data = self.github.get_repo_tree(owner, repo, branch)
+        repo_tree = repo_tree_data.get("tree", [])
+        python_files = [f["path"] for f in repo_tree if f["path"].endswith(".py")]
+
+        if not python_files:
+            raise Exception(f"[FEDERATION ANALYZE] No Python files found in repo tree for: {logical_repo_id}")
+
+        BATCH_SIZE = 20
+        total_nodes = 0
+        failed_files = []
+
+        for i in range(0, len(python_files), BATCH_SIZE):
+            batch = python_files[i:i + BATCH_SIZE]
+            for file_path in batch:
+                try:
+                    file_data = self.github.get_file(owner, repo, file_path, branch)
+                    file_content = base64.b64decode(file_data["content"]).decode()
+
+                    nodes = self.semantic_parser.parse_python_file(file_content)
+                    for node in nodes:
+                        node["file_path"] = file_path
+                        self.semantic_manager.save_semantic_node(repo_pk, node)
+                        total_nodes += 1
+                except Exception as e:
+                    failed_files.append(file_path)
+                    print(f"[ANALYZE FAIL] {file_path}: {str(e)}")
+
+        return {
+            "repo_id": repo_pk,
+            "files_scanned": len(python_files),
+            "semantic_nodes_extracted": total_nodes,
+            "failed": failed_files
+        }
 
     def _get_branch_sha(self, owner, repo, branch):
         url = f'{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}'
