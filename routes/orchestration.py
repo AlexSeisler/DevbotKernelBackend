@@ -1,16 +1,30 @@
 from fastapi import APIRouter, HTTPException
+from datetime import datetime
+
+# Core services
 from services.federation_service import FederationService
+from services.db.federation_graph_manager import FederationGraphManager
+from services.orchestrator.orchestration_pipeline import OrchestrationPipeline
+
+# Replication pipeline modules
 from services.replicator.replication_plan_builder import ReplicationPlanBuilder
 from services.replicator.replication_executor import ReplicationExecutor
 from services.github_service import GitHubService
 from services.db.repo_manager import RepoManager
-from datetime import datetime
+
+# Data models
 from models.federation_schemas import AnalyzeRepoRequest, ReplicateSaaSRequest
 
-router = APIRouter(prefix="/orchestrate")  # ✅ Main router for orchestration endpoints
+# FastAPI router
+router = APIRouter(prefix="/orchestrate")
+
+# Federation and replication service instances
+federation = FederationService()
+graph_manager = FederationGraphManager()
+pipeline = OrchestrationPipeline()
 
 
-# ✅ Stage 17 Ready: Full pipeline with live branch creation
+# Orchestration pipeline class
 class OrchestrationPipeline:
     def __init__(self):
         self.federation = FederationService()
@@ -21,84 +35,62 @@ class OrchestrationPipeline:
 
 
 
-    def run_full_replication(self, source_repo_id, target_repo_id):
-        try:
-            # ✅ Enforce integer PKs early
-            if not isinstance(source_repo_id, int) or not isinstance(target_repo_id, int):
-                raise ValueError("Expected numeric repo_id values for source and target")
+@router.post("/replicate-saas")
+async def run_full_replication(source_repo_id: str, target_repo_id: str):
+    try:
+        # Step 1: Resolve repo IDs
+        source_pk = federation.repo_manager.resolve_repo_pk(source_repo_id)
+        target_pk = federation.repo_manager.resolve_repo_pk(target_repo_id)
 
-            # ✅ Auto-generate branch to avoid duplicate PR issues
-            branch = f"devbot-replication-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-            commit_msg = "DevBot: Full SaaS replication test"
+        # Step 2: Skip analysis for zip-based repos (already parsed)
+        if not source_repo_id.startswith("zip-"):
+            federation.analyze_repo({"repo_id": source_repo_id})
 
-            # Step 1: Analyze repo
-            print("🔍 Analyzing repo...")
-            self.federation.analyze_repo(AnalyzeRepoRequest(repo_id=source_repo_id))
+        # Step 3: Load semantic nodes in paginated chunks
+        all_nodes = []
+        offset = 0
+        limit = 100
+        while True:
+            chunk = graph_manager.query_graph(source_repo_id, limit=limit, offset=offset)
+            all_nodes.extend(chunk)
+            if len(chunk) < limit:
+                break
+            offset += limit
 
-            # Step 2: Link semantic nodes into federation graph
-            print("🔗 Linking semantic nodes...")
-            conn = self.federation.db.get_connection()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT name, file_path FROM semantic_node WHERE repo_id = %s",
-                        (int(source_repo_id),)
-                    )
-                    nodes = cur.fetchall()
-                    for name, file_path in nodes:
-                        self.federation.graph_manager.insert_graph_link_tx(
-                            cur=cur,
-                            logical_repo_id=self.repo_manager.resolve_repo_id_by_pk(source_repo_id),
-                            file_path=file_path,
-                            node_type="file",
-                            name=name,
-                            cross_linked_to=None,
-                            federation_weight=1.0,
-                            notes="Auto-linked by orchestrator"
-                        )
-                conn.commit()
-            except Exception as e:
-                conn.rollback()
-                raise e
-            finally:
-                self.federation.db.release_connection(conn)
+        if not all_nodes:
+            raise HTTPException(status_code=404, detail="No semantic nodes found.")
 
-            # Step 3: Build replication plan
-            print("🧠 Building replication plan...")
-            source_logical = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
-            target_logical = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
+        # Step 4: Build and execute patch plan in safe batches
+        patch_batch = []
+        MAX_BATCH = 10
+        applied = []
+        for node in all_nodes:
+            plan = replicator.generate_patch_from_node(node, target_repo_id)
+            if plan:
+                patch_batch.append(plan)
 
-            plan = self.planner.build_plan(source_logical, target_logical)
-            plan["commit_message"] = commit_msg
-            plan["target_branch"] = branch
+            if len(patch_batch) >= MAX_BATCH:
+                try:
+                    replicator.apply_patch_batch(patch_batch, target_repo_id)
+                    applied.extend(patch_batch)
+                except Exception as e:
+                    print(f"[BATCH ERROR] {str(e)}")
+                patch_batch = []
 
-            # ✅ Create branch from main
-            print("🌿 Creating branch...")
-            self.github.create_branch(branch, "main")
+        # Final leftovers
+        if patch_batch:
+            replicator.apply_patch_batch(patch_batch, target_repo_id)
+            applied.extend(patch_batch)
 
-            # Step 4: Execute semantic patch commit
-            print("🚀 Executing patch commit...")
-            result = self.executor.execute_replication(plan)
+        return {
+            "source_repo_id": source_repo_id,
+            "target_repo_id": target_repo_id,
+            "patches_applied": len(applied),
+            "status": "replication_complete"
+        }
 
-            # Step 5: Open pull request
-            print("📬 Creating pull request...")
-            pr = self.github.create_pull_request(
-                owner=source_logical.split("/")[0],
-                repo=source_logical.split("/")[1],
-                source_branch=branch,
-                target_branch="main",
-                title="DevBot Final Validation PR",
-                body="Full DevBot Orchestration validation sequence"
-            )
-
-            return {
-                "status": "orchestration_complete",
-                "replication_result": result,
-                "pull_request_url": pr.get("html_url")
-            }
-
-        except Exception as e:
-            raise Exception(f"Full orchestration failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Replication failed: {str(e)}")
 
 
 

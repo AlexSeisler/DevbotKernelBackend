@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import inspect
+from routes import federation_zip
 
 # 🚀 Trigger reload check comment
 # If this line causes reload logs in Render, hot-reload is working
@@ -59,6 +60,7 @@ app.include_router(pull_request.router)
 app.include_router(federation.router)
 app.include_router(replication.router)
 app.include_router(orchestration.router)
+app.include_router(federation_zip.router, prefix="/federation")
 
 # 🚀 AutoCommit Runner: Background patch committer
 from services.replicator.auto_commit_runner import AutoCommitRunner
