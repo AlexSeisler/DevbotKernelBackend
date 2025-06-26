@@ -56,13 +56,16 @@ class FederationGraphManager:
         finally:
             self.db.release_connection(conn)
 
-    def query_graph(self, logical_repo_id):
-        repo_id = self.repo_manager.resolve_repo_pk(logical_repo_id)  # ✅ Convert to integer
+    def query_graph(self, logical_repo_id: str, limit: int = 500, offset: int = 0):
+        repo_id = self.repo_manager.resolve_repo_pk(logical_repo_id)
 
         conn = self.db.get_connection()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("SELECT * FROM federation_graph WHERE repo_id = %s", (repo_id,))
+                cur.execute(
+                    "SELECT * FROM federation_graph WHERE repo_id = %s LIMIT %s OFFSET %s",
+                    (repo_id, limit, offset)
+                )
                 return cur.fetchall()
         finally:
             self.db.release_connection(conn)

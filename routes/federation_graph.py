@@ -32,9 +32,16 @@ async def insert_link(payload: FederationGraphLinkRequest):
 
 
 @router.get("/query")
-async def query_graph(repo_id: int = None):
+async def query_graph(repo_id: int, limit: int = 500, offset: int = 0):
     try:
-        graph = manager.query_graph(repo_id)
-        return graph
+        graph = manager.query_graph(repo_id, limit=limit, offset=offset)
+        return {
+            "repo_id": repo_id,
+            "limit": limit,
+            "offset": offset,
+            "returned": len(graph),
+            "nodes": graph,
+            "next_offset": offset + limit if len(graph) == limit else None
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
