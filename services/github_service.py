@@ -57,21 +57,46 @@ class GitHubService:
             print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
             raise
 
-    def get_repo_tree(self, owner, repo, branch, recursive):
-        url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}?recursive={1 if recursive else 0}"
-        return self._request("GET", url)
+    # Replace or extend this method inside GitHubService:
 
-    def get_file(self, owner, repo, file_path, branch, fallback=True):
+    def get_repo_tree(self, owner, repo, branch, recursive, limit=None, offset=None, path_prefix=None):
+        url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}?recursive={1 if recursive else 0}"
+        tree_data = self._request("GET", url)["tree"]
+
+        if path_prefix:
+            tree_data = [item for item in tree_data if item["path"].startswith(path_prefix)]
+        if offset is not None and limit is not None:
+            tree_data = tree_data[offset:offset+limit]
+
+        return tree_data
+
+
+    # Replace or extend this method inside GitHubService:
+
+    def get_file(self, owner, repo, file_path, branch, fallback=True, include_meta=False):
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
+        
         try:
-            return self._request("GET", url)
+            file_data = self._request("GET", url)
         except RequestException as e:
             if fallback and "404" in str(e):
                 print(f"⚠️ File {file_path} not found on branch {branch}, retrying on 'main'")
                 fallback_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref=main"
-                return self._request("GET", fallback_url)
-            raise
+                file_data = self._request("GET", fallback_url)
+            else:
+                raise
+
+        if include_meta:
+            return {
+                "content": base64.b64decode(file_data["content"]).decode("utf-8"),
+                "sha": file_data.get("sha"),
+                "size": file_data.get("size"),
+                "encoding": file_data.get("encoding", "utf-8")
+            }
+
+        return file_data
+
 
     def get_file_history(self, owner, repo, file_path, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/commits?path={file_path}&sha={branch}"
