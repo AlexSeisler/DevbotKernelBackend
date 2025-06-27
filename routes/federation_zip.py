@@ -5,7 +5,8 @@ from services.semantic_parser import SemanticParser
 from services.db.federation_graph_manager import FederationGraphManager
 from services.github_service import GitHubService
 
-router = APIRouter()
+router = APIRouter(prefix='/federation')
+
 parser = SemanticParser()
 manager = FederationGraphManager()
 github = GitHubService()

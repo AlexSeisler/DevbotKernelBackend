@@ -60,7 +60,7 @@ app.include_router(pull_request.router)
 app.include_router(federation.router)
 app.include_router(replication.router)
 app.include_router(orchestration.router)
-app.include_router(federation_zip.router, prefix="/federation")
+app.include_router(federation_zip.router)
 
 # 🚀 AutoCommit Runner: Background patch committer
 from services.replicator.auto_commit_runner import AutoCommitRunner
