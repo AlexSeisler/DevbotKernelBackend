@@ -4,12 +4,10 @@ from pydantic import BaseModel
 from services.semantic_parser import SemanticParser
 from services.db.federation_graph_manager import FederationGraphManager
 
-router = APIRouter()
+router = APIRouter(prefix="/federation-zip")
 parser = SemanticParser()
 manager = FederationGraphManager()
 
-import dotenv
-dotenv.load_dotenv()
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
