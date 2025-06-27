@@ -87,7 +87,9 @@ async def ingest_zip(
                             print(f"[⚠ PARSE ERROR] {fname}: {e}")
 
     except Exception as e:
-        print(f"[CRITICAL FAILURE] {e}")
+        import traceback
+        tb = traceback.format_exc()
+        print(f"[CRITICAL FAILURE]\n{tb}")
         raise HTTPException(status_code=500, detail=f"Zip ingestion failed: {str(e)}")
 
     return {
