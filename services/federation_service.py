@@ -140,7 +140,7 @@ class FederationService():
                         content = self._get_file_content(owner, repo, path)
 
 
-                        parsed_nodes = self.ast_parser.extract_semantic_nodes(content)
+                        parsed_nodes = self.semantic_parser.extract_semantic_nodes(content)
                         for node in parsed_nodes:
                             node.repo_id = repo_id
                             node.file_path = path
