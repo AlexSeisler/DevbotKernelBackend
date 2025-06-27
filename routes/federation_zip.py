@@ -1,12 +1,11 @@
-import os, tempfile, zipfile, uuid, base64
-from fastapi import APIRouter, UploadFile, File, HTTPException, Body
+import os, tempfile, base64, uuid
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services.semantic_parser import SemanticParser
 from services.db.federation_graph_manager import FederationGraphManager
 from services.github_service import GitHubService
 
-router = APIRouter(prefix='/federation')
-
+router = APIRouter()
 parser = SemanticParser()
 manager = FederationGraphManager()
 github = GitHubService()
@@ -18,56 +17,29 @@ class ZipIngestGitRequest(BaseModel):
     repo_id: int
 
 @router.post("/zip-ingest")
-async def ingest_zip(
-    file: UploadFile = File(None),
-    git_payload: ZipIngestGitRequest = Body(None)
-):
+async def ingest_zip(payload: ZipIngestGitRequest):
+    print("[ZIP-INGEST] GitHub ingest route hit ✅")
     extracted_files = []
-    repo_id = f"zip-{uuid.uuid4()}"
+    repo_id = payload.repo_id
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            if file:
-                if not file.filename.endswith(".zip"):
-                    raise HTTPException(status_code=400, detail="Only .zip files are supported.")
-                zip_path = os.path.join(tmpdir, file.filename)
-                with open(zip_path, "wb") as f:
-                    f.write(await file.read())
-                with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                    zip_ref.extractall(tmpdir)
-                print("[ZIP-INGEST] Uploaded zip extracted.")
+            print(f"[ZIP-INGEST] Fetching tree for {payload.owner}/{payload.repo}@{payload.branch}")
+            tree = github.get_repo_tree(payload.owner, payload.repo, payload.branch, recursive=True).get("tree", [])
+            print(f"[ZIP-INGEST] Total files in tree: {len(tree)}")
 
-            elif git_payload:
-                print(f"[ZIP-INGEST] GitHub ingest: {git_payload.owner}/{git_payload.repo}@{git_payload.branch}")
-                repo_id = git_payload.repo_id
-                tree = github.get_repo_tree(
-                    git_payload.owner,
-                    git_payload.repo,
-                    git_payload.branch,
-                    recursive=True
-                ).get("tree", [])
-
-                print(f"[ZIP-INGEST] Files in tree: {len(tree)}")
-
-                for entry in tree:
-                    if entry["path"].endswith(".py"):
-                        print(f"[FETCHING] {entry['path']}")
-                        try:
-                            file_data = github.get_file(
-                                git_payload.owner,
-                                git_payload.repo,
-                                entry["path"],
-                                git_payload.branch
-                            )
-                            decoded = base64.b64decode(file_data["content"]).decode()
-                            abs_path = os.path.join(tmpdir, entry["path"])
-                            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-                            with open(abs_path, "w", encoding="utf-8") as f:
-                                f.write(decoded)
-                        except Exception as e:
-                            print(f"[⚠ FETCH ERROR] {entry['path']}: {e}")
-            else:
-                raise HTTPException(status_code=400, detail="Must provide zip file or GitHub payload")
+            for entry in tree:
+                if entry["path"].endswith(".py"):
+                    print(f"[FETCHING] {entry['path']}")
+                    try:
+                        file_data = github.get_file(payload.owner, payload.repo, entry["path"], payload.branch)
+                        decoded = base64.b64decode(file_data["content"]).decode()
+                        abs_path = os.path.join(tmpdir, entry["path"])
+                        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+                        with open(abs_path, "w", encoding="utf-8") as f:
+                            f.write(decoded)
+                    except Exception as e:
+                        print(f"[⚠ FETCH ERROR] {entry['path']}: {e}")
 
             print("[ZIP-INGEST] Starting semantic parsing...")
             for root, _, files in os.walk(tmpdir):
