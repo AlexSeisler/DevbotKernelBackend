@@ -1,7 +1,7 @@
 import os, tempfile, zipfile, uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from services.semantic_parser import SemanticParser
-from services.federation_graph_manager import FederationGraphManager
+from services.db.federation_graph_manager import FederationGraphManager
 
 router = APIRouter()
 parser = SemanticParser()
