@@ -56,7 +56,7 @@ class FederationService():
             owner=owner,
             repo=repo,
             branch=branch,
-            root_sha='bootstrap-root-sha'
+            root_sha=self._get_branch_sha(owner, repo, branch),
         )
         print(f'[FEDERATION IMPORT] Finalized ingest: logical={logical_repo_id}, pk={pk_id}')
 
@@ -97,9 +97,8 @@ class FederationService():
         logical_repo_id = f"{owner}/{repo}"
         print(f"[FEDERATION ANALYZE] Triggered for: {logical_repo_id}")
 
-        repo_pk = self.repo_manager.try_resolve_pk(logical_repo_id)
-        if not repo_pk:
-            raise Exception(f"[FEDERATION ANALYZE] Repo {logical_repo_id} not ingested yet.")
+        # Manually bypass DB repo lookup
+        repo_pk = payload.repo_id
 
         repo_tree_data = self.github.get_repo_tree(owner, repo, branch)
         repo_tree = repo_tree_data.get("tree", [])
@@ -139,6 +138,7 @@ class FederationService():
             "semantic_nodes_extracted": total_nodes,
             "failed": failed_files
         }
+
 
 
     def _get_branch_sha(self, owner, repo, branch):

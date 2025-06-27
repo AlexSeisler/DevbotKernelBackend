@@ -86,7 +86,6 @@ class RepoManager:
 
     def insert_or_update_repo(self, repo_id, owner, repo, branch, root_sha):
         conn = self.db.get_connection()
-        print(f"[DB WRITE] repo_id={repo_id}, owner={owner}, repo={repo}, branch={branch}")
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -100,11 +99,10 @@ class RepoManager:
                     RETURNING id
                 """, (repo_id, owner, repo, branch, root_sha))
                 row = cur.fetchone()
-                if not row:
-                    raise Exception(f"[ERROR] Repo insert/update failed: repo_id={repo_id}")
                 return row[0]
         finally:
             self.db.release_connection(conn)
+
     def get_last_analysis_record(self, repo_id, branch):
         conn = self.db.get_connection()
         try:
