@@ -86,3 +86,18 @@ class PatchASTProposal(BaseModel):
 
 class PatchProposalResponse(BaseModel):
     patches: List[PatchASTProposal]
+
+class SemanticNode(BaseModel):
+    node_type: str  # 'function' or 'class'
+    name: str
+    args: Optional[List[str]] = []
+    return_type: Optional[str] = None
+    docstring: Optional[str] = None
+    decorators: Optional[List[str]] = []
+    inherits_from: Optional[List[str]] = []
+    code_block: Optional[str] = None
+    interface_type: Optional[str] = None
+    methods: Optional[List[str]] = []  # for class nodes
+    file_path: str
+    line_range: Optional[Tuple[int, int]] = None
+    uuid: str

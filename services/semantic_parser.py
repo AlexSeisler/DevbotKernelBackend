@@ -1,8 +1,4 @@
 import ast
-
-class SemanticParser:
-
-    import ast
 import hashlib
 import uuid
 
@@ -14,31 +10,37 @@ class SemanticParser:
             tree = ast.parse(file_content)
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
+                    decorators = [d.id for d in node.decorator_list if hasattr(d, 'id')]
                     semantic_nodes.append({
                         "node_type": "function",
                         "name": node.name,
                         "args": [arg.arg for arg in node.args.args],
-                        "returns": getattr(node.returns, 'id', None) if node.returns else None,
+                        "return_type": ast.unparse(node.returns) if node.returns else None,
                         "docstring": ast.get_docstring(node),
-                        "decorators": [d.id for d in node.decorator_list if hasattr(d, 'id')],
+                        "decorators": decorators,
+                        "code_block": ast.get_source_segment(file_content, node),
                         "file_path": file_path,
                         "line_range": (node.lineno, getattr(node, 'end_lineno', node.lineno)),
-                        "uuid": self._generate_uuid(node.name, file_path, node.lineno)
+                        "uuid": self._generate_uuid(node.name, file_path, node.lineno),
+                        "interface_type": "API route" if any("@router." in d for d in decorators) else None
                     })
 
                 elif isinstance(node, ast.ClassDef):
                     methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
                     inherits = [base.id for base in node.bases if hasattr(base, 'id')]
+                    decorators = [d.id for d in node.decorator_list if hasattr(d, 'id')]
                     semantic_nodes.append({
                         "node_type": "class",
                         "name": node.name,
                         "methods": methods,
                         "inherits_from": inherits,
                         "docstring": ast.get_docstring(node),
-                        "decorators": [d.id for d in node.decorator_list if hasattr(d, 'id')],
+                        "decorators": decorators,
+                        "code_block": ast.get_source_segment(file_content, node),
                         "file_path": file_path,
                         "line_range": (node.lineno, getattr(node, 'end_lineno', node.lineno)),
-                        "uuid": self._generate_uuid(node.name, file_path, node.lineno)
+                        "uuid": self._generate_uuid(node.name, file_path, node.lineno),
+                        "interface_type": None  # Optional: extend heuristic here too
                     })
         except Exception as e:
             print(f"[SEMANTIC ERROR] Failed parsing {file_path}: {str(e)}")
