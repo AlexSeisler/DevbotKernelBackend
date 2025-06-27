@@ -137,8 +137,8 @@ class FederationService():
                             logger.debug(f"[ANALYZE SKIP] Nodes already exist for: {path}")
                             continue
 
-                        file_data = self.github.get_file_content(owner, repo, path, branch)
-                        content = base64.b64decode(file_data.get("content", "")).decode("utf-8")
+                        content = self._get_file_content(owner, repo, path)
+
 
                         parsed_nodes = self.ast_parser.extract_semantic_nodes(content)
                         for node in parsed_nodes:
