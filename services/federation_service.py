@@ -133,7 +133,7 @@ class FederationService():
                     total_files_scanned += 1
 
                     try:
-                        if self.graph_manager.semantic_nodes_exist(repo_id, path):
+                        if self.semantic_manager.semantic_nodes_exist(repo_id, path):
                             logger.debug(f"[ANALYZE SKIP] Nodes already exist for: {path}")
                             continue
 
