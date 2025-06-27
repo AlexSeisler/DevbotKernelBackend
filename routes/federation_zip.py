@@ -1,14 +1,17 @@
-import os, tempfile, base64, uuid
+import os, tempfile, zipfile, uuid, requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services.semantic_parser import SemanticParser
 from services.db.federation_graph_manager import FederationGraphManager
-from services.github_service import GitHubService
 
 router = APIRouter()
 parser = SemanticParser()
 manager = FederationGraphManager()
-github = GitHubService()
+
+import dotenv
+dotenv.load_dotenv()
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 class ZipIngestGitRequest(BaseModel):
     owner: str
@@ -18,30 +21,36 @@ class ZipIngestGitRequest(BaseModel):
 
 @router.post("/zip-ingest")
 async def ingest_zip(payload: ZipIngestGitRequest):
-    print("[ZIP-INGEST] GitHub ingest route hit ✅")
+    print("[ZIP-INGEST] GitHub zipball ingest route hit ✅")
     extracted_files = []
     repo_id = payload.repo_id
 
     try:
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        zip_url = f"https://api.github.com/repos/{payload.owner}/{payload.repo}/zipball/{payload.branch}"
+        print(f"[ZIPBALL] Downloading: {zip_url}")
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            print(f"[ZIP-INGEST] Fetching tree for {payload.owner}/{payload.repo}@{payload.branch}")
-            tree = github.get_repo_tree(payload.owner, payload.repo, payload.branch, recursive=True).get("tree", [])
-            print(f"[ZIP-INGEST] Total files in tree: {len(tree)}")
+            zip_path = os.path.join(tmpdir, f"{payload.repo}.zip")
 
-            for entry in tree:
-                if entry["path"].endswith(".py"):
-                    print(f"[FETCHING] {entry['path']}")
-                    try:
-                        file_data = github.get_file(payload.owner, payload.repo, entry["path"], payload.branch)
-                        decoded = base64.b64decode(file_data["content"]).decode()
-                        abs_path = os.path.join(tmpdir, entry["path"])
-                        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-                        with open(abs_path, "w", encoding="utf-8") as f:
-                            f.write(decoded)
-                    except Exception as e:
-                        print(f"[⚠ FETCH ERROR] {entry['path']}: {e}")
+            response = requests.get(zip_url, headers=headers, stream=True, allow_redirects=True)
+            if response.status_code != 200:
+                raise Exception(f"Zipball download failed: {response.status_code} — {response.text}")
 
-            print("[ZIP-INGEST] Starting semantic parsing...")
+            with open(zip_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            print(f"[ZIPBALL] Extracting zipball to temp dir...")
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(tmpdir)
+
+            print("[SEMANTIC] Starting parsing of .py files")
             for root, _, files in os.walk(tmpdir):
                 for fname in files:
                     if fname.endswith(".py"):
