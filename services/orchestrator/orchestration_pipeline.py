@@ -20,7 +20,17 @@ class OrchestrationPipeline:
             )
 
             result = self.executor.execute_replication(plan)
-            return result
+
+            # ✅ Patch: Add full summary return
+            return {
+                "source_repo": source_repo_id,
+                "target_repo": target_repo_id,
+                "modules_attempted": len(plan["modules"]),
+                "replication_result": result  # includes commits, skips, errors
+            }
 
         except Exception as e:
-            return {"error": "Full orchestration failed", "detail": str(e)}
+            return {
+                "error": "Full orchestration failed",
+                "detail": str(e)
+            }
