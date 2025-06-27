@@ -66,7 +66,7 @@ class FederationService():
         # Tree load (chunk-safe)
         repo_tree_data = self.github.get_repo_tree(owner, repo, branch, recursive=True)
 
-        repo_tree = repo_tree_data['tree']
+        repo_tree = repo_tree_data
 
         chunk_size = 50
         semantic_results = []
@@ -94,7 +94,13 @@ class FederationService():
                     print(f'⚠ Skipped file {file_path} due to parsing error: {e}')
                     continue
 
-        return {'repo_id': pk_id, 'semantic_nodes': semantic_results}
+        return {
+            'repo_id': pk_id,
+            'files_scanned': len(repo_tree),
+            'semantic_nodes_extracted': len(semantic_results),
+            'failed': []  # optional: capture decode/parse fails here
+        }
+
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
         try:
