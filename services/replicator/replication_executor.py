@@ -64,6 +64,32 @@ class ReplicationExecutor:
                     updated_content=patch.updated_content,
                     commit_message=commit_message
                 ))
+                summary = {
+                    "attempted": len(commit_payloads),
+                    "committed": 0,
+                    "skipped_no_op": 0,
+                    "errors": []
+                }
+
+                for payload in commit_payloads:
+                    try:
+                        current = self.github_service.get_file_content(payload.file_path, payload.branch)
+                        if current.strip() == payload.updated_content.strip():
+                            print(f"[REPLICATION] Skipped no-op commit: {payload.file_path}")
+                            summary["skipped_no_op"] += 1
+                            continue
+
+                        result = self.federation_service.commit_patch(payload)
+                        summary["committed"] += 1
+
+                    except Exception as e:
+                        summary["errors"].append({
+                            "file": payload.file_path,
+                            "error": str(e)
+                        })
+
+                print(f"[REPLICATION COMPLETE] Commits: {summary['committed']}, Skipped: {summary['skipped_no_op']}, Errors: {len(summary['errors'])}")
+                return summary
 
             except Exception as e:
                 submit_to_manual_review_queue(

@@ -11,6 +11,7 @@ class FederationGraphManager:
 
     def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
         try:
+
             cur.execute("SELECT id FROM federation_repo WHERE logical_repo_id = %s", (logical_repo_id,))
             row = cur.fetchone()
             if not row:
@@ -26,6 +27,18 @@ class FederationGraphManager:
                     raise Exception(f"File path {file_path} not found in repository {logical_repo_id}")
 
             # ✅ Single safe insert
+            # 🚫 Deduplication: Skip if identical graph link already exists
+            cur.execute("""
+                SELECT id FROM federation_graph
+                WHERE repo_id = %s AND file_path = %s AND node_type = %s AND name = %s
+                AND cross_linked_to = %s AND federation_weight = %s
+            """, (pk, file_path, node_type, name, cross_linked_to, federation_weight))
+
+            existing = cur.fetchone()
+            if existing:
+                print(f"[SKIP] Graph node already linked: {file_path} :: {name}")
+                return
+
             cur.execute("""
                 INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)

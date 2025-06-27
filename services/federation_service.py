@@ -119,6 +119,11 @@ class FederationService():
                     file_data = self.github.get_file(owner, repo, file_path, branch)
                     file_content = base64.b64decode(file_data["content"]).decode()
 
+                    # SKIP files with already-existing semantic nodes (avoid AST reparse)
+                    if self.semantic_manager.semantic_nodes_exist(repo_pk, file_path):
+                        print(f"⏭️ Skipping {file_path} – already parsed")
+                        continue
+
                     nodes = self.semantic_parser.parse_python_file(file_content)
                     for node in nodes:
                         node["file_path"] = file_path
@@ -134,6 +139,7 @@ class FederationService():
             "semantic_nodes_extracted": total_nodes,
             "failed": failed_files
         }
+
 
     def _get_branch_sha(self, owner, repo, branch):
         url = f'{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}'

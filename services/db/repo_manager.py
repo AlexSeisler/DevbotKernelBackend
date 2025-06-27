@@ -105,3 +105,29 @@ class RepoManager:
                 return row[0]
         finally:
             self.db.release_connection(conn)
+    def get_last_analysis_record(self, repo_id, branch):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT sha, node_count
+                    FROM analysis_record
+                    WHERE repo_id = %s AND branch = %s
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """, (repo_id, branch))
+                row = cur.fetchone()
+                return {"sha": row[0], "node_count": row[1]} if row else None
+        finally:
+            self.db.release_connection(conn)
+    def record_analysis(self, repo_id, sha, node_count):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO analysis_record (repo_id, sha, node_count, created_at)
+                    VALUES (%s, %s, %s, NOW())
+                """, (repo_id, sha, node_count))
+                conn.commit()
+        finally:
+            self.db.release_connection(conn)
