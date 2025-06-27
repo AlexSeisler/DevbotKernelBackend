@@ -15,6 +15,9 @@ from models.federation_schemas import PatchASTProposal
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
 import uuid
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 from models.federation_schemas import PatchProposalResponse
 
 class FederationService():
@@ -93,62 +96,72 @@ class FederationService():
         return {'repo_id': pk_id, 'semantic_nodes': semantic_results}
 
     def analyze_repo(self, payload: AnalyzeRepoRequest):
-        owner, repo, branch = payload.owner, payload.repo, payload.default_branch
-        logical_repo_id = f"{owner}/{repo}"
-        print(f"[FEDERATION ANALYZE] Triggered for: {logical_repo_id}")
-
-        # Manually bypass DB repo lookup
-        repo_pk = payload.repo_id
         try:
-            repo_tree_data = self.github.get_repo_tree(owner, repo, branch, recursive=True)
-        except Exception as e:
-            print(f"[GITHUB TREE ERROR] Failed to fetch repo tree: {e}")
-            raise
+            repo_id = payload.repo_id
+            owner = payload.owner
+            repo = payload.repo
+            branch = payload.default_branch
 
-        if isinstance(repo_tree_data, list):
-            repo_tree = repo_tree_data
-        else:
-            repo_tree = repo_tree_data.get("tree", [])
+            logger.info(f"[FEDERATION ANALYZE] Triggered for: {owner}/{repo}")
 
-        if not repo_tree:
-            raise Exception(f"[FEDERATION ANALYZE] No repo tree returned for: {owner}/{repo}@{branch}")
+            try:
+                repo_tree_data = self.github.get_repo_tree(owner, repo, branch, recursive=True)
+            except Exception as e:
+                logger.error(f"[GITHUB TREE ERROR] Failed to fetch repo tree: {e}")
+                raise
 
-        python_files = [f["path"] for f in repo_tree if f["path"].endswith(".py")]
+            if isinstance(repo_tree_data, list):
+                repo_tree = repo_tree_data
+            else:
+                repo_tree = repo_tree_data.get("tree", [])
 
-        if not python_files:
-            raise Exception(f"[FEDERATION ANALYZE] No Python files found in repo tree for: {logical_repo_id}")
+            if not repo_tree:
+                raise Exception(f"[FEDERATION ANALYZE] No repo tree returned for: {owner}/{repo}@{branch}")
 
-        BATCH_SIZE = 20
-        total_nodes = 0
-        failed_files = []
+            semantic_nodes = []
+            failed_files = []
+            chunk_size = 50
+            total_files_scanned = 0
 
-        for i in range(0, len(python_files), BATCH_SIZE):
-            batch = python_files[i:i + BATCH_SIZE]
-            for file_path in batch:
-                try:
-                    file_data = self.github.get_file(owner, repo, file_path, branch)
-                    file_content = base64.b64decode(file_data["content"]).decode()
-
-                    # SKIP files with already-existing semantic nodes (avoid AST reparse)
-                    if self.semantic_manager.semantic_nodes_exist(repo_pk, file_path):
-                        print(f"⏭️ Skipping {file_path} – already parsed")
+            for i in range(0, len(repo_tree), chunk_size):
+                chunk = repo_tree[i:i + chunk_size]
+                for item in chunk:
+                    path = item.get("path", "")
+                    if not path.endswith(".py"):
                         continue
 
-                    nodes = self.semantic_parser.parse_python_file(file_content)
-                    for node in nodes:
-                        node["file_path"] = file_path
-                        self.semantic_manager.save_semantic_node(repo_pk, node)
-                        total_nodes += 1
-                except Exception as e:
-                    failed_files.append(file_path)
-                    print(f"[ANALYZE FAIL] {file_path}: {str(e)}")
+                    total_files_scanned += 1
 
-        return {
-            "repo_id": repo_pk,
-            "files_scanned": len(python_files),
-            "semantic_nodes_extracted": total_nodes,
-            "failed": failed_files
-        }
+                    try:
+                        if self.graph_manager.semantic_nodes_exist(repo_id, path):
+                            logger.debug(f"[ANALYZE SKIP] Nodes already exist for: {path}")
+                            continue
+
+                        file_data = self.github.get_file_content(owner, repo, path, branch)
+                        content = base64.b64decode(file_data.get("content", "")).decode("utf-8")
+
+                        parsed_nodes = self.ast_parser.extract_semantic_nodes(content)
+                        for node in parsed_nodes:
+                            node.repo_id = repo_id
+                            node.file_path = path
+                            self.graph_manager.save_semantic_node(node)
+                            semantic_nodes.append(node)
+
+                    except Exception as file_err:
+                        failed_files.append({"file": path, "error": str(file_err)})
+                        logger.warning(f"[ANALYZE FAIL] {path}: {file_err}")
+
+            return {
+                "repo_id": repo_id,
+                "files_scanned": total_files_scanned,
+                "semantic_nodes_extracted": len(semantic_nodes),
+                "failed": failed_files
+            }
+
+        except Exception as e:
+            logger.exception("Unhandled error in analyze_repo")
+            raise e
+
 
 
 
