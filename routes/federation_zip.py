@@ -26,7 +26,6 @@ async def ingest_zip(
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            # ZIP UPLOAD PATH
             if file:
                 if not file.filename.endswith(".zip"):
                     raise HTTPException(status_code=400, detail="Only .zip files are supported.")
@@ -35,39 +34,59 @@ async def ingest_zip(
                     f.write(await file.read())
                 with zipfile.ZipFile(zip_path, "r") as zip_ref:
                     zip_ref.extractall(tmpdir)
+                print("[ZIP-INGEST] Uploaded zip extracted.")
 
-            # GITHUB PULL PATH
             elif git_payload:
+                print(f"[ZIP-INGEST] GitHub ingest: {git_payload.owner}/{git_payload.repo}@{git_payload.branch}")
                 repo_id = git_payload.repo_id
-                tree = github.get_repo_tree(git_payload.owner, git_payload.repo, git_payload.branch, recursive=True).get("tree", [])
+                tree = github.get_repo_tree(
+                    git_payload.owner,
+                    git_payload.repo,
+                    git_payload.branch,
+                    recursive=True
+                ).get("tree", [])
+
+                print(f"[ZIP-INGEST] Files in tree: {len(tree)}")
+
                 for entry in tree:
                     if entry["path"].endswith(".py"):
+                        print(f"[FETCHING] {entry['path']}")
                         try:
-                            file_data = github.get_file(git_payload.owner, git_payload.repo, entry["path"], git_payload.branch)
+                            file_data = github.get_file(
+                                git_payload.owner,
+                                git_payload.repo,
+                                entry["path"],
+                                git_payload.branch
+                            )
                             decoded = base64.b64decode(file_data["content"]).decode()
                             abs_path = os.path.join(tmpdir, entry["path"])
                             os.makedirs(os.path.dirname(abs_path), exist_ok=True)
                             with open(abs_path, "w", encoding="utf-8") as f:
                                 f.write(decoded)
                         except Exception as e:
-                            print(f"⚠ Failed to fetch {entry['path']}: {e}")
+                            print(f"[⚠ FETCH ERROR] {entry['path']}: {e}")
             else:
                 raise HTTPException(status_code=400, detail="Must provide zip file or GitHub payload")
 
-            # UNIFIED SEMANTIC PARSE
+            print("[ZIP-INGEST] Starting semantic parsing...")
             for root, _, files in os.walk(tmpdir):
                 for fname in files:
                     if fname.endswith(".py"):
                         full_path = os.path.join(root, fname)
-                        with open(full_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                        relative_path = os.path.relpath(full_path, tmpdir)
-                        nodes = parser.parse_python_file(content, file_path=relative_path)
-                        for node in nodes:
-                            manager.save_semantic_node(repo_id, node)
-                        extracted_files.append(relative_path)
+                        try:
+                            with open(full_path, "r", encoding="utf-8") as f:
+                                content = f.read()
+                            rel_path = os.path.relpath(full_path, tmpdir)
+                            print(f"[PARSING] {rel_path}")
+                            nodes = parser.parse_python_file(content, file_path=rel_path)
+                            for node in nodes:
+                                manager.save_semantic_node(repo_id, node)
+                            extracted_files.append(rel_path)
+                        except Exception as e:
+                            print(f"[⚠ PARSE ERROR] {fname}: {e}")
 
     except Exception as e:
+        print(f"[CRITICAL FAILURE] {e}")
         raise HTTPException(status_code=500, detail=f"Zip ingestion failed: {str(e)}")
 
     return {
