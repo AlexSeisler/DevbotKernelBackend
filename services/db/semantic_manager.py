@@ -9,25 +9,39 @@ class SemanticManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO semantic_node (repo_id, file_path, node_type, name, args, docstring, methods, inherits_from)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    repo_pk,
-                    node.get("file_path"),
-                    node.get("node_type"),
-                    node.get("name"),
-                    json.dumps(node.get("args")),
-                    node.get("docstring"),
-                    json.dumps(node.get("methods")),
-                    node.get("inherits_from")
-                ))
+                cur.execute(
+                    """
+                    INSERT INTO semantic_node (
+                        repo_id, file_path, node_type, name, args,
+                        docstring, methods, inherits_from,
+                        return_type, decorators, code_block, interface_type
+                    )
+                    VALUES (%s, %s, %s, %s, %s,
+                            %s, %s, %s,
+                            %s, %s, %s, %s)
+                    """,
+                    (
+                        repo_pk,
+                        node.get("file_path"),
+                        node.get("node_type"),
+                        node.get("name"),
+                        json.dumps(node.get("args")),
+                        node.get("docstring"),
+                        json.dumps(node.get("methods")),
+                        node.get("inherits_from"),
+                        node.get("return_type"),
+                        json.dumps(node.get("decorators")),
+                        node.get("code_block"),
+                        node.get("interface_type"),
+                    )
+                )
             conn.commit()
         except Exception as e:
             conn.rollback()
             raise Exception(f"Failed to save semantic node: {str(e)}")
         finally:
             self.db.release_connection(conn)
+
     def semantic_nodes_exist(self, repo_pk: int, file_path: str) -> bool:
         conn = self.db.get_connection()
         try:
