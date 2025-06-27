@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from services.semantic_parser import SemanticParser
 from services.db.semantic_manager import SemanticManager  # ✅ Corrected manager
 
-router = APIRouter()
+router = APIRouter(prefix="/federation-zip")
 parser = SemanticParser()
 manager = SemanticManager()  # ✅ Corrected instance
 
