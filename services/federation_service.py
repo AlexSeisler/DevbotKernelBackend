@@ -64,7 +64,8 @@ class FederationService():
         print(f'[FEDERATION IMPORT] Finalized ingest: logical={logical_repo_id}, pk={pk_id}')
 
         # Tree load (chunk-safe)
-        repo_tree_data = self.github.get_repo_tree(owner, repo, branch)
+        repo_tree_data = self.github.get_repo_tree(owner, repo, branch, recursive=True)
+
         repo_tree = repo_tree_data['tree']
 
         chunk_size = 50
