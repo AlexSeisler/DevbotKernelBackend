@@ -100,7 +100,15 @@ class FederationService():
         # Manually bypass DB repo lookup
         repo_pk = payload.repo_id
 
-        repo_tree_data = self.github.get_repo_tree(owner, repo, branch, recursive=True)
+        try:
+            repo_tree_data = self.github.get_repo_tree(owner, repo, branch, recursive=True)
+        except Exception as e:
+            print(f"[GITHUB TREE ERROR] {e}")
+            raise
+
+        repo_tree = repo_tree_data.get("tree", [])
+        if not repo_tree:
+            raise Exception(f"[FEDERATION ANALYZE] No repo tree returned for: {owner}/{repo}@{branch}")
 
         repo_tree = repo_tree_data.get("tree", [])
         python_files = [f["path"] for f in repo_tree if f["path"].endswith(".py")]
