@@ -2,12 +2,11 @@ import os, tempfile, zipfile, uuid, requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services.semantic_parser import SemanticParser
-from services.db.federation_graph_manager import FederationGraphManager
+from services.db.semantic_manager import SemanticManager  # ✅ Corrected manager
 
-router = APIRouter(prefix="/federation-zip")
+router = APIRouter()
 parser = SemanticParser()
-manager = FederationGraphManager()
-
+manager = SemanticManager()  # ✅ Corrected instance
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
@@ -60,7 +59,7 @@ async def ingest_zip(payload: ZipIngestGitRequest):
                             print(f"[PARSING] {rel_path}")
                             nodes = parser.parse_python_file(content, file_path=rel_path)
                             for node in nodes:
-                                manager.save_semantic_node(repo_id, node)
+                                manager.save_semantic_node(repo_id, node)  # ✅ Corrected usage
                             extracted_files.append(rel_path)
                         except Exception as e:
                             print(f"[⚠ PARSE ERROR] {fname}: {e}")
