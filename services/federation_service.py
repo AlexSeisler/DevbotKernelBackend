@@ -126,30 +126,29 @@ class FederationService():
             for i in range(0, len(repo_tree), chunk_size):
                 chunk = repo_tree[i:i + chunk_size]
                 for item in chunk:
-                    path = item.get("path", "")
-                    if not path.endswith(".py"):
+                    file_path = item.get("path", "")
+                    if not file_path.endswith(".py"):
                         continue
 
                     total_files_scanned += 1
 
                     try:
-                        if self.semantic_manager.semantic_nodes_exist(repo_id, path):
-                            logger.debug(f"[ANALYZE SKIP] Nodes already exist for: {path}")
+                        if self.semantic_manager.semantic_nodes_exist(repo_id, file_path):
+                            logger.debug(f"[ANALYZE SKIP] Nodes already exist for: {file_path}")
                             continue
 
-                        content = self._get_file_content(owner, repo, path)
+                        file_content = self._get_file_content(owner, repo, file_path)
+                        nodes = self.semantic_parser.parse_python_file(file_content)
 
-
-                        parsed_nodes = self.semantic_parser.extract_semantic_nodes(content)
-                        for node in parsed_nodes:
-                            node.repo_id = repo_id
-                            node.file_path = path
-                            self.graph_manager.save_semantic_node(node)
+                        for node in nodes:
+                            node['file_path'] = file_path
+                            self.semantic_manager.save_semantic_node(repo_id, node)
                             semantic_nodes.append(node)
 
-                    except Exception as file_err:
-                        failed_files.append({"file": path, "error": str(file_err)})
-                        logger.warning(f"[ANALYZE FAIL] {path}: {file_err}")
+                    except Exception as e:
+                        logger.warning(f"[ANALYZE FAIL] {file_path}: {e}")
+                        failed_files.append({"file": file_path, "error": str(e)})
+                        continue
 
             return {
                 "repo_id": repo_id,
@@ -161,6 +160,7 @@ class FederationService():
         except Exception as e:
             logger.exception("Unhandled error in analyze_repo")
             raise e
+
 
 
 
