@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from services.federation_service import FederationService
 from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
+import logger
 router = APIRouter(prefix='/federation')
 service = FederationService()
 
@@ -144,11 +145,11 @@ async def query_federation_graph(
     offset: int = Query(0, ge=0)
 ):
 
-    graph_nodes = service.graph_manager.query_graph(
-        repo_id,
-        limit=limit,
-        offset=offset
-    )
+    try:
+        graph_nodes = service.graph_manager.query_graph(repo_id, limit=limit, offset=offset)
+    except Exception as e:
+        logger.error(f"Graph query failed for repo_id={repo_id}: {e}")
+        raise HTTPException(status_code=500, detail="Federation graph query failed")
 
 
     has_more = len(graph_nodes) == limit
