@@ -13,10 +13,15 @@ async def insert_link(payload: FederationGraphLinkRequest):
         print("🔁 federation_graph.route.insert_link called")
         sys.stdout.flush()
 
+        from services.db.semantic_manager import SemanticManager
+        node = SemanticManager().get_node_by_key(payload.repo_id, payload.file_path, payload.name)
+        if not node:
+            raise HTTPException(status_code=404, detail="Semantic node not found")
+
         manager.insert_graph_link(
             repo_id=payload.repo_id,
             file_path=payload.file_path,
-            node_type=payload.node_type,
+            node_type=node.get('node_type', ''),
             name=payload.name,
             cross_linked_to=payload.cross_linked_to or "",
             federation_weight=payload.federation_weight or 1.0,

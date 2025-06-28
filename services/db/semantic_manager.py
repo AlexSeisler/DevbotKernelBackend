@@ -57,3 +57,18 @@ class SemanticManager:
                 return count > 0
         finally:
             self.db.release_connection(conn)
+    def get_node_by_key(self, repo_id: int, file_path: str, name: str) -> Optional[Dict]:
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT node_type FROM semantic_node
+                    WHERE repo_id = %s AND file_path = %s AND name = %s
+                    LIMIT 1
+                """, (repo_id, file_path, name))
+                row = cur.fetchone()
+                if row:
+                    return {'node_type': row[0]}
+                return None
+        finally:
+            self.db.release_connection(conn)
