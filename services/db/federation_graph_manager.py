@@ -89,3 +89,52 @@ class FederationGraphManager:
         ✅ Temporary: Always return True to fully bypass in synthetic + limited test environments.
         """
         return True
+    
+    def auto_link_all_nodes(self, repo_id: int):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT * FROM semantic_node WHERE repo_id = %s
+                """, (repo_id,))
+                nodes = cur.fetchall()
+
+                inserted_count = 0
+                for node in nodes:
+                    file_path = node['file_path']
+                    name = node['name']
+                    node_type = node['node_type']
+                    logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_id)
+
+                    # Skip if already linked
+                    cur.execute("""
+                        SELECT id FROM federation_graph
+                        WHERE repo_id = %s AND file_path = %s AND node_type = %s AND name = %s
+                    """, (repo_id, file_path, node_type, name))
+                    if cur.fetchone():
+                        continue
+
+                    # Naive heuristic: use the node name as the target key
+                    cross_linked_to = name.lower()
+                    federation_weight = 1.0
+                    notes = "Auto-linked by bulk link"
+
+                    cur.execute("""
+                        INSERT INTO federation_graph (
+                            repo_id, file_path, node_type, name,
+                            cross_linked_to, federation_weight, notes
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes))
+                    inserted_count += 1
+
+                conn.commit()
+                print(f"✅ Auto-linked {inserted_count} nodes for repo ID {repo_id}")
+        except Exception as e:
+            print("❌ auto_link_all_nodes FAILED")
+            print(traceback.format_exc())
+            sys.stdout.flush()
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            self.db.release_connection(conn)

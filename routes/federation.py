@@ -98,8 +98,12 @@ async def reject_patch(payload: ApprovePatchRequest):
 async def link_federation_node(payload: LinkFederationNodeRequest):
     from services.db.semantic_manager import SemanticManager
     try:
-        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(payload.repo_id)
+        # Trigger bulk link if wildcard used
+        if payload.name.strip() == "*":
+            service.graph_manager.auto_link_all_nodes(payload.repo_id)
+            return {'status': 'auto_link_complete'}
 
+        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(payload.repo_id)
         node = SemanticManager().get_node_by_key(payload.repo_id, payload.file_path, payload.name)
         if not node:
             raise HTTPException(status_code=404, detail="Semantic node not found")
@@ -121,13 +125,13 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
                     federation_weight,
                     notes
                 )
-
             conn.commit()
         except Exception as e:
             conn.rollback()
             raise e
         finally:
             service.db.release_connection(conn)
+
         return {'status': 'success'}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
