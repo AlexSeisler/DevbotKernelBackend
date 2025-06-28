@@ -96,12 +96,27 @@ async def reject_patch(payload: ApprovePatchRequest):
 
 @router.post('/graph/link')
 async def link_federation_node(payload: LinkFederationNodeRequest):
+    from services.db.semantic_manager import SemanticManager
     try:
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(payload.repo_id)
+
+        node = SemanticManager().get_node_by_key(payload.repo_id, payload.file_path, payload.name)
+        if not node:
+            raise HTTPException(status_code=404, detail="Semantic node not found")
+
         conn = service.db.get_connection()
         try:
             with conn.cursor() as cur:
-                service.graph_manager.insert_graph_link_tx(cur, logical_repo_id, payload.file_path, payload.node_type, payload.name, (payload.cross_linked_to or ''), (payload.federation_weight or 1.0), (payload.notes or ''))
+                service.graph_manager.insert_graph_link_tx(
+                    cur,
+                    logical_repo_id,
+                    payload.file_path,
+                    node.get("node_type", ""),
+                    payload.name,
+                    payload.cross_linked_to or '',
+                    payload.federation_weight or 1.0,
+                    payload.notes or ''
+                )
             conn.commit()
         except Exception as e:
             conn.rollback()
@@ -111,6 +126,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         return {'status': 'success'}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get('/graph/query')
 async def query_federation_graph(repo_id: int=Query(...)):
