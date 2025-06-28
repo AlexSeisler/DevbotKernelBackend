@@ -103,7 +103,10 @@ class RepoManager:
                         ingestion_date = CURRENT_TIMESTAMP
                     RETURNING id
                 """, (repo_id, owner, repo, name, logical_repo_id, branch, root_sha))
+                conn.commit()
                 row = cur.fetchone()
+                
+
                 return row[0]
         finally:
             self.db.release_connection(conn)
