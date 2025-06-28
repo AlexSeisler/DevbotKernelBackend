@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from services.federation_service import FederationService
 from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
-import logger
 router = APIRouter(prefix='/federation')
 service = FederationService()
 
