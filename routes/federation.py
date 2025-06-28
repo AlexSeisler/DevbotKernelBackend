@@ -144,23 +144,30 @@ async def query_federation_graph(
     limit: int = Query(100, ge=1),
     offset: int = Query(0, ge=0)
 ):
-
     try:
-        graph_nodes = service.graph_manager.query_graph(repo_id, limit=limit, offset=offset)
-    except Exception as e:
-        logger.error(f"Graph query failed for repo_id={repo_id}: {e}")
-        raise HTTPException(status_code=500, detail="Federation graph query failed")
+        print(f"[DEBUG] Starting federation graph query: repo_id={repo_id}, limit={limit}, offset={offset}")
+        
+        graph_nodes = service.graph_manager.query_graph(
+            repo_id,
+            limit=limit,
+            offset=offset
+        )
 
+        print(f"[DEBUG] Retrieved {len(graph_nodes)} nodes from federation graph")
 
-    has_more = len(graph_nodes) == limit
+        has_more = len(graph_nodes) == limit
 
-    return {
-        'status': 'success',
-        'repo_id': repo_id,
-        'nodes': graph_nodes,
-        'pagination': {
-            'limit': limit,
-            'offset': offset,
-            'has_more': has_more
+        return {
+            'status': 'success',
+            'repo_id': repo_id,
+            'nodes': graph_nodes,
+            'pagination': {
+                'limit': limit,
+                'offset': offset,
+                'has_more': has_more
+            }
         }
-    }
+
+    except Exception as e:
+        print(f"[ERROR] Federation graph query failed: {type(e).__name__} - {e}")
+        raise HTTPException(status_code=500, detail=f"Federation graph query failed: {e}")
