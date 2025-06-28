@@ -70,9 +70,7 @@ class FederationGraphManager:
         finally:
             self.db.release_connection(conn)
 
-    def query_graph(self, logical_repo_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        repo_id = self.repo_manager.resolve_repo_pk(logical_repo_id)
-
+    def query_graph(self, repo_id: int, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         conn = self.db.get_connection()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -87,6 +85,7 @@ class FederationGraphManager:
                 return cur.fetchall()
         finally:
             self.db.release_connection(conn)
+
 
 
     def _verify_file_existence(self, logical_repo_id, file_path):

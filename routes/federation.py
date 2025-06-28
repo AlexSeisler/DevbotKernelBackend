@@ -143,13 +143,13 @@ async def query_federation_graph(
     limit: int = Query(100, ge=1),
     offset: int = Query(0, ge=0)
 ):
-    logical_repo_id = service.repo_manager.resolve_repo_pk(repo_id)
 
     graph_nodes = service.graph_manager.query_graph(
-        logical_repo_id,
+        repo_id,
         limit=limit,
         offset=offset
     )
+
 
     has_more = len(graph_nodes) == limit
 
