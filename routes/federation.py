@@ -106,6 +106,10 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
 
         conn = service.db.get_connection()
         try:
+            cross_linked_to = payload.dict().get("cross_linked_to", "")
+            federation_weight = payload.dict().get("federation_weight", 1.0)
+            notes = payload.dict().get("notes", "")
+
             with conn.cursor() as cur:
                 service.graph_manager.insert_graph_link_tx(
                     cur,
@@ -113,10 +117,11 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
                     payload.file_path,
                     node.get("node_type", ""),
                     payload.name,
-                    payload.cross_linked_to or '',
-                    payload.federation_weight or 1.0,
-                    payload.notes or ''
+                    cross_linked_to,
+                    federation_weight,
+                    notes
                 )
+
             conn.commit()
         except Exception as e:
             conn.rollback()
