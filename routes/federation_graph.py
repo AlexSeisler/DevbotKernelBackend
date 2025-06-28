@@ -3,7 +3,6 @@ from services.db.federation_graph_manager import FederationGraphManager
 from models.federation_schemas import FederationGraphLinkRequest
 
 router = APIRouter(prefix="/federation/graph")
-
 manager = FederationGraphManager()
 
 @router.post("/link")
