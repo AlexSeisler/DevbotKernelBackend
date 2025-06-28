@@ -1,5 +1,7 @@
 from settings import Database
 import json
+from typing import Optional, Dict
+
 
 class SemanticManager:
     def __init__(self):
