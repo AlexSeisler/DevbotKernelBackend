@@ -3,6 +3,7 @@ from services.db.repo_manager import RepoManager
 import traceback
 import psycopg2.extras
 import sys
+from typing import List, Dict, Any
 
 class FederationGraphManager:
     def __init__(self):
