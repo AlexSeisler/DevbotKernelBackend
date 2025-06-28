@@ -138,14 +138,28 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
 
 
 @router.get('/graph/query')
-async def query_federation_graph(repo_id: int = Query(...)):
-    try:
-        print(f"📥 query_federation_graph called with repo_id={repo_id}")
-        logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(repo_id)
-        print(f"🔗 Resolved logical_repo_id = {logical_repo_id}")
-        graph_nodes = service.graph_manager.query_graph(logical_repo_id)
-        print(f"📤 Returning {len(graph_nodes)} nodes")
-        return {'status': 'success', 'repo_id': repo_id, 'nodes': graph_nodes}
-    except Exception as e:
-        print(f"❌ Error in /graph/query: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+async def query_federation_graph(
+    repo_id: int = Query(...),
+    limit: int = Query(100, ge=1),
+    offset: int = Query(0, ge=0)
+):
+    logical_repo_id = service.repo_manager.resolve_repo_pk(repo_id)
+
+    graph_nodes = service.graph_manager.query_graph(
+        logical_repo_id,
+        limit=limit,
+        offset=offset
+    )
+
+    has_more = len(graph_nodes) == limit
+
+    return {
+        'status': 'success',
+        'repo_id': repo_id,
+        'nodes': graph_nodes,
+        'pagination': {
+            'limit': limit,
+            'offset': offset,
+            'has_more': has_more
+        }
+    }
