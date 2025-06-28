@@ -88,20 +88,26 @@ class RepoManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
+                name = repo
+                logical_repo_id = f"{owner}/{repo}"
                 cur.execute("""
-                    INSERT INTO federation_repo (repo_id, owner, repo, branch, root_sha)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO federation_repo (repo_id, owner, repo, name, logical_repo_id, branch, root_sha, ingestion_date)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                     ON CONFLICT (repo_id) DO UPDATE SET
                         owner = EXCLUDED.owner,
                         repo = EXCLUDED.repo,
+                        name = EXCLUDED.name,
+                        logical_repo_id = EXCLUDED.logical_repo_id,
                         branch = EXCLUDED.branch,
-                        root_sha = EXCLUDED.root_sha
+                        root_sha = EXCLUDED.root_sha,
+                        ingestion_date = CURRENT_TIMESTAMP
                     RETURNING id
-                """, (repo_id, owner, repo, branch, root_sha))
+                """, (repo_id, owner, repo, name, logical_repo_id, branch, root_sha))
                 row = cur.fetchone()
                 return row[0]
         finally:
             self.db.release_connection(conn)
+
 
     def get_last_analysis_record(self, repo_id, branch):
         conn = self.db.get_connection()
