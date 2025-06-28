@@ -17,15 +17,14 @@ class RepoManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT id FROM federation_repo WHERE repo_id = %s", (logical_repo_id,))
+                cur.execute("SELECT id FROM federation_repo WHERE logical_repo_id = %s", (logical_repo_id,))
                 row = cur.fetchone()
                 if not row:
                     raise Exception(f"Repo {logical_repo_id} not found")
                 return row[0]
-        except Exception as e:
-            raise e
         finally:
             self.db.release_connection(conn)
+
 
     def resolve_repo_id_by_pk(self, repo_pk_id):
         conn = self.db.get_connection()
