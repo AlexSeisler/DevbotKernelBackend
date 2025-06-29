@@ -38,6 +38,32 @@ class FederationService():
         self.proposal_manager = ProposalManager()
         self.ast_composer = ASTPatchComposer()
 
+        
+    def _tag_semantic_node(self, node):
+        tags = []
+
+        name = node.get("name", "")
+        node_type = node.get("node_type", "")
+        decorators = node.get("decorators", [])
+        file_path = node.get("file_path", "")
+
+        if "test" in file_path:
+            tags.append("test")
+        if "infra" in file_path or "ops" in file_path:
+            tags.append("infra")
+        if node_type == "decorator":
+            tags.append("decorator")
+        if name in {"main", "__init__", "run"}:
+            tags.append("entrypoint")
+        if name.startswith("_"):
+            tags.append("internal")
+        if any(k in d for d in decorators for k in ("get", "post", "route")):
+            tags.append("http")
+        if not tags:
+            tags.append("util")
+
+        return tags
+
     def import_repo(self, payload: ImportRepoRequest):
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
         logical_repo_id = f'{owner}/{repo}'
@@ -63,13 +89,11 @@ class FederationService():
         )
         print(f'[FEDERATION IMPORT] Finalized ingest: logical={logical_repo_id}, pk={pk_id}')
 
-        # Tree load (chunk-safe)
-        repo_tree_data = self.github.get_repo_tree(owner, repo, branch, recursive=True)
-
-        repo_tree = repo_tree_data
+        repo_tree = self.github.get_repo_tree(owner, repo, branch, recursive=True)
 
         chunk_size = 50
         semantic_results = []
+        failed = []
 
         for i in range(0, len(repo_tree), chunk_size):
             chunk = repo_tree[i:i+chunk_size]
@@ -77,28 +101,37 @@ class FederationService():
                 file_path = file.get('path', '')
                 if not file_path.endswith('.py'):
                     continue
+
+                # ✅ Deduplication Check
+                if self.semantic_manager.semantic_nodes_exist(pk_id, file_path):
+                    print(f'[DEDUP SKIP] Already ingested: {file_path}')
+                    continue
+
                 try:
                     raw_file = self.github.get_file(owner, repo, file_path, branch)
                     file_content = base64.b64decode(raw_file['content']).decode()
                 except Exception as e:
-                    print(f'⚠ Skipped file {file_path} due to fetch/decode error: {e}')
+                    print(f'⚠ Skipped {file_path} — fetch/decode error: {e}')
+                    failed.append((file_path, 'decode'))
                     continue
 
                 try:
                     nodes = self.semantic_parser.parse_python_file(file_content)
                     for node in nodes:
                         node['file_path'] = file_path
+                        node['tags'] = self._tag_semantic_node(node)
                         self.semantic_manager.save_semantic_node(pk_id, node)
                         semantic_results.append(node)
                 except Exception as e:
-                    print(f'⚠ Skipped file {file_path} due to parsing error: {e}')
+                    print(f'⚠ Skipped {file_path} — parse error: {e}')
+                    failed.append((file_path, 'parse'))
                     continue
 
         return {
             'repo_id': pk_id,
             'files_scanned': len(repo_tree),
             'semantic_nodes_extracted': len(semantic_results),
-            'failed': []  # optional: capture decode/parse fails here
+            'failed': failed
         }
 
 

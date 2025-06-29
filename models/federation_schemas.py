@@ -101,3 +101,5 @@ class SemanticNode(BaseModel):
     file_path: str
     line_range: Optional[Tuple[int, int]] = None
     uuid: str
+    tags: Optional[List[str]] = []
+

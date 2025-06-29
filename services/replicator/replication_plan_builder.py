@@ -7,42 +7,46 @@ class ReplicationPlanBuilder:
         self.repo_manager = RepoManager()
 
     def build_plan(self, source_repo_id, target_repo_id):
-     
         print("[DEBUG] Entered build_plan with:")
         print("  source_repo_id:", source_repo_id, type(source_repo_id))
         print("  target_repo_id:", target_repo_id, type(target_repo_id))
 
-    # Normalize repo_id inputs
+        # Normalize repo_id inputs
         if isinstance(source_repo_id, str):
             source_repo_id = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
 
         if isinstance(target_repo_id, str):
             target_repo_id = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
-        print("[DEBUG] Entered build_plan with2:")
-        print("  source_repo_id:", source_repo_id, type(source_repo_id))
-        print("  target_repo_id:", target_repo_id, type(target_repo_id))
+        print("[DEBUG] Normalized repo_ids:")
+        print("  source_repo_id:", source_repo_id)
+        print("  target_repo_id:", target_repo_id)
 
-        # Load graphs for both source and target
+        # Load graphs
         source_graph = self.graph_manager.query_graph(source_repo_id)
         target_graph = self.graph_manager.query_graph(target_repo_id)
-        print("[DEBUG] Entered build_plan with3:")
-        print("  source_repo_id:", source_repo_id, type(source_repo_id))
-        print("  target_repo_id:", target_repo_id, type(target_repo_id))
 
-        # ✅ Optimization: Build fast-lookup set for target repo
-        target_keys = set(
-            (node["file_path"], node["name"])
-            for node in target_graph
-        )
+        # Construct lookup for target nodes
+        target_keys = set((n["file_path"], n["name"]) for n in target_graph)
 
         seen = set()
         modules = []
         for node in source_graph:
             key = (node["file_path"], node["name"], node["cross_linked_to"])
 
-            # Skip if same structure already exists in target
+            # Skip if already exists
             if (node["file_path"], node["name"]) in target_keys:
-                print(f"🔁 SKIP: Already exists in target — {node['file_path']} :: {node['name']}")
+                print(f"🚫 SKIP: Already exists in target → {node['file_path']} :: {node['name']}")
+                continue
+
+            # Tag-aware filter
+            tags = set(node.get("tags", []))
+            if tags.intersection({"noop", "test", "infra", "skip"}):
+                print(f"⚠️ SKIP: Filtered by tag → {node['file_path']} :: {node['name']} :: {tags}")
+                continue
+
+            # Optional: restrict only to entrypoints or services
+            if "entrypoint" not in tags and "service" not in tags:
+                print(f"⚠️ SKIP: Non-priority tag set → {node['file_path']} :: {node['name']} :: {tags}")
                 continue
 
             if key not in seen:
@@ -54,7 +58,8 @@ class ReplicationPlanBuilder:
                     "replication_strategy": "direct_import"
                 })
 
-        print(f"[PLAN BUILDER] Generated {len(modules)} unique modules from {len(source_graph)} source nodes")
+
+        print(f"[PLAN BUILDER] {len(modules)} modules selected from {len(source_graph)} source nodes")
 
         return {
             "source_repo_id": source_repo_id,

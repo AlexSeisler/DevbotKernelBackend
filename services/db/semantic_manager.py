@@ -16,11 +16,13 @@ class SemanticManager:
                     INSERT INTO semantic_node (
                         repo_id, file_path, node_type, name, args,
                         docstring, methods, inherits_from,
-                        return_type, decorators, code_block, interface_type
-                    )
-                    VALUES (%s, %s, %s, %s, %s,
-                            %s, %s, %s,
-                            %s, %s, %s, %s)
+                        return_type, decorators, code_block, interface_type,
+                        tags
+                        )
+                        VALUES (%s, %s, %s, %s, %s,
+                                %s, %s, %s,
+                                %s, %s, %s, %s,
+                                %s)
                     """,
                     (
                         repo_pk,
@@ -35,6 +37,8 @@ class SemanticManager:
                         json.dumps(node.get("decorators")),
                         node.get("code_block"),
                         node.get("interface_type"),
+                        json.dumps(node.get("tags", []))
+
                     )
                 )
             conn.commit()
