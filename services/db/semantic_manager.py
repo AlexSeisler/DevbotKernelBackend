@@ -11,6 +11,13 @@ class SemanticManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
+                tags = node.get("tags", [])
+                if isinstance(tags, str):
+                    try:
+                        tags = json.loads(tags)
+                    except:
+                        tags = []
+
                 cur.execute(
                     """
                     INSERT INTO semantic_node (
@@ -18,11 +25,10 @@ class SemanticManager:
                         docstring, methods, inherits_from,
                         return_type, decorators, code_block, interface_type,
                         tags
-                        )
-                        VALUES (%s, %s, %s, %s, %s,
-                                %s, %s, %s,
-                                %s, %s, %s, %s,
-                                %s)
+                    ) VALUES (%s, %s, %s, %s, %s,
+                            %s, %s, %s,
+                            %s, %s, %s, %s,
+                            %s)
                     """,
                     (
                         repo_pk,
@@ -37,16 +43,17 @@ class SemanticManager:
                         json.dumps(node.get("decorators")),
                         node.get("code_block"),
                         node.get("interface_type"),
-                        json.dumps(node.get("tags", []))
-
+                        tags  # ✅ Native Python list to match TEXT[]
                     )
                 )
-            conn.commit()
+                conn.commit()
         except Exception as e:
             conn.rollback()
             raise Exception(f"Failed to save semantic node: {str(e)}")
         finally:
             self.db.release_connection(conn)
+
+
 
     def semantic_nodes_exist(self, repo_pk: int, file_path: str) -> bool:
         conn = self.db.get_connection()
