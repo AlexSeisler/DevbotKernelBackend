@@ -186,6 +186,7 @@ class FederationService():
         return self.github._get_repo_tree(owner, repo, sha)
 
     def _get_file_content(self, owner, repo, path):
+        print(f"[DEBUG] get_file_content: file_path={file_path}, branch={branch}")
         url = f'{self.base_url}/repos/{owner}/{repo}/contents/{path}'
         res = requests.get(url, headers=self.headers)
         res.raise_for_status()
