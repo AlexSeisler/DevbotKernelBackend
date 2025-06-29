@@ -13,16 +13,19 @@ class ReplicationPlanBuilder:
         print("  target_repo_id:", target_repo_id, type(target_repo_id))
 
     # Normalize repo_id inputs
-        if isinstance(source_repo_id, int):
+        if isinstance(source_repo_id, str):
             source_repo_id = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
 
-        if isinstance(target_repo_id, int):
+        if isinstance(target_repo_id, str):
             target_repo_id = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
+        print("[DEBUG] Entered build_plan with2:")
+        print("  source_repo_id:", source_repo_id, type(source_repo_id))
+        print("  target_repo_id:", target_repo_id, type(target_repo_id))
 
         # Load graphs for both source and target
         source_graph = self.graph_manager.query_graph(source_repo_id)
         target_graph = self.graph_manager.query_graph(target_repo_id)
-        print("[DEBUG] Entered build_plan with:")
+        print("[DEBUG] Entered build_plan with3:")
         print("  source_repo_id:", source_repo_id, type(source_repo_id))
         print("  target_repo_id:", target_repo_id, type(target_repo_id))
 
