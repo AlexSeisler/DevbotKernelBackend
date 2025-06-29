@@ -26,25 +26,11 @@ class ReplicationExecutor:
         print(f"[TRACE] Raw source_repo_id: {logical_source_id} ({type(logical_source_id)})")
         print(f"[TRACE] Raw target_repo_id: {logical_target_id} ({type(logical_target_id)})")
 
-        source_repo = logical_source_id
-        target_repo = logical_target_id
-        
-        if isinstance(source_repo, int):
-            source_repo = self.repo_manager.get_slug_by_id(source_repo)
-        if isinstance(target_repo, int):
-            target_repo = self.repo_manager.get_slug_by_id(target_repo)
-
-        source_owner, source_repo_name = source_repo.split("/")
-        target_owner, target_repo_name = target_repo.split("/")
-
-        # Normalize to integer repo IDs
         source_repo = self.repo_manager.resolve_repo_id_by_pk(logical_source_id) if isinstance(logical_source_id, str) else logical_source_id
         target_repo = self.repo_manager.resolve_repo_id_by_pk(logical_target_id) if isinstance(logical_target_id, str) else logical_target_id
 
         print(f"[TRACE] Normalized source_repo_id: {source_repo} ({type(source_repo)})")
         print(f"[TRACE] Normalized target_repo_id: {target_repo} ({type(target_repo)})")
-
-
 
         unique_paths = list({m["file_path"] for m in plan["modules"]})
         print(f"[REPLICATION PLAN] Total modules: {len(plan['modules'])}, Unique file paths: {len(unique_paths)}")
@@ -53,7 +39,9 @@ class ReplicationExecutor:
         extraction_results = []
         for path in unique_paths:
             try:
-                result = self.extractor.fetch_file_content(source_owner, source_repo_name, path, branch)
+                result = self.extractor.fetch_file_content(
+                    source_repo.split("/")[0], source_repo.split("/")[1], path, branch
+                )
                 extraction_results.append(result)
             except Exception as e:
                 print(f"[REPLICATION ERROR] Failed to extract {path}: {e}")
@@ -65,17 +53,15 @@ class ReplicationExecutor:
             try:
                 old_content = self.github_service.get_file_content(file_path, branch)
 
-                def noop_mutator(tree):
-                    return tree
+                def noop_mutator(tree): return tree
 
                 patch = self.ast_composer.compose_patch(
                     old_content=old_content,
                     new_ast_mutator=noop_mutator,
                     file_path=file_path,
                     base_sha=base_sha,
-                    manual=True  # Signal override to trust updated content
+                    manual=True
                 )
-
 
                 commit_payloads.append(CommitPatchRequest(
                     repo_id=target_repo,
@@ -85,32 +71,6 @@ class ReplicationExecutor:
                     updated_content=patch.updated_content,
                     commit_message=commit_message
                 ))
-                summary = {
-                    "attempted": len(commit_payloads),
-                    "committed": 0,
-                    "skipped_no_op": 0,
-                    "errors": []
-                }
-
-                for payload in commit_payloads:
-                    try:
-                        current = self.github_service.get_file_content(payload.file_path, payload.branch)
-                        if current.strip() == payload.updated_content.strip():
-                            print(f"[REPLICATION] Skipped no-op commit: {payload.file_path}")
-                            summary["skipped_no_op"] += 1
-                            continue
-
-                        result = self.federation_service.commit_patch(payload)
-                        summary["committed"] += 1
-
-                    except Exception as e:
-                        summary["errors"].append({
-                            "file": payload.file_path,
-                            "error": str(e)
-                        })
-
-                print(f"[REPLICATION COMPLETE] Commits: {summary['committed']}, Skipped: {summary['skipped_no_op']}, Errors: {len(summary['errors'])}")
-                return summary
 
             except Exception as e:
                 submit_to_manual_review_queue(
@@ -125,15 +85,25 @@ class ReplicationExecutor:
         try:
             results = []
             for payload in commit_payloads:
-                # Fetch current GitHub file content for safety
-                current_content = self.github_service.get_file_content(payload.file_path, payload.branch)
+                try:
+                    current_content = self.github_service.get_file_content(payload.file_path, payload.branch)
+                    if current_content.strip() == payload.updated_content.strip():
+                        print(f"[REPLICATION] Skipped no-op commit: {payload.file_path}")
+                        continue
 
-                if current_content.strip() == payload.updated_content.strip():
-                    print(f"[REPLICATION] Skipped no-op commit: {payload.file_path}")
+                    result = self.federation_service.commit_patch(payload)
+                    results.append(result)
+
+                except Exception as e:
+                    print(f"[REPLICATION ERROR] Failed to commit {payload.file_path}: {e}")
+                    submit_to_manual_review_queue(
+                        file_path=payload.file_path,
+                        old_content=current_content,
+                        new_content=payload.updated_content,
+                        base_sha=payload.base_sha,
+                        error_reason=str(e)
+                    )
                     continue
-
-                result = self.federation_service.commit_patch(payload)
-                results.append(result)
 
             return results
         except Exception as e:
