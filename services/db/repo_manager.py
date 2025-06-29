@@ -53,6 +53,8 @@ class RepoManager:
             self.db.release_connection(conn)
 
     def get_slug_by_id(self, repo_id: int) -> str:
+        print(f"[TRACE] get_slug_by_id() called with repo_id: {repo_id} ({type(repo_id)})")
+
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:

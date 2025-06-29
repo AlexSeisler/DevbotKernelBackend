@@ -186,7 +186,7 @@ class FederationService():
         return self.github._get_repo_tree(owner, repo, sha)
 
     def _get_file_content(self, owner, repo, path):
-        print(f"[DEBUG] get_file_content: file_path={file_path}, branch={branch}")
+        print(f"[DEBUG] get_file_content: file_path={path}, repo={repo}, owner={owner}")
         url = f'{self.base_url}/repos/{owner}/{repo}/contents/{path}'
         res = requests.get(url, headers=self.headers)
         res.raise_for_status()
@@ -195,6 +195,9 @@ class FederationService():
 
     def commit_patch(self, proposal_id: str):
         try:
+
+            print(f"[TRACE] commit_patch() called with proposal_id: {proposal_id}")
+
             proposal = self.proposal_manager.get_proposal_by_id(proposal_id)
             if not proposal:
                 raise Exception(f"Patch proposal ID '{proposal_id}' not found.")

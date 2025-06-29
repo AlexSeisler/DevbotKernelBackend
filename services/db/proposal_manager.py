@@ -95,6 +95,7 @@ class ProposalManager:
         finally:
             self.db.release_connection(conn)
     def get_proposal_by_id(self, proposal_id):
+        print(f"[DEBUG] get_proposal_by_id called with proposal_id={proposal_id}")
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
