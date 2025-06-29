@@ -8,10 +8,10 @@ class ReplicationPlanBuilder:
 
     def build_plan(self, source_repo_id, target_repo_id):
     # Normalize repo_id inputs
-        if not isinstance(source_repo_id, int):
+        if isinstance(source_repo_id, int):
             source_repo_id = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
 
-        if not isinstance(target_repo_id, int):
+        if isinstance(target_repo_id, int):
             target_repo_id = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
 
         # Load graphs for both source and target

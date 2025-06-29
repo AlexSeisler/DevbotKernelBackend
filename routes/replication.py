@@ -13,8 +13,17 @@ repo_manager = RepoManager()
 async def create_plan(payload: dict = Body(...)):
 
     try:
-        source_repo_id = repo_manager.resolve_repo_id_by_pk(int(payload["source_repo_id"]))
-        target_repo_id = repo_manager.resolve_repo_id_by_pk(int(payload["target_repo_id"]))
+        source_repo_id = (
+            int(payload["source_repo_id"])
+            if isinstance(payload["source_repo_id"], int)
+            else repo_manager.resolve_repo_id_by_pk(payload["source_repo_id"])
+        )
+
+        target_repo_id = (
+            int(payload["target_repo_id"])
+            if isinstance(payload["target_repo_id"], int)
+            else repo_manager.resolve_repo_id_by_pk(payload["target_repo_id"])
+        )
 
 
         plan = planner.build_plan(
