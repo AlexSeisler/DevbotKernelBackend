@@ -10,15 +10,13 @@ class FederationGraphManager:
         self.db = Database()
         self.repo_manager = RepoManager()
 
-    def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
+    def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes, tags=None):
         try:
-
             cur.execute("SELECT id FROM federation_repo WHERE logical_repo_id = %s", (logical_repo_id,))
             row = cur.fetchone()
             if not row:
                 raise Exception(f"Repo {logical_repo_id} not found during graph link insert.")
             pk = row[0]
-
 
             # 🔧 Synthetic SHA Validation Bypass Logic
             if logical_repo_id.startswith("Synthetic/"):
@@ -27,8 +25,7 @@ class FederationGraphManager:
                 if not self._verify_file_existence(logical_repo_id, file_path):
                     raise Exception(f"File path {file_path} not found in repository {logical_repo_id}")
 
-            # ✅ Single safe insert
-            # 🚫 Deduplication: Skip if identical graph link already exists
+            # ✅ Deduplication check
             cur.execute("""
                 SELECT id FROM federation_graph
                 WHERE repo_id = %s AND file_path = %s AND node_type = %s AND name = %s
@@ -41,9 +38,11 @@ class FederationGraphManager:
                 return
 
             cur.execute("""
-                INSERT INTO federation_graph (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (pk, file_path, node_type, name, cross_linked_to, federation_weight, notes))
+                INSERT INTO federation_graph (
+                    repo_id, file_path, node_type, name,
+                    cross_linked_to, federation_weight, notes, tags
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (pk, file_path, node_type, name, cross_linked_to, federation_weight, notes, tags))
 
         except Exception as e:
             print("❌ insert_graph_link_tx FAILED")
@@ -51,13 +50,14 @@ class FederationGraphManager:
             sys.stdout.flush()
             raise
 
-    def insert_graph_link(self, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes):
+
+    def insert_graph_link(self, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes, tags=None):
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
                 self.insert_graph_link_tx(
                     cur, repo_id, file_path, node_type, name,
-                    cross_linked_to, federation_weight, notes
+                    cross_linked_to, federation_weight, notes, tags
                 )
             conn.commit()
         except Exception as e:
@@ -69,6 +69,7 @@ class FederationGraphManager:
             raise
         finally:
             self.db.release_connection(conn)
+
 
     def query_graph(self, repo_id: int, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         conn = self.db.get_connection()
@@ -93,7 +94,8 @@ class FederationGraphManager:
         ✅ Temporary: Always return True to fully bypass in synthetic + limited test environments.
         """
         return True
-    
+        
+        
     def auto_link_all_nodes(self, repo_id: int):
         conn = self.db.get_connection()
         try:
@@ -108,6 +110,7 @@ class FederationGraphManager:
                     file_path = node['file_path']
                     name = node['name']
                     node_type = node['node_type']
+                    tags = node.get('tags', None)
                     logical_repo_id = self.repo_manager.resolve_repo_id_by_pk(repo_id)
 
                     # Skip if already linked
@@ -126,9 +129,9 @@ class FederationGraphManager:
                     cur.execute("""
                         INSERT INTO federation_graph (
                             repo_id, file_path, node_type, name,
-                            cross_linked_to, federation_weight, notes
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes))
+                            cross_linked_to, federation_weight, notes, tags
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes, tags))
                     inserted_count += 1
 
                 conn.commit()

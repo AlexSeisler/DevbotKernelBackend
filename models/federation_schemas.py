@@ -49,6 +49,10 @@ class LinkFederationNodeRequest(BaseModel):
     name: str
     cross_linked_to: str = ""
     notes: str
+    node_type: str
+    federation_weight: Optional[float] = 1.0
+    tags: Optional[List[str]] = []  # ✅ NEW FIELD
+
 
 class CommitPatchObject(BaseModel):
     file_path: str
