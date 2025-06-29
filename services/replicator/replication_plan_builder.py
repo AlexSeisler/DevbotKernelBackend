@@ -7,6 +7,11 @@ class ReplicationPlanBuilder:
         self.repo_manager = RepoManager()
 
     def build_plan(self, source_repo_id, target_repo_id):
+    
+        print("[DEBUG] Entered build_plan with:")
+        print("  source_repo_id:", source_repo_id, type(source_repo_id))
+        print("  target_repo_id:", target_repo_id, type(target_repo_id))
+
     # Normalize repo_id inputs
         if isinstance(source_repo_id, int):
             source_repo_id = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
@@ -17,6 +22,9 @@ class ReplicationPlanBuilder:
         # Load graphs for both source and target
         source_graph = self.graph_manager.query_graph(source_repo_id)
         target_graph = self.graph_manager.query_graph(target_repo_id)
+        print("[DEBUG] Entered build_plan with:")
+        print("  source_repo_id:", source_repo_id, type(source_repo_id))
+        print("  target_repo_id:", target_repo_id, type(target_repo_id))
 
         # ✅ Optimization: Build fast-lookup set for target repo
         target_keys = set(
