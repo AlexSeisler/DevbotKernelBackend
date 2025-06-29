@@ -17,29 +17,25 @@ class ReplicationExecutor:
         self.github_service = GitHubService()
 
     def execute_replication(self, plan):
-        logical_source_id = plan["source_repo_id"]
-        logical_target_id = plan["target_repo_id"]
-        branch = plan["target_branch"]
-        commit_message = plan["commit_message"]
-
-
         print(f"[TRACE] Received plan: {plan}")
-        print(f"[TRACE] Plan source_repo_id (raw): {plan['source_repo_id']} ({type(plan['source_repo_id'])})")
-        print(f"[TRACE] Plan target_repo_id (raw): {plan['target_repo_id']} ({type(plan['target_repo_id'])})")
+        logical_source_id = plan.get("source_repo_id")
+        logical_target_id = plan.get("target_repo_id")
+        branch = plan.get("target_branch")
+        commit_message = plan.get("commit_message")
 
-        # Extract repo owner/name before resolving IDs
+        print(f"[TRACE] Raw source_repo_id: {logical_source_id} ({type(logical_source_id)})")
+        print(f"[TRACE] Raw target_repo_id: {logical_target_id} ({type(logical_target_id)})")
+
+        # Split early for GitHub use
         source_owner, source_repo_name = logical_source_id.split("/")
         target_owner, target_repo_name = logical_target_id.split("/")
 
-        print(f"[TRACE] Source owner/repo: {source_owner}/{source_repo_name}")
-        print(f"[TRACE] Target owner/repo: {target_owner}/{target_repo_name}")
-
-        # Normalize to numeric repo IDs
+        # Normalize to integer repo IDs
         source_repo = self.repo_manager.resolve_repo_id_by_pk(logical_source_id) if isinstance(logical_source_id, str) else logical_source_id
         target_repo = self.repo_manager.resolve_repo_id_by_pk(logical_target_id) if isinstance(logical_target_id, str) else logical_target_id
 
-        print("[DEBUG] Normalized source_repo_id:", source_repo, type(source_repo))
-        print("[DEBUG] Normalized target_repo_id:", target_repo, type(target_repo))
+        print(f"[TRACE] Normalized source_repo_id: {source_repo} ({type(source_repo)})")
+        print(f"[TRACE] Normalized target_repo_id: {target_repo} ({type(target_repo)})")
 
 
 
