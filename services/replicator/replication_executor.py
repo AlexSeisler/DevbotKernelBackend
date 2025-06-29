@@ -22,8 +22,18 @@ class ReplicationExecutor:
         branch = plan["target_branch"]
         commit_message = plan["commit_message"]
 
-        source_owner, source_repo_name = source_repo.split("/")
-        target_owner, target_repo_name = target_repo.split("/")
+        # Normalize repo IDs if given as logical strings
+        if isinstance(source_repo, str):
+            source_repo = self.repo_manager.resolve_repo_id_by_pk(source_repo)
+        if isinstance(target_repo, str):
+            target_repo = self.repo_manager.resolve_repo_id_by_pk(target_repo)
+
+        print("[DEBUG] Normalized source_repo_id:", source_repo, type(source_repo))
+        print("[DEBUG] Normalized target_repo_id:", target_repo, type(target_repo))
+
+        source_owner, source_repo_name = plan["source_repo_id"].split("/")
+        target_owner, target_repo_name = plan["target_repo_id"].split("/")
+
 
         unique_paths = list({m["file_path"] for m in plan["modules"]})
         print(f"[REPLICATION PLAN] Total modules: {len(plan['modules'])}, Unique file paths: {len(unique_paths)}")
