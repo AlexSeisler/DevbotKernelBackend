@@ -47,14 +47,16 @@ async def execute_replication(payload: ReplicationExecutionRequest):
 
         # Accept both logical repo slug or ID
         if isinstance(payload.source_repo_id, str):
-            source_repo_id = repo_manager.resolve_repo_id_by_pk(payload.source_repo_id)
-        else:
-            source_repo_id = payload.source_repo_id
-
+            if "/" in payload.source_repo_id:
+                source_repo_id = repo_manager.resolve_repo_pk(payload.source_repo_id)
+            else:
+                source_repo_id = repo_manager.resolve_repo_id_by_pk(payload.source_repo_id)
         if isinstance(payload.target_repo_id, str):
-            target_repo_id = repo_manager.resolve_repo_id_by_pk(payload.target_repo_id)
-        else:
-            target_repo_id = payload.target_repo_id
+            if "/" in payload.target_repo_id:
+                target_repo_id = repo_manager.resolve_repo_pk(payload.target_repo_id)
+            else:
+                target_repo_id = repo_manager.resolve_repo_id_by_pk(payload.target_repo_id)
+
 
         print(f"[TRACE] Normalized source_repo_id: {source_repo_id}")
         print(f"[TRACE] Normalized target_repo_id: {target_repo_id}")
