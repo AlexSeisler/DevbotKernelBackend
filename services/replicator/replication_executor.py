@@ -17,22 +17,22 @@ class ReplicationExecutor:
         self.github_service = GitHubService()
 
     def execute_replication(self, plan):
-        source_repo = plan["source_repo_id"]
-        target_repo = plan["target_repo_id"]
+        logical_source_id = plan["source_repo_id"]
+        logical_target_id = plan["target_repo_id"]
         branch = plan["target_branch"]
         commit_message = plan["commit_message"]
 
-        # Normalize repo IDs if given as logical strings
-        if isinstance(source_repo, str):
-            source_repo = self.repo_manager.resolve_repo_id_by_pk(source_repo)
-        if isinstance(target_repo, str):
-            target_repo = self.repo_manager.resolve_repo_id_by_pk(target_repo)
+        # Extract repo owner/name before resolving IDs
+        source_owner, source_repo_name = logical_source_id.split("/")
+        target_owner, target_repo_name = logical_target_id.split("/")
+
+        # Normalize to numeric repo IDs
+        source_repo = self.repo_manager.resolve_repo_id_by_pk(logical_source_id) if isinstance(logical_source_id, str) else logical_source_id
+        target_repo = self.repo_manager.resolve_repo_id_by_pk(logical_target_id) if isinstance(logical_target_id, str) else logical_target_id
 
         print("[DEBUG] Normalized source_repo_id:", source_repo, type(source_repo))
         print("[DEBUG] Normalized target_repo_id:", target_repo, type(target_repo))
 
-        source_owner, source_repo_name = plan["source_repo_id"].split("/")
-        target_owner, target_repo_name = plan["target_repo_id"].split("/")
 
 
         unique_paths = list({m["file_path"] for m in plan["modules"]})
