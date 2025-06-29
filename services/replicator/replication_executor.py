@@ -26,9 +26,13 @@ class ReplicationExecutor:
         print(f"[TRACE] Raw source_repo_id: {logical_source_id} ({type(logical_source_id)})")
         print(f"[TRACE] Raw target_repo_id: {logical_target_id} ({type(logical_target_id)})")
 
-        # Split early for GitHub use
-        source_owner, source_repo_name = logical_source_id.split("/")
-        target_owner, target_repo_name = logical_target_id.split("/")
+        if isinstance(source_repo, int):
+            source_repo = self.repo_manager.get_slug_by_id(source_repo)
+        if isinstance(target_repo, int):
+            target_repo = self.repo_manager.get_slug_by_id(target_repo)
+
+        source_owner, source_repo_name = source_repo.split("/")
+        target_owner, target_repo_name = target_repo.split("/")
 
         # Normalize to integer repo IDs
         source_repo = self.repo_manager.resolve_repo_id_by_pk(logical_source_id) if isinstance(logical_source_id, str) else logical_source_id
