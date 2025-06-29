@@ -26,6 +26,9 @@ class ReplicationExecutor:
         print(f"[TRACE] Raw source_repo_id: {logical_source_id} ({type(logical_source_id)})")
         print(f"[TRACE] Raw target_repo_id: {logical_target_id} ({type(logical_target_id)})")
 
+        source_repo = logical_source_id
+        target_repo = logical_target_id
+        
         if isinstance(source_repo, int):
             source_repo = self.repo_manager.get_slug_by_id(source_repo)
         if isinstance(target_repo, int):
