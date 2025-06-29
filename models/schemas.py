@@ -28,7 +28,7 @@ class PullRequestCreateRequest(BaseModel):
     repo_id: Optional[int] = None  # 🔧 Made optional for fallback handling
 
 class ReplicationExecutionRequest(BaseModel):
-    source_repo_id: int
-    target_repo_id: int
+    source_repo_id: str
+    target_repo_id: str
     commit_message: str
     target_branch: str
