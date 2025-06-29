@@ -43,27 +43,30 @@ async def create_plan(payload: dict = Body(...)):
 @router.post("/execute")
 async def execute_replication(payload: ReplicationExecutionRequest):
     try:
+        print("[TRACE] Raw payload:", payload)
 
-        # Enforce integer casting
-        source_repo_pk = int(payload.source_repo_id)
-        target_repo_pk = int(payload.target_repo_id)
+        # Accept both logical repo slug or ID
+        if isinstance(payload.source_repo_id, int):
+            source_repo_id = repo_manager.resolve_repo_id_by_pk(payload.source_repo_id)
+        else:
+            source_repo_id = payload.source_repo_id
 
-        source_repo_id = repo_manager.resolve_repo_id_by_pk(source_repo_pk)
-        target_repo_id = repo_manager.resolve_repo_id_by_pk(target_repo_pk)
+        if isinstance(payload.target_repo_id, int):
+            target_repo_id = repo_manager.resolve_repo_id_by_pk(payload.target_repo_id)
+        else:
+            target_repo_id = payload.target_repo_id
 
+        print(f"[TRACE] Normalized source_repo_id: {source_repo_id}")
+        print(f"[TRACE] Normalized target_repo_id: {target_repo_id}")
 
-        # Build and normalize execution plan
         plan = planner.build_plan(
             source_repo_id=source_repo_id,
             target_repo_id=target_repo_id
         )
 
-
-        # Inject metadata
-        plan["commit_message"] = payload.commit_message or "DevBot: Apply semantic replication plan"
+        plan["commit_message"] = payload.commit_message or "DevBot: Applied semantic replication plan"
         plan["target_branch"] = payload.target_branch or "main"
 
-        # Execute safely
         result = executor.execute_replication(plan)
         return result
 
