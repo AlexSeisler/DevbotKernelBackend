@@ -74,6 +74,8 @@ class GitHubService:
     # Replace or extend this method inside GitHubService:
 
     def get_file(self, owner, repo, file_path, branch, fallback=True, include_meta=False):
+        print(f"[DEBUG] get_file_content: file_path={file_path}, branch={branch}")
+
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
         
@@ -217,6 +219,8 @@ class GitHubService:
         return self._request("POST", url, json=payload)
 
     def get_latest_file_sha(self, owner, repo, file_path: str, branch: str = "main") -> str:
+        print(f"[DEBUG] get_latest_file_sha for: {file_path}, branch={branch}")
+
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
         r = requests.get(url, headers=self.headers)

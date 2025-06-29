@@ -198,6 +198,11 @@ class FederationService():
             if not proposal:
                 raise Exception(f"Patch proposal ID '{proposal_id}' not found.")
             
+            print(f"[DEBUG] commit_patch: proposal_id={proposal_id}")
+            print(f"[DEBUG] repo_id from proposal: {proposal['repo_id']} ({type(proposal['repo_id'])})")
+            print(f"[DEBUG] file_path: {patch['file_path']}")
+
+            
             patch = proposal['patches'][0]
             file_path = patch['file_path']
             updated_content = patch['updated_content']
