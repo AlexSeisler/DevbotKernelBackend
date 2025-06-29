@@ -13,6 +13,10 @@ repo_manager = RepoManager()
 async def create_plan(payload: dict = Body(...)):
 
     try:
+        print(">> Incoming payload:", payload)
+        print(">> Type of source_repo_id:", type(payload.get("source_repo_id")))
+        print(">> Type of target_repo_id:", type(payload.get("target_repo_id")))
+
         source_repo_id = (
             int(payload["source_repo_id"])
             if isinstance(payload["source_repo_id"], int)
@@ -25,6 +29,8 @@ async def create_plan(payload: dict = Body(...)):
             else repo_manager.resolve_repo_id_by_pk(payload["target_repo_id"])
         )
 
+        print(">> Resolved source_repo_id:", source_repo_id)
+        print(">> Resolved target_repo_id:", target_repo_id)
 
         plan = planner.build_plan(
             source_repo_id=source_repo_id,
