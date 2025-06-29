@@ -98,7 +98,6 @@ async def reject_patch(payload: ApprovePatchRequest):
 async def link_federation_node(payload: LinkFederationNodeRequest):
     from services.db.semantic_manager import SemanticManager
     try:
-        # Trigger bulk link if wildcard used
         if payload.name.strip() == "*":
             service.graph_manager.auto_link_all_nodes(payload.repo_id)
             return {'status': 'auto_link_complete'}
@@ -113,6 +112,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
             cross_linked_to = payload.dict().get("cross_linked_to", "")
             federation_weight = payload.dict().get("federation_weight", 1.0)
             notes = payload.dict().get("notes", "")
+            tags = payload.dict().get("tags", [])
 
             with conn.cursor() as cur:
                 service.graph_manager.insert_graph_link_tx(
@@ -123,7 +123,8 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
                     payload.name,
                     cross_linked_to,
                     federation_weight,
-                    notes
+                    notes,
+                    tags
                 )
             conn.commit()
         except Exception as e:
@@ -135,6 +136,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         return {'status': 'success'}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get('/graph/query')

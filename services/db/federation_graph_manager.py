@@ -77,7 +77,8 @@ class FederationGraphManager:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT * FROM federation_graph
+                    SELECT id, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes, tags
+                    FROM federation_graph
                     WHERE repo_id = %s
                     LIMIT %s OFFSET %s
                     """,
