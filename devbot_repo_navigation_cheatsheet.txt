@@ -91,6 +91,16 @@ SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
 WHERE state = 'idle';
 
+
+TRUNCATE TABLE
+  semantic_node,
+  federation_graph,
+  federation_repo,
+  patch_proposal,
+  analysis_record
+RESTART IDENTITY CASCADE;
+
+
 ✅ Connection pool established
 DB connection pool failed (attempt 1): connection to server at "dpg-d186jf0dl3ps738sqo40-a" (10.227.96.92), port 5432 failed: FATAL:  remaining connection slots are reserved for roles with the SUPERUSER attribute
 HEAD http://devbotkernelbackend.onrender.com/ --> 404
