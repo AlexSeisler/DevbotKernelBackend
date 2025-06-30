@@ -16,6 +16,10 @@ from services.replicator.manual_review_queue import submit_to_manual_review_queu
 import uuid
 import json
 import logging
+import zipfile, io
+
+
+
 
 logger = logging.getLogger(__name__)
 from models.federation_schemas import PatchProposalResponse
@@ -70,7 +74,6 @@ class FederationService():
 
     def import_repo(self, payload: ImportRepoRequest):
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
-
         local_repo_id = f'{owner}/{repo}'
         print(f'[FEDERATION IMPORT] Starting import for: {local_repo_id}')
 
@@ -94,41 +97,39 @@ class FederationService():
         )
         print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}')
 
-        repo_tree = self.github.get_repo_tree(owner, repo, branch, recursive=True)
+        # Use GitHub ZIP instead of get_repo_tree
+        zip_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/{branch}.zip"
+        response = requests.get(zip_url)
+        if response.status_code != 200:
+            raise Exception(f"Failed to fetch GitHub ZIP archive: {response.text}")
 
-        chunk_size = 50
+        zip_bytes = io.BytesIO(response.content)
+        files_scanned = 0
         semantic_results = []
         failed = []
 
-        for i in range(0, len(repo_tree), chunk_size):
-            chunk = repo_tree[i:i+chunk_size]
-            for file in chunk:
-                file_path = file.get('path', '')
-                if not file_path.endswith('.py'):
+        with zipfile.ZipFile(zip_bytes, 'r') as zip_file:
+            for name in zip_file.namelist():
+                if not name.endswith(".py") or "__init__" in name:
                     continue
-
                 try:
-                    if self.semantic_manager.semantic_nodes_exist(pk_id, file_path):
-                        print(f'[DUP SKIP] Already ingested: {file_path}')
-                        continue
-
-                    raw_file = self.github.get_file(owner, repo, file_path, branch)
-                    file_content = base64.b64decode(raw_file['content']).decode()
-
-                    nodes = self.semantic_parser.parse_python_file(file_content)
-                    for node in nodes:
-                        node['file_path'] = file_path
-                    nodes = self._tag_all_semantic_nodes(nodes)
-                    for node in nodes:
-                        self.semantic_manager.save_semantic_node(pk_id, node)
-                        semantic_results.append(node)
+                    with zip_file.open(name) as file:
+                        code = file.read().decode("utf-8")
+                        nodes = SemanticParser.parse_python_file(code)
+                        for node in nodes:
+                            node['file_path'] = name
+                        nodes = self._tag_all_semantic_nodes(nodes)
+                        for node in nodes:
+                            self.semantic_manager.save_semantic_node(pk_id, node)
+                            semantic_results.append(node)
+                            files_scanned += 1
                 except Exception as e:
-                    print(f'[FAIL] Skipped {file_path} – parse error: {e}')
-                    failed.append((file_path, 'parse'))
+                    print(f'[FAIL] Skipped {name} – parse error: {e}')
+                    failed.append((name, 'parse'))
 
         return {
             'repo_id': pk_id,
-            'files_scanned': len(repo_tree),
+            'files_scanned': files_scanned,
             'semantic_nodes_extracted': len(semantic_results),
             'failed': failed
         }
