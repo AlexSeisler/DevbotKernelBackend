@@ -75,6 +75,7 @@ class FederationService():
 
     def import_repo(self, payload: ImportRepoRequest):
         import tempfile
+        from services.semantic_parser import parse_large_python_file
 
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
         local_repo_id = f'{owner}/{repo}'
@@ -109,14 +110,15 @@ class FederationService():
         print(f"[ZIPBALL] Downloading: {zip_url}")
         response = requests.get(zip_url, headers=headers, stream=True)
         if response.status_code != 200:
-            raise Exception(f"Zipball download failed: {response.status_code} – {response.text}")
+            raise Exception(f"Zipball download failed: {response.status_code} — {response.text}")
 
         supported_exts = {".py", ".rs", ".ts", ".js"}
         files_scanned = 0
         semantic_results = []
         failed = []
+        heavy_file_queue = []
 
-        MAX_FILE_LINES = 2000  # Safety limit
+        MAX_INLINE_LINES = 1500
 
         with tempfile.TemporaryDirectory() as tmpdir:
             zip_path = os.path.join(tmpdir, f"{repo}.zip")
@@ -135,21 +137,21 @@ class FederationService():
                             try:
                                 content = file.read().decode("utf-8", errors="ignore")
                             except Exception as decode_error:
-                                print(f"[❌ DECODE ERROR] {fname}: {decode_error}")
+                                print(f"[💣 DECODE ERROR] {fname}: {decode_error}")
                                 failed.append((fname, 'decode'))
                                 continue
 
-                            # Line count safety cap
-                            if content.count("\n") > MAX_FILE_LINES:
-                                print(f"[⚠️ SKIPPED] {fname} exceeds {MAX_FILE_LINES} lines. Skipping.")
-                                failed.append((fname, 'line_limit'))
+                            rel_path = fname
+                            line_count = content.count("\n")
+
+                            if line_count > MAX_INLINE_LINES:
+                                heavy_file_queue.append((rel_path, content))
+                                print(f"[QUEUED] {fname} ({line_count} lines) → heavy parser queue")
                                 continue
 
-                            rel_path = fname
                             try:
                                 nodes = self.semantic_parser.parse_python_file(content, file_path=rel_path)
                             except Exception:
-                                # Fallback generic node
                                 nodes = [{
                                     "name": os.path.basename(rel_path),
                                     "node_type": "blob",
@@ -169,11 +171,24 @@ class FederationService():
                             semantic_results.extend(nodes)
                             files_scanned += 1
                     except Exception as e:
-                        print(f'[FAIL] Skipped {fname} – parse error: {e}')
+                        print(f'[FAIL] Skipped {fname} 💥 parse error: {e}')
                         failed.append((fname, 'parse'))
 
+            # 🧠 Phase 1: Offload heavy files to subprocess-based parser
+            for rel_path, content in heavy_file_queue:
+                try:
+                    nodes = parse_large_python_file(content)
+                    for node in nodes:
+                        node['file_path'] = rel_path
+                    nodes = self._tag_all_semantic_nodes(nodes)
+                    semantic_results.extend(nodes)
+                    files_scanned += 1
+                except Exception as e:
+                    print(f"[SUBPROCESS FAIL] {rel_path}: {e}")
+                    failed.append((rel_path, 'heavy_parse'))
+
         self.semantic_manager.bulk_save_semantic_nodes(pk_id, semantic_results)
-        print(f"✅ Saved {len(semantic_results)} semantic nodes from {files_scanned} files.")
+        print(f'✅ Saved {len(semantic_results)} semantic nodes from {files_scanned} files.')
 
         return {
             'repo_id': pk_id,
