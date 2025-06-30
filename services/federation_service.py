@@ -1,6 +1,6 @@
 import os, requests, base64
 from fastapi import HTTPException
-from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest
+from models.federation_schemas import ImportRepoRequest
 from services.semantic_parser import SemanticParser
 from services.db.repo_manager import RepoManager
 from services.db.federation_graph_manager import FederationGraphManager
@@ -38,7 +38,6 @@ class FederationService():
         self.proposal_manager = ProposalManager()
         self.ast_composer = ASTPatchComposer()
 
-        
     def _tag_semantic_node(self, node):
         tags = []
 
@@ -64,17 +63,23 @@ class FederationService():
 
         return tags
 
+    def _tag_all_semantic_nodes(self, nodes):
+        for node in nodes:
+            node['tags'] = self._tag_semantic_node(node)
+        return nodes
+
     def import_repo(self, payload: ImportRepoRequest):
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
-        logical_repo_id = f'{owner}/{repo}'
-        print(f'[FEDERATION IMPORT] Starting import for: {logical_repo_id}')
 
-        existing_id = self.repo_manager.try_resolve_pk(logical_repo_id)
+        local_repo_id = f'{owner}/{repo}'
+        print(f'[FEDERATION IMPORT] Starting import for: {local_repo_id}')
+
+        existing_id = self.repo_manager.try_resolve_pk(local_repo_id)
         if existing_id:
-            print(f'[FEDERATION IMPORT] Repo already ingested: {logical_repo_id} (ID={existing_id})')
+            print(f'[FEDERATION IMPORT] Repo already ingested: {local_repo_id} (ID={existing_id})')
             return {'repo_id': existing_id, 'files_ingested': 0}
 
-        print(f'[FEDERATION IMPORT] New repo detected: {logical_repo_id}')
+        print(f'[FEDERATION IMPORT] New repo detected: {local_repo_id}')
         try:
             gh_repo_id = self.github.get_repo_id(owner, repo)
         except Exception as e:
@@ -87,7 +92,7 @@ class FederationService():
             branch=branch,
             root_sha=self._get_branch_sha(owner, repo, branch),
         )
-        print(f'[FEDERATION IMPORT] Finalized ingest: logical={logical_repo_id}, pk={pk_id}')
+        print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}')
 
         repo_tree = self.github.get_repo_tree(owner, repo, branch, recursive=True)
 
@@ -102,30 +107,24 @@ class FederationService():
                 if not file_path.endswith('.py'):
                     continue
 
-                # ✅ Deduplication Check
-                if self.semantic_manager.semantic_nodes_exist(pk_id, file_path):
-                    print(f'[DEDUP SKIP] Already ingested: {file_path}')
-                    continue
-
                 try:
+                    if self.semantic_manager.semantic_nodes_exist(pk_id, file_path):
+                        print(f'[DUP SKIP] Already ingested: {file_path}')
+                        continue
+
                     raw_file = self.github.get_file(owner, repo, file_path, branch)
                     file_content = base64.b64decode(raw_file['content']).decode()
-                except Exception as e:
-                    print(f'⚠ Skipped {file_path} — fetch/decode error: {e}')
-                    failed.append((file_path, 'decode'))
-                    continue
 
-                try:
                     nodes = self.semantic_parser.parse_python_file(file_content)
                     for node in nodes:
                         node['file_path'] = file_path
-                        node['tags'] = self._tag_semantic_node(node)
+                    nodes = self._tag_all_semantic_nodes(nodes)
+                    for node in nodes:
                         self.semantic_manager.save_semantic_node(pk_id, node)
                         semantic_results.append(node)
                 except Exception as e:
-                    print(f'⚠ Skipped {file_path} — parse error: {e}')
+                    print(f'[FAIL] Skipped {file_path} – parse error: {e}')
                     failed.append((file_path, 'parse'))
-                    continue
 
         return {
             'repo_id': pk_id,
