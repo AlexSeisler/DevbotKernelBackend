@@ -97,7 +97,7 @@ class FederationGraphManager:
         return True
         
         
-    def auto_link_all_nodes(self, repo_id: int):
+    def auto_link_all_nodes(self, repo_id, default_notes="", default_node_type="function"):
         conn = self.db.get_connection()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

@@ -92,11 +92,15 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
     from services.db.semantic_manager import SemanticManager
     try:
         if payload.name.strip() == "*":
-            # Provide fallback logic to ensure schema validation passes
-            payload.notes = payload.notes if payload.notes else ""
-            payload.node_type = payload.node_type if payload.node_type else "unspecified"
-            service.graph_manager.auto_link_all_nodes(payload.repo_id)
+            default_notes = payload.notes if payload.notes else "autolinked"
+            default_node_type = payload.node_type if payload.node_type else "unspecified"
+            service.graph_manager.auto_link_all_nodes(
+                repo_id=payload.repo_id,
+                default_notes=default_notes,
+                default_node_type=default_node_type
+            )
             return {'status': 'auto_link_complete'}
+
 
         logical_repo_id = service.repo_manager.resolve_repo_id_by_pk(payload.repo_id)
         node = SemanticManager().get_node_by_key(payload.repo_id, payload.file_path, payload.name)
