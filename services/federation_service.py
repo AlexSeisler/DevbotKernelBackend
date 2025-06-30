@@ -116,7 +116,7 @@ class FederationService():
         semantic_results = []
         failed = []
 
-        MAX_FILE_LINES = 1000  # Safety limit
+        MAX_FILE_LINES = 2000  # Safety limit
 
         with tempfile.TemporaryDirectory() as tmpdir:
             zip_path = os.path.join(tmpdir, f"{repo}.zip")
