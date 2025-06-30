@@ -44,7 +44,6 @@ class ReplicationPlanBuilder:
                 print(f"⚠️ SKIP: Filtered by tag → {node['file_path']} :: {node['name']} :: {tags}")
                 continue
 
-            # Optional: restrict only to entrypoints or services
             if "entrypoint" not in tags and "service" not in tags:
                 print(f"⚠️ SKIP: Non-priority tag set → {node['file_path']} :: {node['name']} :: {tags}")
                 continue
@@ -58,8 +57,16 @@ class ReplicationPlanBuilder:
                     "replication_strategy": "direct_import"
                 })
 
-
         print(f"[PLAN BUILDER] {len(modules)} modules selected from {len(source_graph)} source nodes")
+
+        # ✅ If no modules were selected, return safe empty plan
+        if not modules:
+            print("[BUILD_PLAN] No modules selected for replication — empty plan")
+            return {
+                "modules": [],
+                "source_repo": source_repo_id,
+                "target_repo": target_repo_id
+            }
 
         return {
             "source_repo_id": source_repo_id,

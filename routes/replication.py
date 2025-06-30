@@ -3,6 +3,7 @@ from services.replicator.replication_plan_builder import ReplicationPlanBuilder
 from services.replicator.replication_executor import ReplicationExecutor
 from services.db.repo_manager import RepoManager
 from models.schemas import ReplicationExecutionRequest
+import traceback
 
 router = APIRouter(prefix="/replication")
 planner = ReplicationPlanBuilder()
@@ -11,7 +12,6 @@ repo_manager = RepoManager()
 
 @router.post("/plan")
 async def create_plan(payload: dict = Body(...)):
-
     try:
         print(">> Incoming payload:", payload)
         print(">> Type of source_repo_id:", type(payload.get("source_repo_id")))
@@ -32,13 +32,24 @@ async def create_plan(payload: dict = Body(...)):
         print(">> Resolved source_repo_id:", source_repo_id)
         print(">> Resolved target_repo_id:", target_repo_id)
 
+        # ✅ Block invalid: source and target must differ
+        if source_repo_id == target_repo_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Replication requires source and target repositories to differ"
+            )
+
         plan = planner.build_plan(
             source_repo_id=source_repo_id,
             target_repo_id=target_repo_id
         )
         return plan
+
     except Exception as e:
+        print("[ERROR] Replication plan generation failed")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/execute")
 async def execute_replication(payload: ReplicationExecutionRequest):
