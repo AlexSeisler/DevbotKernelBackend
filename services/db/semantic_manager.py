@@ -53,7 +53,45 @@ class SemanticManager:
         finally:
             self.db.release_connection(conn)
 
+    def bulk_save_semantic_nodes(self, repo_id, nodes):
+        if not nodes:
+            return
 
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                for node in nodes:
+                    cur.execute(
+                        """
+                        INSERT INTO semantic_node (
+                            repo_id, file_path, node_type, name, args, docstring,
+                            methods, inherits_from, return_type, decorators,
+                            code_block, interface_type, tags
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT DO NOTHING
+                        """,
+                        (
+                            repo_id,
+                            node.get("file_path"),
+                            node.get("node_type"),
+                            node.get("name"),
+                            json.dumps(node.get("args", [])),
+                            node.get("docstring"),
+                            json.dumps(node.get("methods", [])),
+                            node.get("inherits_from"),
+                            node.get("return_type"),
+                            json.dumps(node.get("decorators", [])),
+                            node.get("code_block"),
+                            node.get("interface_type"),
+                            node.get("tags", []),
+                        ),
+                    )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise Exception(f"Bulk insert failed: {e}")
+        finally:
+            self.db.release_connection(conn)
 
     def semantic_nodes_exist(self, repo_pk: int, file_path: str) -> bool:
         conn = self.db.get_connection()

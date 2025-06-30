@@ -100,16 +100,15 @@ class FederationService():
         )
         print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}')
 
-        # ✅ ZIPBALL FETCH LOGIC
+        # ✅ ZIPBALL STREAM + BUFFERED PARSE + BULK SAVE
         headers = {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {GITHUB_TOKEN}",
             "X-GitHub-Api-Version": "2022-11-28"
         }
-
         zip_url = f"https://api.github.com/repos/{owner}/{repo}/zipball/{branch}"
         print(f"[ZIPBALL] Downloading: {zip_url}")
-        response = requests.get(zip_url, headers=headers, stream=True, allow_redirects=True)
+        response = requests.get(zip_url, headers=headers, stream=True)
         if response.status_code != 200:
             raise Exception(f"Zipball download failed: {response.status_code} — {response.text}")
 
@@ -117,39 +116,53 @@ class FederationService():
         semantic_results = []
         failed = []
 
+        CHUNK_SIZE = 100  # files per batch save
+        node_buffer = []
+
         with tempfile.TemporaryDirectory() as tmpdir:
             zip_path = os.path.join(tmpdir, f"{repo}.zip")
-
             with open(zip_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            print(f"[ZIPBALL] Extracting zipball to {tmpdir}...")
-            with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                zip_ref.extractall(tmpdir)
-
-            print("[SEMANTIC] Scanning .py files...")
-            for root, _, files in os.walk(tmpdir):
-                for fname in files:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                print("[ZIPBALL] Streaming and parsing .py files from archive...")
+                for zip_info in zip_ref.infolist():
+                    fname = zip_info.filename
                     if not fname.endswith(".py"):
                         continue
-                    full_path = os.path.join(root, fname)
                     try:
-                        with open(full_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                        rel_path = os.path.relpath(full_path, tmpdir)
-                        nodes = self.semantic_parser.parse_python_file(content, file_path=rel_path)
+                        with zip_ref.open(zip_info) as file:
+                            try:
+                                content = file.read().decode("utf-8")
+                            except Exception as decode_error:
+                                print(f"[⚠️ DECODE ERROR] {fname}: {decode_error}")
+                                failed.append((fname, 'decode'))
+                                continue
 
-                        for node in nodes:
-                            node['file_path'] = rel_path
-                        nodes = self._tag_all_semantic_nodes(nodes)
-                        for node in nodes:
-                            self.semantic_manager.save_semantic_node(pk_id, node)
-                            semantic_results.append(node)
+                            rel_path = fname
+                            nodes = self.semantic_parser.parse_python_file(content, file_path=rel_path)
+
+                            for node in nodes:
+                                node['file_path'] = rel_path
+                            nodes = self._tag_all_semantic_nodes(nodes)
+                            node_buffer.extend(nodes)
                             files_scanned += 1
+
+                            # ✅ Flush buffer if needed
+                            if len(node_buffer) >= CHUNK_SIZE:
+                                self.semantic_manager.bulk_save_semantic_nodes(pk_id, node_buffer)
+                                semantic_results.extend(node_buffer)
+                                node_buffer = []
+
                     except Exception as e:
                         print(f'[FAIL] Skipped {fname} – parse error: {e}')
                         failed.append((fname, 'parse'))
+
+            # ✅ Final flush
+            if node_buffer:
+                self.semantic_manager.bulk_save_semantic_nodes(pk_id, node_buffer)
+                semantic_results.extend(node_buffer)
 
         return {
             'repo_id': pk_id,
@@ -157,6 +170,7 @@ class FederationService():
             'semantic_nodes_extracted': len(semantic_results),
             'failed': failed
         }
+
 
 
 
