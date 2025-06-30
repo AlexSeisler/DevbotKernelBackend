@@ -77,6 +77,14 @@ async def execute_replication(payload: ReplicationExecutionRequest):
             target_repo_id=target_repo_id
         )
 
+        # ✅ Exit early if no modules selected
+        if not plan.get("modules"):
+            print("[EXECUTE_REPLICATION] No modules to replicate — skipping execution")
+            return {
+                "status": "skipped",
+                "message": "No eligible modules found for replication"
+            }
+
         plan["commit_message"] = payload.commit_message or "DevBot: Applied semantic replication plan"
         plan["target_branch"] = payload.target_branch or "main"
 
