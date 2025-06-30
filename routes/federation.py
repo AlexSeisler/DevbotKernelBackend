@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from services.federation_service import FederationService
-from models.federation_schemas import ImportRepoRequest, AnalyzeRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
+from models.federation_schemas import ImportRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
 router = APIRouter(prefix='/federation')
 service = FederationService()
 
@@ -18,13 +18,6 @@ async def import_repo(payload: ImportRepoRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post('/analyze-repo')
-async def analyze_repo(payload: AnalyzeRepoRequest):
-    try:
-        result = service.analyze_repo(payload)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post('/propose-patch', response_model=PatchProposalResponse)
 async def propose_patch(payload: ProposePatchRequest):

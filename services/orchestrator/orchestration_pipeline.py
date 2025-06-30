@@ -1,7 +1,7 @@
 from services.federation_service import FederationService
 from services.replicator.replication_plan_builder import ReplicationPlanBuilder
 from services.replicator.replication_executor import ReplicationExecutor
-from models.federation_schemas import AnalyzeRepoRequest, ImportRepoRequest
+from models.federation_schemas import  ImportRepoRequest
 
 class OrchestrationPipeline:
     def __init__(self):
