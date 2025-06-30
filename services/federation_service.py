@@ -109,12 +109,14 @@ class FederationService():
         print(f"[ZIPBALL] Downloading: {zip_url}")
         response = requests.get(zip_url, headers=headers, stream=True)
         if response.status_code != 200:
-            raise Exception(f"Zipball download failed: {response.status_code} — {response.text}")
+            raise Exception(f"Zipball download failed: {response.status_code} – {response.text}")
 
         supported_exts = {".py", ".rs", ".ts", ".js"}
         files_scanned = 0
         semantic_results = []
         failed = []
+
+        MAX_FILE_LINES = 300  # Safety limit
 
         with tempfile.TemporaryDirectory() as tmpdir:
             zip_path = os.path.join(tmpdir, f"{repo}.zip")
@@ -133,8 +135,14 @@ class FederationService():
                             try:
                                 content = file.read().decode("utf-8", errors="ignore")
                             except Exception as decode_error:
-                                print(f"[⚠️ DECODE ERROR] {fname}: {decode_error}")
+                                print(f"[❌ DECODE ERROR] {fname}: {decode_error}")
                                 failed.append((fname, 'decode'))
+                                continue
+
+                            # Line count safety cap
+                            if content.count("\n") > MAX_FILE_LINES:
+                                print(f"[⚠️ SKIPPED] {fname} exceeds {MAX_FILE_LINES} lines. Skipping.")
+                                failed.append((fname, 'line_limit'))
                                 continue
 
                             rel_path = fname
@@ -160,7 +168,6 @@ class FederationService():
                             nodes = self._tag_all_semantic_nodes(nodes)
                             semantic_results.extend(nodes)
                             files_scanned += 1
-
                     except Exception as e:
                         print(f'[FAIL] Skipped {fname} – parse error: {e}')
                         failed.append((fname, 'parse'))
