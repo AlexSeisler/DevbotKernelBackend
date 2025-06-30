@@ -19,6 +19,7 @@ import logging
 import zipfile, io
 
 
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,8 @@ class FederationService():
         return nodes
 
     def import_repo(self, payload: ImportRepoRequest):
+        import tempfile
+
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
         local_repo_id = f'{owner}/{repo}'
         print(f'[FEDERATION IMPORT] Starting import for: {local_repo_id}')
@@ -97,35 +100,55 @@ class FederationService():
         )
         print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}')
 
-        # Use GitHub ZIP instead of get_repo_tree
-        zip_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/{branch}.zip"
-        response = requests.get(zip_url)
-        if response.status_code != 200:
-            raise Exception(f"Failed to fetch GitHub ZIP archive: {response.text}")
+        # ✅ ZIPBALL FETCH LOGIC
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
 
-        zip_bytes = io.BytesIO(response.content)
+        zip_url = f"https://api.github.com/repos/{owner}/{repo}/zipball/{branch}"
+        print(f"[ZIPBALL] Downloading: {zip_url}")
+        response = requests.get(zip_url, headers=headers, stream=True, allow_redirects=True)
+        if response.status_code != 200:
+            raise Exception(f"Zipball download failed: {response.status_code} — {response.text}")
+
         files_scanned = 0
         semantic_results = []
         failed = []
 
-        with zipfile.ZipFile(zip_bytes, 'r') as zip_file:
-            for name in zip_file.namelist():
-                if not name.endswith(".py") or "__init__" in name:
-                    continue
-                try:
-                    with zip_file.open(name) as file:
-                        code = file.read().decode("utf-8")
-                        nodes = SemanticParser.parse_python_file(code)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            zip_path = os.path.join(tmpdir, f"{repo}.zip")
+
+            with open(zip_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            print(f"[ZIPBALL] Extracting zipball to {tmpdir}...")
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(tmpdir)
+
+            print("[SEMANTIC] Scanning .py files...")
+            for root, _, files in os.walk(tmpdir):
+                for fname in files:
+                    if not fname.endswith(".py"):
+                        continue
+                    full_path = os.path.join(root, fname)
+                    try:
+                        with open(full_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        rel_path = os.path.relpath(full_path, tmpdir)
+                        nodes = SemanticParser.parse_python_file(content)
                         for node in nodes:
-                            node['file_path'] = name
+                            node['file_path'] = rel_path
                         nodes = self._tag_all_semantic_nodes(nodes)
                         for node in nodes:
                             self.semantic_manager.save_semantic_node(pk_id, node)
                             semantic_results.append(node)
                             files_scanned += 1
-                except Exception as e:
-                    print(f'[FAIL] Skipped {name} – parse error: {e}')
-                    failed.append((name, 'parse'))
+                    except Exception as e:
+                        print(f'[FAIL] Skipped {fname} – parse error: {e}')
+                        failed.append((fname, 'parse'))
 
         return {
             'repo_id': pk_id,
@@ -133,6 +156,7 @@ class FederationService():
             'semantic_nodes_extracted': len(semantic_results),
             'failed': failed
         }
+
 
 
     def _get_branch_sha(self, owner, repo, branch):
