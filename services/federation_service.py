@@ -138,7 +138,8 @@ class FederationService():
                         with open(full_path, "r", encoding="utf-8") as f:
                             content = f.read()
                         rel_path = os.path.relpath(full_path, tmpdir)
-                        nodes = SemanticParser.parse_python_file(content)
+                        nodes = self.semantic_parser.parse_python_file(content, file_path=rel_path)
+
                         for node in nodes:
                             node['file_path'] = rel_path
                         nodes = self._tag_all_semantic_nodes(nodes)
