@@ -6,12 +6,6 @@ class ImportRepoRequest(BaseModel):
     repo: str
     default_branch: str
 
-class AnalyzeRepoRequest(BaseModel):
-    repo_id: int
-    owner: str
-    repo: str
-    default_branch: str
-
 
 class PatchObject(BaseModel):
     file_path: str
