@@ -27,6 +27,10 @@ class RepoManager:
 
 
     def resolve_repo_id_by_pk(self, repo_pk_id):
+        # 🔒 Patch: Convert stringified numeric ID to int
+        if isinstance(repo_pk_id, str) and repo_pk_id.isdigit():
+            repo_pk_id = int(repo_pk_id)
+
         conn = self.db.get_connection()
         try:
             with conn.cursor() as cur:
@@ -39,6 +43,7 @@ class RepoManager:
             raise e
         finally:
             self.db.release_connection(conn)
+
 
     def try_resolve_pk(self, logical_repo_id):
         conn = self.db.get_connection()
