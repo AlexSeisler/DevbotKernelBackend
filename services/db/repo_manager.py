@@ -144,3 +144,21 @@ class RepoManager:
                 conn.commit()
         finally:
             self.db.release_connection(conn)
+    def resolve_repo_id_by_logical(self, logical_id: str) -> int:
+        if "/" not in logical_id:
+            raise Exception(f"Invalid logical repo ID: {logical_id}")
+        owner, repo = logical_id.split("/", 1)
+
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id FROM federation_repo WHERE owner = %s AND repo = %s",
+                    (owner, repo)
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise Exception(f"Repo not found: {logical_id}")
+                return row[0]
+        finally:
+            self.db.release_connection(conn)
