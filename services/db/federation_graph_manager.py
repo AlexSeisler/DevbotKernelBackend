@@ -75,6 +75,10 @@ class FederationGraphManager:
         conn = self.db.get_connection()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                # 🚧 Normalize string input into PK if needed
+                if isinstance(repo_id, str) and "/" in repo_id:
+                    repo_id = self.repo_manager.resolve_repo_id_by_logical(repo_id)
+
                 cur.execute(
                     """
                     SELECT id, repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes, tags
@@ -87,6 +91,7 @@ class FederationGraphManager:
                 return cur.fetchall()
         finally:
             self.db.release_connection(conn)
+
 
 
 
