@@ -11,12 +11,16 @@ class ReplicationPlanBuilder:
         print("  source_repo_id:", source_repo_id, type(source_repo_id))
         print("  target_repo_id:", target_repo_id, type(target_repo_id))
 
-        # Normalize repo_id inputs
-        if isinstance(source_repo_id, str):
-            source_repo_id = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
+        # 🔒 Normalize numeric IDs from string form
+        if isinstance(source_repo_id, str) and source_repo_id.isdigit():
+            source_repo_id = int(source_repo_id)
+        if isinstance(target_repo_id, str) and target_repo_id.isdigit():
+            target_repo_id = int(target_repo_id)
 
-        if isinstance(target_repo_id, str):
-            target_repo_id = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
+        # 🔄 Convert numeric IDs to slugs
+        source_repo_id = self.repo_manager.resolve_repo_id_by_pk(source_repo_id)
+        target_repo_id = self.repo_manager.resolve_repo_id_by_pk(target_repo_id)
+
         print("[DEBUG] Normalized repo_ids:")
         print("  source_repo_id:", source_repo_id)
         print("  target_repo_id:", target_repo_id)
