@@ -31,7 +31,7 @@ class PatchProposalModel(Base):
     code_block = Column(Text)
     patched_code = Column(Text)
     diff = Column(Text)
-    metadata = Column(JSON)
+    patch_metadata = Column("metadata", JSON)
     proposed_by = Column(Text)
     commit_message = Column(Text)
     status = Column(Text, default="pending")
