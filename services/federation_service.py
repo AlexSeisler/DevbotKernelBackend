@@ -227,10 +227,11 @@ class FederationService():
         return base64.b64decode(data['content']).decode()
 
     def handle_propose_patch(self, request):
+        repo_id = self.github.get_repo_id(owner, repo)
         proposals = []
         for patch in request.patches:
             # Fetch original file content by SHA
-            slug = RepoManager.get_slug_by_id(request.repo_id)
+            slug = repo_id
             owner, repo = slug.split("/")
 
             original = RepoManager.get_file_content_by_sha(
