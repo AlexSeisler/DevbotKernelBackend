@@ -14,12 +14,12 @@ from services.replicator.ast_patch_composer import ASTPatchComposer
 from models.federation_schemas import PatchASTProposal
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
+from services.github_service import GitHubService
 import uuid
 import json
 import logging
 import zipfile, io
-
-
+RepoManager = RepoManager()
 
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -227,19 +227,22 @@ class FederationService():
         return base64.b64decode(data['content']).decode()
 
     def handle_propose_patch(self, request):
-        repo_id = self.github.get_repo_id(owner, repo)
+        
         proposals = []
         for patch in request.patches:
             # Fetch original file content by SHA
-            owner, repo = repo_id.split("/")
+            
 
-            original = RepoManager.get_file_content_by_sha(
-                owner=owner,
-                repo=repo,
-                file_path=patch.file_path,
-                sha=patch.base_sha
-            )
-            old_code = original["content"]
+            owner, repo = request.repo_id.split("/")
+            file_data = self.github.get_file(
+            owner=owner,
+            repo=repo,
+            file_path=patch["file_path"],
+            branch=request.branch,
+            include_meta=True
+        )
+            old_code = file_data["content"]
+
 
             # Generate patch via LibCST planner
             patch_result = self.planner.generate_patch(

@@ -3,14 +3,16 @@ from services.federation_service import FederationService
 from models.federation_schemas import ImportRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
 from models.federation_schemas import ProposePatchRequest, PatchProposalResponse
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
+from services.github_service import GitHubService  # Ensure this is imported
 
 from services.db.proposal_manager import ProposalManager
 from services.db.repo_manager import RepoManager
 router = APIRouter(prefix='/federation')
 service = FederationService()
 planner = FederatedCSTPatchPlanner()
+github_service = GitHubService()
 proposal_manager = ProposalManager(service.db)
-RepoManager = RepoManager()
+
 @router.post('/import-repo')
 async def import_repo(payload: ImportRepoRequest):
     try:
@@ -36,13 +38,14 @@ async def propose_patch(request: ProposePatchRequest):
 
     for patch in request.patches:
         owner, repo = request.repo_id.split("/")
-
-        old_code = RepoManager.get_file_content_by_sha(
-            owner=owner,
-            repo=repo,
-            file_path=patch.file_path,
-            sha=patch.base_sha
-        )
+        file_data = github_service.get_file(
+        owner=owner,
+        repo=repo,
+        file_path=patch["file_path"],
+        branch=request.branch,
+        include_meta=True
+    )
+        old_code = file_data["content"]
 
         result = planner.generate_patch(
             old_code=old_code,
