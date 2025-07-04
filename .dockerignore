@@ -1,10 +1,48 @@
+# 🧹 Python bytecode and compiled files
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
-*.log
-.env
+*.so
+
+# 🛑 Virtual environments
+.venv/
 venv/
-.git
-.vscode/
+
+# 🔐 Sensitive & dev-specific configs
+.env
+*.env
+.env.*
+
+# 🧪 Test-related files
+tests/
+coverage.*
+.tox/
+.pytest_cache/
+
+# 📝 Logs & temp files
+*.log
 logs/
+*.sqlite3
+*.db
+
+# 🧱 Build cache / local state
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# ⚙️ IDE/editor config
+.vscode/
+.idea/
+*.iml
+
+# 🚫 Version control
+.git/
+.gitignore
+.gitattributes
+
+# 🚀 Docker metadata
+Dockerfile
+docker-compose.yml
+

@@ -1,7 +1,7 @@
 # ✅ Base Python image — stable, minimal, compatible with astdiff
 FROM python:3.11-slim
 
-# ✅ Install essential build + runtime tools (keeps final image lean)
+# 🛠️ Build tools required for psycopg2 and others
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -14,30 +14,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ✅ Set working directory
 WORKDIR /app
 
-# ✅ Isolate dependency resolution to allow better Docker caching
+# ✅ Pre-copy requirements for Docker cache layer
 COPY requirements.txt constraints.txt ./
 
-# ✅ Force pip upgrade and prevent cached mismatches
+# ✅ Upgrade pip + prevent cache pollution
 RUN pip install --upgrade pip setuptools wheel && \
     pip cache purge
 
-# ✅ Install all Python dependencies without cache, respecting version pins
+# ✅ Install all dependencies deterministically
 RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
-# Fetch working astdiff.py and expose compare_ast_strings at top level
+
+# ✅ Patch astdiff (AST compare tooling)
 RUN curl -sSL https://raw.githubusercontent.com/auntbertha/ASTdiff/master/astdiff/astdiff.py \
     -o /usr/local/lib/python3.11/site-packages/astdiff/astdiff.py && \
     echo "from .astdiff import compare_ast" >> /usr/local/lib/python3.11/site-packages/astdiff/__init__.py
 
-
-
-# ✅ Copy application code (after deps to leverage Docker layer caching)
+# ✅ Copy full application code (layered after deps for cache efficiency)
 COPY . .
 
-# ✅ Port exposed for Render or containerized testing
+# ✅ Optional: create non-root user for container safety
+RUN useradd -m devbot && chown -R devbot /app
+USER devbot
+
+# ✅ Expose port for Render/local dev
 EXPOSE 8000
 
-# ✅ Environment flag (can be read in app via os.getenv("DEV_MODE"))
+# ✅ Runtime mode env flag (adjustable per container or agent role)
 ENV DEV_MODE=1
 
-# ✅ Entry point using uvicorn (not fastapi-cli), supports reload for local dev
+# ✅ Entrypoint — uvicorn with hot reload (swap `--reload` in production)
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
