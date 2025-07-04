@@ -2,10 +2,9 @@ from fastapi import APIRouter, HTTPException, Query, Body
 from services.federation_service import FederationService
 from models.federation_schemas import ImportRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
 from models.federation_schemas import PatchProposalRequest, PatchProposalResponse
-from services.federation_service import execute_patch_proposal
-from services.replicator.build_plan import build_replication_plan
 from services.replicator.patch_composer import generate_federated_patch
 from services.db.proposal_manager import save_patch_proposal
+from services.db.repo_manager import get_file_content_by_sha
 router = APIRouter(prefix='/federation')
 service = FederationService()
 
@@ -24,41 +23,43 @@ async def import_repo(payload: ImportRepoRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/propose-patch", response_model=PatchProposalResponse)
-async def propose_patch(payload: PatchProposalRequest = Body(...)):
-    try:
-        # 1. Generate the patch using CST Planner
-        patch = generate_federated_patch(payload)
+@router.post("/propose-patch")
+async def propose_patch(request: ProposePatchRequest):
+    """
+    Accepts a fully scoped patch payload with file_path, anchor, and code_block.
+    Uses LibCST to insert/replace content and returns diff + metadata.
+    """
+    proposals = []
 
-        # 2. Save the patch proposal
-        save_patch_proposal(
-            repo_id=payload.target_repo_id,
-            file_path=payload.file_path,
-            base_sha=payload.base_sha,
-            updated_content=patch["patched_code"],
-            diff=patch["diff"],
-            metadata=patch["metadata"],
+    for patch in request.patches:
+        old_code = get_file_content_by_sha(
+            repo_id=request.repo_id,
+            file_path=patch.file_path,
+            sha=patch.base_sha
         )
 
-        # 3. Auto-commit patch if valid
-        if patch["metadata"].get("change_type") == "insert":
-            execute_patch_proposal(
-                repo_id=payload.target_repo_id,
-                file_path=payload.file_path,
-                base_sha=payload.base_sha,
-                updated_content=patch["patched_code"],
-                commit_message="Auto-committed Federation patch"
-            )
+        result = generate_federated_patch(
+            old_code=old_code,
+            anchor=patch.anchor,
+            code_block=patch.code_block
+        )
 
-        return {
-            "status": "success",
-            "patched_code": patch["patched_code"],
-            "diff": patch["diff"],
-            "metadata": patch["metadata"]
+        patch_payload = {
+            "repo_id": request.repo_id,
+            "branch": request.branch,
+            "file_path": patch.file_path,
+            "base_sha": patch.base_sha,
+            "proposed_by": request.proposed_by,
+            "commit_message": request.commit_message,
+            "patched_code": result["patched_code"],
+            "diff": result["diff"],
+            "metadata": result.get("metadata", {})
         }
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        save_patch_proposal(patch_payload)
+        proposals.append(patch_payload)
+
+    return {"status": "success", "proposals": proposals}
 
 @router.post('/commit-patch')
 async def commit_patch(payload: CommitPatchRequest):

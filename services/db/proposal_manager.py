@@ -1,40 +1,51 @@
-from models.core import PatchProposalModel
+from db.models import PatchProposalModel
+from db.session import SessionLocal
 from sqlalchemy.orm import Session
-from datetime import datetime
+from typing import List, Dict, Any
+import uuid
 
-
-class ProposalManager:
-    def __init__(self, db: Session):
-        self.db = db
-
-    def save_proposal(self, proposal: dict):
-        """
-        Store patch proposal into DB (with LibCST metadata).
-        Expects:
-            proposal = {
-                "file_path": str,
-                "base_sha": str,
-                "updated_content": str,
-                "diff": str,              # NEW
-                "metadata": dict,         # NEW
-                "repo_id": int,
-                "branch": str,
+def save_patch_proposal(payload: Dict[str, Any]):
+    """
+    Accepts a structured ProposePatchRequest payload and saves each patch into the DB.
+    Payload shape:
+    {
+        "repo_id": "string",
+        "branch": "string",
+        "proposed_by": "string",
+        "commit_message": "string",
+        "patches": [
+            {
+                "file_path": "string",
+                "base_sha": "string",
+                "anchor": "string",
+                "code_block": "string"
             }
-        """
-        patch = PatchProposalModel(
-            file_path=proposal["file_path"],
-            base_sha=proposal["base_sha"],
-            updated_content=proposal["updated_content"],
-            diff=proposal.get("diff", ""),
-            metadata=proposal.get("metadata", {}),
-            repo_id=proposal["repo_id"],
-            branch=proposal["branch"],
-            created_at=datetime.utcnow()
-        )
-        self.db.add(patch)
-        self.db.commit()
-        self.db.refresh(patch)
-        return patch
+        ]
+    }
+    """
+    db: Session = SessionLocal()
+
+    try:
+        for patch in payload.get("patches", []):
+            proposal = PatchProposalModel(
+                repo_id=payload["repo_id"],
+                branch=payload["branch"],
+                file_path=patch["file_path"],
+                base_sha=patch["base_sha"],
+                proposed_by=payload.get("proposed_by", "devbot"),
+                commit_message=payload.get("commit_message", "Federated patch proposal"),
+                anchor=patch.get("anchor"),
+                updated_content=patch["code_block"],
+                patch_id=str(uuid.uuid4())
+            )
+            db.add(proposal)
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
 
     def get_all_proposals(self, repo_id: int):
         return (

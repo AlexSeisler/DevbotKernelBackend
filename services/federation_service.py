@@ -275,51 +275,46 @@ class FederationService():
         except Exception as e:
             raise Exception(f"Commit failed: {str(e)}")
 
-    def propose_and_execute_patch(
-        target_repo_id: int,
-        source_repo_id: int,
-        file_path: str,
-        node_name: str,
-        base_sha: str,
-        strategy: str = "direct_import"
-    ) -> dict:
+    def handle_propose_patch(payload: dict):
         """
-        Full patch proposal and commit pipeline using CST-based patching.
+        Handle the incoming ProposePatchRequest.
+        This now expects:
+        {
+            "repo_id": str,
+            "branch": str,
+            "proposed_by": str,
+            "commit_message": str,
+            "patches": [
+                {
+                    "file_path": str,
+                    "base_sha": str,
+                    "anchor": str,
+                    "code_block": str
+                }
+            ]
+        }
         """
+        # Save the proposal in the database
+        save_patch_proposal(payload)
 
-        # Step 1: Load semantic node to replicate
-        semantic_node = fetch_semantic_node(source_repo_id, node_name)
-        if not semantic_node:
-            raise ValueError(f"No semantic node found for: {node_name}")
+        # Automatically run the commit logic
+        for patch in payload.get("patches", []):
+            auto_commit_patch(
+                repo_id=payload["repo_id"],
+                branch=payload["branch"],
+                file_path=patch["file_path"],
+                base_sha=patch["base_sha"],
+                updated_content=patch["code_block"],
+                anchor=patch.get("anchor"),
+                proposed_by=payload.get("proposed_by", "devbot"),
+                commit_message=payload.get("commit_message", "Federated patch proposal")
+            )
 
-        # Step 2: Generate patch using LibCST
-        patch = generate_federated_patch({
-            "target_repo_id": target_repo_id,
-            "source_repo_id": source_repo_id,
-            "file_path": file_path,
-            "node_name": node_name,
-            "strategy": strategy,
-            "base_sha": base_sha
-        })
-
-        # Step 3: Save the patch proposal
-        save_patch_proposal(
+        # Step 3: Commit the patch using commit_patch API
+        return commit_patch(
             repo_id=target_repo_id,
             file_path=file_path,
             base_sha=base_sha,
             updated_content=patch["patched_code"],
-            diff=patch["diff"],
-            metadata=patch["metadata"]
+            commit_message=patch["metadata"].get("commit_message", "Automated patch via DevBot")
         )
-
-        # Step 4: Auto-commit if insertion (safe)
-        if patch["metadata"].get("change_type") == "insert":
-            update_file_content(
-                repo_id=target_repo_id,
-                file_path=file_path,
-                new_content=patch["patched_code"],
-                base_sha=base_sha,
-                commit_message="Auto-committed Federation patch"
-            )
-
-        return patch
