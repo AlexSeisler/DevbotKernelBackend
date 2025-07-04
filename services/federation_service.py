@@ -19,7 +19,6 @@ import uuid
 import json
 import logging
 import zipfile, io
-RepoManager = RepoManager()
 
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")

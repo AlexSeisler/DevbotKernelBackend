@@ -12,6 +12,7 @@ service = FederationService()
 planner = FederatedCSTPatchPlanner()
 github_service = GitHubService()
 proposal_manager = ProposalManager(service.db)
+repo_manager = RepoManager()
 
 @router.post('/import-repo')
 async def import_repo(payload: ImportRepoRequest):
