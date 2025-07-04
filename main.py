@@ -62,12 +62,3 @@ app.include_router(replication.router)
 app.include_router(orchestration.router)
 app.include_router(federation_zip.router)
 
-# 🚀 AutoCommit Runner: Background patch committer
-from services.replicator.auto_commit_runner import AutoCommitRunner
-import threading
-
-def start_runner():
-    runner = AutoCommitRunner(poll_interval=15)
-    runner.run()
-
-threading.Thread(target=start_runner, daemon=True).start()
