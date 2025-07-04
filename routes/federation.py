@@ -42,11 +42,11 @@ async def propose_patch(request: ProposePatchRequest):
         file_data = github_service.get_file(
         owner=owner,
         repo=repo,
-        file_path=patch["file_path"],
+        file_path=patch.file_path,
         branch=request.branch,
         include_meta=True
     )
-        old_code = file_data["content"]
+        old_code = file_data.get("content", "")
 
         result = planner.generate_patch(
             old_code=old_code,
