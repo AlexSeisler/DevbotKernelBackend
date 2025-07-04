@@ -14,42 +14,26 @@ class AutoCommitRunner:
         self.poll_interval = poll_interval
 
     def run(self):
-        logger.info('[AutoCommitRunner] Loop started 🔁 LIBCST AUTO MODE')
         while True:
-            try:
-                pending = self.manager.get_pending_proposals()
-                for proposal in pending:
-                    try:
-                        proposal_id = proposal.get("proposal_id")
-                        patches = proposal.get("patches", [])
-                        if not patches or not patches[0].get("updated_content", "").strip():
-                            logger.warning(f"Skipping empty patch in proposal {proposal_id}")
-                            continue
+            proposals = self.proposal_manager.get_all_pending()
+            for patch in proposals:
+                try:
+                    current_file = self.github.get_file(
+                        repo_id=patch["repo_id"],
+                        file_path=patch["file_path"],
+                        branch=patch["branch"]
+                    )
+                    current = current_file["content"]
 
-                        noop = False
-                        for patch in patches:
-                            try:
-                                current = self.federation._get_file_content(
-                                    owner="AlexSeisler",
-                                    repo="DevbotKernelBackend",
-                                    path=patch.get("file_path")
-                                )
-                                if current.strip() == patch.get("updated_content", "").strip():
-                                    logger.info(f"No changes detected in {patch.get('file_path')}, skipping patch {proposal_id}")
-                                    self.manager.mark_proposal_committed(proposal_id)
-                                    noop = True
-                                    break
-                            except Exception as e:
-                                logger.warning(f"[AutoCommitRunner] Could not fetch live file for noop check: {e}")
+                    # 🧠 Noop check using patched_code
+                    if current.strip() == patch.get("patched_code", "").strip():
+                        self.logger.info(f"Skipping noop patch for {patch['file_path']}")
+                        continue
 
-                        if noop:
-                            continue
+                    # 🌀 Commit the patch using full payload
+                    result = self.federation.commit_patch(patch)
+                    self.logger.info(f"Committed patch: {patch['file_path']} ➝ {result}")
 
-                        logger.info(f"Committing patch {proposal_id}")
-                        self.federation.commit_patch(proposal_id)
-                        self.manager.mark_proposal_committed(proposal_id)
-                    except Exception as e:
-                        logger.error(f"[AutoCommitRunner] ✘ Failed to commit patch {proposal_id}: {e}", exc_info=True)
-            except Exception as e:
-                logger.error(f"[AutoCommitRunner] ⚠️ Loop error: {e}", exc_info=True)
-            time.sleep(self.poll_interval)
+                except Exception as e:
+                    self.logger.error(f"Failed to commit patch: {e}")
+            time.sleep(5)

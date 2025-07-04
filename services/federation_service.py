@@ -227,94 +227,67 @@ class FederationService():
         data = res.json()
         return base64.b64decode(data['content']).decode()
 
-    def commit_patch(self, proposal_id: str):
-        try:
-
-            print(f"[TRACE] commit_patch() called with proposal_id: {proposal_id}")
-
-            proposal = self.proposal_manager.get_proposal_by_id(proposal_id)
-            if not proposal:
-                raise Exception(f"Patch proposal ID '{proposal_id}' not found.")
-            
-            print(f"[DEBUG] commit_patch: proposal_id={proposal_id}")
-            print(f"[DEBUG] repo_id from proposal: {proposal['repo_id']} ({type(proposal['repo_id'])})")
-            print(f"[DEBUG] file_path: {patch['file_path']}")
-
-            
-            patch = proposal['patches'][0]
-            file_path = patch['file_path']
-            updated_content = patch['updated_content']
-            base_sha = patch['base_sha']
-            repo_id = proposal['repo_id']
-            manual = patch.get('manual', False)
-            slug = self.repo_manager.get_slug_by_id(repo_id)
-            (owner, repo) = slug.split('/')
-            current_file = self.github.get_file(owner, repo, file_path, proposal['branch'])
-            current_content = base64.b64decode(current_file['content']).decode()
-            current_sha = current_file['sha']
-
-            if not manual:
-                import ast
-                from services.replicator.ast_patch_composer import compare_ast
-                old_ast = ast.parse(current_content)
-                new_ast = ast.parse(updated_content)
-                compare_ast(old_ast, new_ast)
-
-            if (current_sha != base_sha) and (base_sha != 'MANUAL'):
-                raise Exception(f"File SHA has changed since proposal: now {current_sha}, was {base_sha}")
-
-            result = self.github.commit_patch(
-                repo_name=slug,
-                branch=proposal['branch'],
-                file_path=file_path,
-                commit_message=proposal['commit_message'],
-                base_sha=current_sha,
-                updated_content=updated_content
+    def handle_propose_patch(self, request):
+        proposals = []
+        for patch in request.patches:
+            # Fetch original file content by SHA
+            original = self.github.get_file_by_sha(
+                repo_id=request.repo_id,
+                file_path=patch.file_path,
+                sha=patch.base_sha
             )
-            return {'status': 'committed', 'result': result}
-        except Exception as e:
-            raise Exception(f"Commit failed: {str(e)}")
+            old_code = original["content"]
 
-    def handle_propose_patch(payload: dict):
-        """
-        Handle the incoming ProposePatchRequest.
-        This now expects:
-        {
-            "repo_id": str,
-            "branch": str,
-            "proposed_by": str,
-            "commit_message": str,
-            "patches": [
-                {
-                    "file_path": str,
-                    "base_sha": str,
-                    "anchor": str,
-                    "code_block": str
-                }
-            ]
-        }
-        """
-        # Save the proposal in the database
-        save_patch_proposal(payload)
-
-        # Automatically run the commit logic
-        for patch in payload.get("patches", []):
-            auto_commit_patch(
-                repo_id=payload["repo_id"],
-                branch=payload["branch"],
-                file_path=patch["file_path"],
-                base_sha=patch["base_sha"],
-                updated_content=patch["code_block"],
-                anchor=patch.get("anchor"),
-                proposed_by=payload.get("proposed_by", "devbot"),
-                commit_message=payload.get("commit_message", "Federated patch proposal")
+            # Generate patch via LibCST planner
+            patch_result = self.patch_planner.generate_patch(
+                old_code=old_code,
+                new_node={"code_block": patch.code_block},
+                anchor=patch.anchor
             )
 
-        # Step 3: Commit the patch using commit_patch API
-        return commit_patch(
-            repo_id=target_repo_id,
-            file_path=file_path,
-            base_sha=base_sha,
-            updated_content=patch["patched_code"],
-            commit_message=patch["metadata"].get("commit_message", "Automated patch via DevBot")
+            patch_payload = {
+                "repo_id": request.repo_id,
+                "branch": request.branch,
+                "file_path": patch.file_path,
+                "base_sha": patch.base_sha,
+                "proposed_by": request.proposed_by,
+                "commit_message": request.commit_message,
+                "patched_code": patch_result["patched_code"],
+                "diff": patch_result["diff"],
+                "metadata": patch_result.get("metadata", {})
+            }
+
+            self.proposal_manager.save_patch_proposal(patch_payload)
+            proposals.append(patch_payload)
+
+        return proposals
+
+
+    # PATCH 2: commit_patch - enforce patch structure validation, commit if diff is valid
+    def commit_patch(self, patch):
+        live_file = self.github.get_file(
+            repo_id=patch["repo_id"],
+            file_path=patch["file_path"],
+            branch=patch["branch"]
         )
+
+        # SHA validation
+        if live_file["sha"] != patch["base_sha"]:
+            raise Exception("SHA mismatch: file has changed since patch proposal")
+
+        # Noop check
+        if live_file["content"].strip() == patch["patched_code"].strip():
+            return {"status": "noop", "reason": "No changes to apply"}
+
+        # Commit to GitHub
+        commit_result = self.github.commit_patch(
+            repo_id=patch["repo_id"],
+            file_path=patch["file_path"],
+            branch=patch["branch"],
+            content=patch["patched_code"],
+            sha=patch["base_sha"],
+            message=patch["commit_message"]
+        )
+
+        self.proposal_manager.update_patch_status(patch, "committed")
+        return {"status": "patch_committed", "data": commit_result}
