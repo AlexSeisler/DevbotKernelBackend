@@ -240,13 +240,18 @@ class FederationService():
                 include_meta=True
             )
             old_code = file_data["content"]
-
+            print(f"[propose] 📂 Fetched file SHA: {file_data['sha']}")
+            print(f"[propose] 📂 Fetched file size: {len(old_code)} bytes")
+            print("old_code:", old_code)  # Print first 1000 chars for debugging
             print("[propose] 🔧 Generating patch diff")
             patch_result = self.planner.generate_patch(
                 old_code=old_code,
                 anchor=patch.anchor,
                 code_block=patch.code_block
             )
+            print("[propose] 📤 PATCHED OUTPUT START")
+            print(patch_result["patched_code"])
+            print("[propose] 📤 PATCHED OUTPUT END")
 
             patch_payload = {
                 "repo_id": request.repo_id,
