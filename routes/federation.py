@@ -35,8 +35,12 @@ async def propose_patch(request: ProposePatchRequest):
     proposals = []
 
     for patch in request.patches:
+        slug = RepoManager.get_slug_by_id(request.repo_id)
+        owner, repo = slug.split("/")
+
         old_code = RepoManager.get_file_content_by_sha(
-            repo_id=request.repo_id,
+            owner=owner,
+            repo=repo,
             file_path=patch.file_path,
             sha=patch.base_sha
         )
