@@ -17,6 +17,11 @@ import uuid
 import json
 import logging
 import zipfile, io
+from services.replicator.build_plan import build_replication_plan
+from services.replicator.patch_composer import generate_federated_patch
+from services.db.repo_manager import get_file_sha, update_file_content
+from services.db.proposal_manager import save_patch_proposal
+from services.semantic_manager import fetch_semantic_node
 
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -270,43 +275,51 @@ class FederationService():
         except Exception as e:
             raise Exception(f"Commit failed: {str(e)}")
 
-    def propose_patch(self, owner, repo, file_path, branch, manual: bool = False, updated_content: str = None):
-        try:
-            if not updated_content:
-                raise Exception(f"[PATCH REJECTED] No updated content provided.")
+    def propose_and_execute_patch(
+        target_repo_id: int,
+        source_repo_id: int,
+        file_path: str,
+        node_name: str,
+        base_sha: str,
+        strategy: str = "direct_import"
+    ) -> dict:
+        """
+        Full patch proposal and commit pipeline using CST-based patching.
+        """
 
-            current_file = self.github.get_file(owner, repo, file_path, branch)
-            current_content = base64.b64decode(current_file['content']).decode()
-            current_sha = current_file['sha']
+        # Step 1: Load semantic node to replicate
+        semantic_node = fetch_semantic_node(source_repo_id, node_name)
+        if not semantic_node:
+            raise ValueError(f"No semantic node found for: {node_name}")
 
-            if not manual:
-                from services.replicator.ast_patch_composer import compare_ast
-                old_ast = ast.parse(current_content)
-                new_ast = ast.parse(updated_content)
+        # Step 2: Generate patch using LibCST
+        patch = generate_federated_patch({
+            "target_repo_id": target_repo_id,
+            "source_repo_id": source_repo_id,
+            "file_path": file_path,
+            "node_name": node_name,
+            "strategy": strategy,
+            "base_sha": base_sha
+        })
 
-                if ast.dump(old_ast) == ast.dump(new_ast):
-                    raise Exception(f"[PATCH REJECTED] No AST-level change detected.")
+        # Step 3: Save the patch proposal
+        save_patch_proposal(
+            repo_id=target_repo_id,
+            file_path=file_path,
+            base_sha=base_sha,
+            updated_content=patch["patched_code"],
+            diff=patch["diff"],
+            metadata=patch["metadata"]
+        )
 
-            patch = {
-                'file_path': file_path,
-                'base_sha': current_sha,
-                'updated_content': updated_content,
-                'manual': manual,
-                'risk_class': 'MANUAL' if manual else 'AUTO',
-                'diff_summary': 'Manual override' if manual else 'AST-computed diff'
-            }
+        # Step 4: Auto-commit if insertion (safe)
+        if patch["metadata"].get("change_type") == "insert":
+            update_file_content(
+                repo_id=target_repo_id,
+                file_path=file_path,
+                new_content=patch["patched_code"],
+                base_sha=base_sha,
+                commit_message="Auto-committed Federation patch"
+            )
 
-            proposal_id = str(uuid.uuid4())
-            self.proposal_manager.save_proposal({
-                'proposal_id': proposal_id,
-                'repo_id': self.repo_manager.get_repo_by_slug(f'{owner}/{repo}'),
-                'branch': branch,
-                'proposed_by': 'DevBot',
-                'patches': [patch],
-                'status': 'pending'
-            })
-
-            return PatchProposalResponse(patches=[PatchASTProposal(**patch)])
-        except Exception as e:
-            print(f"[ERROR] propose_patch failed: {str(e)}")
-            raise
+        return patch
