@@ -31,12 +31,14 @@ class PatchProposal(BaseModel):
     code_block: str
 
 
+
 class ProposePatchRequest(BaseModel):
     repo_id: str
     branch: str
     proposed_by: str
     commit_message: str
     patches: List[PatchProposal]
+
 
 
 class ApprovePatchRequest(BaseModel):

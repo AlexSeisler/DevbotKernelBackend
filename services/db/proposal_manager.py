@@ -1,4 +1,4 @@
-from db.models import PatchProposalModel
+from models.federation_models import PatchProposalModel
 from db.session import SessionLocal
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
