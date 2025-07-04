@@ -225,105 +225,105 @@ class FederationService():
         data = res.json()
         return base64.b64decode(data['content']).decode()
 
-def handle_propose_patch(self, request):
-    proposals = []
+    def handle_propose_patch(self, request):
+        proposals = []
 
-    for patch in request.patches:
-        owner, repo = request.repo_id.split("/")
-        file_data = self.github.get_file(
-            owner=owner,
-            repo=repo,
-            file_path=patch.file_path,
-            branch=request.branch,
-            include_meta=True
-        )
-        old_code = file_data["content"]
+        for patch in request.patches:
+            owner, repo = request.repo_id.split("/")
+            file_data = self.github.get_file(
+                owner=owner,
+                repo=repo,
+                file_path=patch.file_path,
+                branch=request.branch,
+                include_meta=True
+            )
+            old_code = file_data["content"]
 
-        patch_result = self.planner.generate_patch(
-            old_code=old_code,
-            anchor=patch.anchor,
-            code_block=patch.code_block
-        )
+            patch_result = self.planner.generate_patch(
+                old_code=old_code,
+                anchor=patch.anchor,
+                code_block=patch.code_block
+            )
 
-        patch_payload = {
-            "repo_id": request.repo_id,
-            "branch": request.branch,
-            "file_path": patch.file_path,
-            "base_sha": patch.base_sha,
-            "proposed_by": request.proposed_by,
-            "commit_message": request.commit_message,
-            "patched_code": patch_result["patched_code"],
-            "diff": patch_result["diff"],
-            "metadata": patch_result.get("metadata", {})
+            patch_payload = {
+                "repo_id": request.repo_id,
+                "branch": request.branch,
+                "file_path": patch.file_path,
+                "base_sha": patch.base_sha,
+                "proposed_by": request.proposed_by,
+                "commit_message": request.commit_message,
+                "patched_code": patch_result["patched_code"],
+                "diff": patch_result["diff"],
+                "metadata": patch_result.get("metadata", {})
+            }
+
+            proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
+            patch_payload["proposal_id"] = proposal_id
+
+            # Use object-safe commit
+            self.commit_patch(patch_payload)
+            proposals.append(patch_payload)
+
+        return proposals
+
+
+    def handle_commit_patch(self, payload):
+        proposal = self.proposal_manager.get_patch_by_id(payload.proposal_id)
+        if not proposal:
+            raise Exception("Patch proposal not found")
+
+        if proposal.status not in ["approved", "manual"]:
+            raise Exception("Patch not approved")
+
+        if (
+            proposal.file_path != payload.file_path or
+            proposal.base_sha != payload.base_sha or
+            proposal.updated_content.strip() != payload.updated_content.strip()
+        ):
+            raise Exception("Patch payload does not match proposal")
+
+        patch_dict = {
+            "repo_id": proposal.repo_id,
+            "branch": payload.branch,
+            "file_path": proposal.file_path,
+            "base_sha": proposal.base_sha,
+            "commit_message": payload.commit_message,
+            "patched_code": payload.updated_content,
+            "proposal_id": payload.proposal_id
         }
 
-        proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
-        patch_payload["proposal_id"] = proposal_id
-
-        # Use object-safe commit
-        self.commit_patch(patch_payload)
-        proposals.append(patch_payload)
-
-    return proposals
+        result = self.commit_patch(patch_dict)
+        self.proposal_manager.update_patch_status(payload.proposal_id, "committed")
+        return result
 
 
-def handle_commit_patch(self, payload):
-    proposal = self.proposal_manager.get_patch_by_id(payload.proposal_id)
-    if not proposal:
-        raise Exception("Patch proposal not found")
+    def commit_patch(self, patch):
+        # Support both dict and model
+        get = lambda obj, key: obj[key] if isinstance(obj, dict) else getattr(obj, key)
 
-    if proposal.status not in ["approved", "manual"]:
-        raise Exception("Patch not approved")
+        live_file = self.github.get_file(
+            repo_id=get(patch, "repo_id"),
+            file_path=get(patch, "file_path"),
+            branch=get(patch, "branch")
+        )
 
-    if (
-        proposal.file_path != payload.file_path or
-        proposal.base_sha != payload.base_sha or
-        proposal.updated_content.strip() != payload.updated_content.strip()
-    ):
-        raise Exception("Patch payload does not match proposal")
+        if live_file["sha"] != get(patch, "base_sha"):
+            raise Exception("SHA mismatch: file has changed since patch proposal")
 
-    patch_dict = {
-        "repo_id": proposal.repo_id,
-        "branch": payload.branch,
-        "file_path": proposal.file_path,
-        "base_sha": proposal.base_sha,
-        "commit_message": payload.commit_message,
-        "patched_code": payload.updated_content,
-        "proposal_id": payload.proposal_id
-    }
+        if live_file["content"].strip() == get(patch, "patched_code").strip():
+            return {"status": "noop", "reason": "No changes to apply"}
 
-    result = self.commit_patch(patch_dict)
-    self.proposal_manager.update_patch_status(payload.proposal_id, "committed")
-    return result
+        commit_result = self.github.commit_patch(
+            repo_id=get(patch, "repo_id"),
+            file_path=get(patch, "file_path"),
+            branch=get(patch, "branch"),
+            content=get(patch, "patched_code"),
+            sha=get(patch, "base_sha"),
+            message=get(patch, "commit_message")
+        )
 
+        if hasattr(patch, "proposal_id") or (isinstance(patch, dict) and "proposal_id" in patch):
+            pid = get(patch, "proposal_id")
+            self.proposal_manager.update_patch_status(pid, "committed")
 
-def commit_patch(self, patch):
-    # Support both dict and model
-    get = lambda obj, key: obj[key] if isinstance(obj, dict) else getattr(obj, key)
-
-    live_file = self.github.get_file(
-        repo_id=get(patch, "repo_id"),
-        file_path=get(patch, "file_path"),
-        branch=get(patch, "branch")
-    )
-
-    if live_file["sha"] != get(patch, "base_sha"):
-        raise Exception("SHA mismatch: file has changed since patch proposal")
-
-    if live_file["content"].strip() == get(patch, "patched_code").strip():
-        return {"status": "noop", "reason": "No changes to apply"}
-
-    commit_result = self.github.commit_patch(
-        repo_id=get(patch, "repo_id"),
-        file_path=get(patch, "file_path"),
-        branch=get(patch, "branch"),
-        content=get(patch, "patched_code"),
-        sha=get(patch, "base_sha"),
-        message=get(patch, "commit_message")
-    )
-
-    if hasattr(patch, "proposal_id") or (isinstance(patch, dict) and "proposal_id" in patch):
-        pid = get(patch, "proposal_id")
-        self.proposal_manager.update_patch_status(pid, "committed")
-
-    return {"status": "patch_committed", "data": commit_result}
+        return {"status": "patch_committed", "data": commit_result}
