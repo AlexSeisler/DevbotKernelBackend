@@ -5,6 +5,7 @@ from services.federation_service import FederationService
 
 logger = logging.getLogger("AutoCommitRunner")
 
+
 class AutoCommitRunner:
 
     def __init__(self, poll_interval=30):
@@ -13,12 +14,10 @@ class AutoCommitRunner:
         self.poll_interval = poll_interval
 
     def run(self):
-        logger.info('[AutoCommitRunner] Loop started — CLEAN RUN')
+        logger.info('[AutoCommitRunner] Loop started 🔁 LIBCST AUTO MODE')
         while True:
             try:
-                pending = self.manager.get_pending_proposals(
-                    risk_class_whitelist=['SAFE', 'RENAME', 'MANUAL']
-                )
+                pending = self.manager.get_pending_proposals()
                 for proposal in pending:
                     try:
                         proposal_id = proposal.get("proposal_id")
@@ -50,7 +49,7 @@ class AutoCommitRunner:
                         self.federation.commit_patch(proposal_id)
                         self.manager.mark_proposal_committed(proposal_id)
                     except Exception as e:
-                        logger.error(f"[AutoCommitRunner] ❌ Failed to commit patch {proposal_id}: {e}", exc_info=True)
+                        logger.error(f"[AutoCommitRunner] ✘ Failed to commit patch {proposal_id}: {e}", exc_info=True)
             except Exception as e:
-                logger.error(f"[AutoCommitRunner] 🚨 Loop error: {e}", exc_info=True)
+                logger.error(f"[AutoCommitRunner] ⚠️ Loop error: {e}", exc_info=True)
             time.sleep(self.poll_interval)
