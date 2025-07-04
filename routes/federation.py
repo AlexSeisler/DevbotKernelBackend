@@ -31,87 +31,19 @@ async def import_repo(payload: ImportRepoRequest):
 
 @router.post("/propose-patch")
 async def propose_patch(request: ProposePatchRequest):
-    """
-    Accepts a fully scoped patch payload with file_path, anchor, and code_block.
-    Uses LibCST to insert/replace content and returns diff + metadata.
-    """
-    proposals = []
-
-    for patch in request.patches:
-        owner, repo = request.repo_id.split("/")
-        file_data = github_service.get_file(
-        owner=owner,
-        repo=repo,
-        file_path=patch.file_path,
-        branch=request.branch,
-        include_meta=True
-    )
-        old_code = file_data.get("content", "")
-
-        result = planner.generate_patch(
-            old_code=old_code,
-            anchor=patch.anchor,
-            code_block=patch.code_block
-        )
-
-        patch_payload = {
-            "repo_id": request.repo_id,
-            "branch": request.branch,
-            "file_path": patch.file_path,
-            "base_sha": patch.base_sha,
-            "proposed_by": request.proposed_by,
-            "commit_message": request.commit_message,
-            "anchor": patch.anchor,
-            "code_block": patch.code_block,
-            "patched_code": result["patched_code"],
-            "diff": result["diff"],
-            "metadata": result.get("metadata", {})
-        }
-
-        service.proposal_manager.save_patch_proposal(patch_payload)
-        proposals.append(patch_payload)
-
-    return {"status": "success", "proposals": proposals}
-
-@router.post('/commit-patch')
-async def commit_patch(payload: CommitPatchRequest):
     try:
-        # 🧠 Load proposal from DB using proposal_id
-        proposal = service.proposal_manager.get_patch_by_id(payload.proposal_id)
-        if not proposal:
-            raise HTTPException(status_code=404, detail='Patch proposal not found')
-
-        # 🛡️ Ensure patch is approved or manually allowed
-        if proposal.status not in ['approved', 'manual']:
-            raise HTTPException(status_code=403, detail='Patch not approved')
-
-        # 🔐 Sanity check — prevent mismatch with stored patch
-        if (
-            proposal.file_path != payload.file_path or
-            proposal.base_sha != payload.base_sha or
-            proposal.updated_content.strip() != payload.updated_content.strip()
-        ):
-            raise HTTPException(status_code=409, detail='Patch payload does not match proposal')
-
-        # ✅ Commit the patch
-        patch_dict = {
-            "repo_id": proposal.repo_id,
-            "branch": payload.branch,
-            "file_path": proposal.file_path,
-            "base_sha": proposal.base_sha,
-            "commit_message": payload.commit_message,
-            "patched_code": payload.updated_content
-        }
-        result = service.commit_patch(patch_dict)
-
-        # 📦 Update DB status
-        service.proposal_manager.update_patch_status(payload.proposal_id, 'committed')
-
-        return {'status': 'patch_committed', 'data': result}
-
+        proposals = service.handle_propose_patch(request)
+        return {"status": "success", "proposals": proposals}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/commit-patch")
+async def commit_patch(payload: CommitPatchRequest):
+    try:
+        result = service.handle_commit_patch(payload)
+        return {"status": "patch_committed", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get('/scan-federation-graph')
 async def scan_federation_graph():
