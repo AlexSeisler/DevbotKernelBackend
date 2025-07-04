@@ -301,10 +301,13 @@ class FederationService():
         # Support both dict and model
         get = lambda obj, key: obj[key] if isinstance(obj, dict) else getattr(obj, key)
 
+        owner, repo = get(patch, "repo_id").split("/")
         live_file = self.github.get_file(
-            repo_id=get(patch, "repo_id"),
+            owner=owner,
+            repo=repo,
             file_path=get(patch, "file_path"),
-            branch=get(patch, "branch")
+            branch=get(patch, "branch"),
+            include_meta=True
         )
 
         if live_file["sha"] != get(patch, "base_sha"):
