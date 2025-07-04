@@ -226,9 +226,11 @@ class FederationService():
         return base64.b64decode(data['content']).decode()
 
     def handle_propose_patch(self, request):
+        print("[propose] ▶️ Handling patch proposal request")
         proposals = []
 
         for patch in request.patches:
+            print(f"[propose] 📂 Fetching file: {patch.file_path} on {request.branch}")
             owner, repo = request.repo_id.split("/")
             file_data = self.github.get_file(
                 owner=owner,
@@ -239,6 +241,7 @@ class FederationService():
             )
             old_code = file_data["content"]
 
+            print("[propose] 🔧 Generating patch diff")
             patch_result = self.planner.generate_patch(
                 old_code=old_code,
                 anchor=patch.anchor,
@@ -249,7 +252,7 @@ class FederationService():
                 "repo_id": request.repo_id,
                 "branch": request.branch,
                 "file_path": patch.file_path,
-                "base_sha": patch.base_sha,
+                "base_sha": file_data["sha"],
                 "proposed_by": request.proposed_by,
                 "commit_message": request.commit_message,
                 "patched_code": patch_result["patched_code"],
@@ -257,17 +260,21 @@ class FederationService():
                 "metadata": patch_result.get("metadata", {})
             }
 
+            print("[propose] 💾 Saving patch proposal to DB")
             proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
+            print(f"[propose] ✅ Saved with ID: {proposal_id}")
             patch_payload["proposal_id"] = proposal_id
 
-            # Use object-safe commit
+            print("[propose] 🌀 Auto-committing patch")
             self.commit_patch(patch_payload)
             proposals.append(patch_payload)
 
+        print("[propose] ✅ Proposal flow complete")
         return proposals
 
 
     def handle_commit_patch(self, payload):
+        print("[commit] ▶️ Manual commit triggered")
         proposal = self.proposal_manager.get_patch_by_id(payload.proposal_id)
         if not proposal:
             raise Exception("Patch proposal not found")
@@ -293,15 +300,17 @@ class FederationService():
         }
 
         result = self.commit_patch(patch_dict)
+        print("[commit] ✅ Commit finished")
         self.proposal_manager.update_patch_status(payload.proposal_id, "committed")
         return result
 
 
     def commit_patch(self, patch):
-        # Support both dict and model
+        print("[patch] ▶️ Commit patch flow triggered")
         get = lambda obj, key: obj[key] if isinstance(obj, dict) else getattr(obj, key)
 
         owner, repo = get(patch, "repo_id").split("/")
+        print(f"[patch] 📂 Fetching live file: {get(patch, 'file_path')} from {get(patch, 'repo_id')}@{get(patch, 'branch')}")
         live_file = self.github.get_file(
             owner=owner,
             repo=repo,
@@ -310,12 +319,16 @@ class FederationService():
             include_meta=True
         )
 
+        print("[patch] 🧬 Verifying SHA match")
         if live_file["sha"] != get(patch, "base_sha"):
+            print(f"[patch] ❌ SHA mismatch: {live_file['sha']} vs {get(patch, 'base_sha')}")
             raise Exception("SHA mismatch: file has changed since patch proposal")
 
         if live_file["content"].strip() == get(patch, "patched_code").strip():
+            print("[patch] 🚫 No changes detected — skipping")
             return {"status": "noop", "reason": "No changes to apply"}
 
+        print("[patch] 🌀 Committing to GitHub")
         commit_result = self.github.commit_patch(
             repo_id=get(patch, "repo_id"),
             file_path=get(patch, "file_path"),
@@ -327,6 +340,8 @@ class FederationService():
 
         if hasattr(patch, "proposal_id") or (isinstance(patch, dict) and "proposal_id" in patch):
             pid = get(patch, "proposal_id")
+            print(f"[patch] 📦 Updating DB status to committed for proposal {pid}")
             self.proposal_manager.update_patch_status(pid, "committed")
 
+        print("[patch] ✅ Patch committed")
         return {"status": "patch_committed", "data": commit_result}
