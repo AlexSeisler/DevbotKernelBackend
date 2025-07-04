@@ -9,40 +9,44 @@ class ProposalManager:
     def __init__(self, db):
         self.db = db
 
-    def save_patch_proposal(self, payload: dict):
+    def save_patch_proposal(self, patch: dict):
+        """
+        Accepts a single patch dictionary and inserts it into the DB.
+        Returns the generated proposal_id.
+        """
         conn = self.db.get_connection()
-        proposal_id = str(uuid4())  # Generate once and reuse
+        proposal_id = str(uuid4())
+
         try:
             with conn.cursor() as cur:
-                for patch in payload.get("patches", []):
-                    cur.execute("""
-                        INSERT INTO patch_proposal (
-                            proposal_id, repo_id, branch, file_path, base_sha,
-                            anchor, code_block, patched_code, diff,
-                            metadata, proposed_by, commit_message,
-                            status, risk_class, diff_summary, created_at
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        proposal_id,
-                        payload["repo_id"],
-                        payload["branch"],
-                        patch["file_path"],
-                        patch["base_sha"],
-                        patch["anchor"],
-                        patch["code_block"],
-                        patch["patched_code"],
-                        patch["diff"],
-                        json.dumps(patch.get("metadata", {})),
-                        payload.get("proposed_by", "devbot"),
-                        payload.get("commit_message", "Federated patch proposal"),
-                        "pending",
-                        "UNKNOWN",
-                        None,
-                        datetime.utcnow()
-                    ))
+                cur.execute("""
+                    INSERT INTO patch_proposal (
+                        proposal_id, repo_id, branch, file_path, base_sha,
+                        anchor, code_block, patched_code, diff,
+                        metadata, proposed_by, commit_message,
+                        status, risk_class, diff_summary, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    proposal_id,
+                    patch["repo_id"],
+                    patch["branch"],
+                    patch["file_path"],
+                    patch["base_sha"],
+                    patch["anchor"],
+                    patch["code_block"],
+                    patch["patched_code"],
+                    patch["diff"],
+                    json.dumps(patch.get("metadata", {})),
+                    patch.get("proposed_by", "devbot"),
+                    patch.get("commit_message", "Federated patch proposal"),
+                    "pending",
+                    "UNKNOWN",
+                    None,
+                    datetime.utcnow()
+                ))
 
             conn.commit()
-            return proposal_id  # ✅ Return the consistent ID
+            return proposal_id
         except Exception as e:
             print("❌ save_patch_proposal FAILED")
             print(traceback.format_exc())
@@ -51,6 +55,7 @@ class ProposalManager:
             raise
         finally:
             self.db.release_connection(conn)
+
 
 
     def get_all_proposals(self, repo_id: int):
