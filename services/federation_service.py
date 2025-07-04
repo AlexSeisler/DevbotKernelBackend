@@ -42,7 +42,7 @@ class FederationService():
         self.semantic_parser = SemanticParser()
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
-        self.proposal_manager = ProposalManager(Database)
+        self.proposal_manager = ProposalManager(self.db)
         self.ast_composer = ASTPatchComposer()
         self.planner = FederatedCSTPatchPlanner()
 
