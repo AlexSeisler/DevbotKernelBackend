@@ -10,28 +10,8 @@ class ProposalManager:
         self.db = db
 
     def save_patch_proposal(self, payload: dict):
-        """
-        Accepts a structured ProposePatchRequest payload and saves each patch into the DB.
-        Payload shape:
-        {
-            "repo_id": "string",
-            "branch": "string",
-            "proposed_by": "string",
-            "commit_message": "string",
-            "patches": [
-                {
-                    "file_path": "string",
-                    "base_sha": "string",
-                    "anchor": "string",
-                    "code_block": "string",
-                    "patched_code": "string",
-                    "diff": "string",
-                    "metadata": { ... }
-                }
-            ]
-        }
-        """
         conn = self.db.get_connection()
+        proposal_id = str(uuid4())  # Generate once and reuse
         try:
             with conn.cursor() as cur:
                 for patch in payload.get("patches", []):
@@ -43,7 +23,7 @@ class ProposalManager:
                             status, risk_class, diff_summary, created_at
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
-                        str(uuid4()),
+                        proposal_id,
                         payload["repo_id"],
                         payload["branch"],
                         patch["file_path"],
@@ -62,6 +42,7 @@ class ProposalManager:
                     ))
 
             conn.commit()
+            return proposal_id  # ✅ Return the consistent ID
         except Exception as e:
             print("❌ save_patch_proposal FAILED")
             print(traceback.format_exc())
@@ -70,6 +51,7 @@ class ProposalManager:
             raise
         finally:
             self.db.release_connection(conn)
+
 
     def get_all_proposals(self, repo_id: int):
         conn = self.db.get_connection()
