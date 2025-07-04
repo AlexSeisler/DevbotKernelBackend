@@ -231,9 +231,7 @@ class FederationService():
         proposals = []
         for patch in request.patches:
             # Fetch original file content by SHA
-            slug = RepoManager.get_slug_by_id(repo_id)
-
-            owner, repo = slug.split("/")
+            owner, repo = repo_id.split("/")
 
             original = RepoManager.get_file_content_by_sha(
                 owner=owner,
