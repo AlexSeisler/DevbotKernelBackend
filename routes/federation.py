@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Body
 from services.federation_service import FederationService
 from models.federation_schemas import ImportRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
-from models.federation_schemas import PatchProposalRequest, PatchProposalResponse
+from models.federation_schemas import ProposePatchRequest, PatchProposalResponse
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 
 from services.db.proposal_manager import ProposalManager
