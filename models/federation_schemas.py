@@ -18,7 +18,7 @@ class PatchObject(BaseModel):
 
 
 class CommitPatchRequest(BaseModel):
-    proposal_id: int
+    proposal_id: str
     file_path: str
     base_sha: str
     updated_content: str

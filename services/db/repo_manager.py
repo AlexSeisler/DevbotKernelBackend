@@ -1,6 +1,6 @@
 from settings import Database
 from models.federation_models import FederationRepo
-
+import requests, psycopg2
 class RepoManager:
     def __init__(self):
         self.db = Database()
@@ -163,7 +163,32 @@ class RepoManager:
         finally:
             self.db.release_connection(conn)
     # Add this method to class RepoManager:
-    def get_file_content_by_sha(self, repo_id: int, file_path: str, sha: str, token: str = None) -> str:
-        slug = self.get_slug_by_id(repo_id)  # "owner/repo"
-        owner, repo = slug.split("/")
-        return get_file_content_by_sha(self, owner, repo, file_path, sha, token)
+    def get_file_content_by_sha(self, owner: str, repo: str, file_path: str, sha: str, token: str = None) -> str:
+        """
+        Fetches the raw file content from GitHub at a specific SHA.
+        Requires GitHub access token if the repo is private.
+        """
+        headers = {
+            "Accept": "application/vnd.github.v3.raw"
+        }
+        if token:
+            headers["Authorization"] = f"token {token}"
+
+        url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}?ref={sha}"
+        
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            raise Exception(f"GitHub content fetch failed: {response.status_code} - {response.text}")
+        
+        return response.text
+    def get_patch_by_id(self, proposal_id: str) -> dict:
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT * FROM patch_proposal WHERE patch_id = %s", (proposal_id,)
+                )
+                row = cur.fetchone()
+                return row if row else None
+        finally:
+            self.db.release_connection(conn)

@@ -83,3 +83,18 @@ class ProposalManager:
                 return cur.fetchall()
         finally:
             self.db.release_connection(conn)
+    def update_patch_status(self, patch_id: str, new_status: str):
+        conn = self.db.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE patch_proposal
+                    SET status = %s
+                    WHERE proposal_id = %s
+                """, (new_status, patch_id))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise
+        finally:
+            self.db.release_connection(conn)

@@ -21,20 +21,12 @@ class InjectTransformer(cst.CSTTransformer):
 
 
 class FederatedCSTPatchPlanner:
-    def __init__(self, context: dict):
-        """
-        context = {
-            "repo_id": int,
-            "file_path": str,
-            "base_sha": str,
-            "target_sha": str
-        }
-        """
-        self.context = context
+    def __init__(self, context: dict = None):
+        self.context = context or {}
 
-    def generate_patch(self, old_code: str, new_node: dict, anchor: str) -> dict:
+    def generate_patch(self, old_code: str, anchor: str, code_block: str) -> dict:
         module = cst.parse_module(old_code)
-        transformer = InjectTransformer(anchor_name=anchor, injected_code=new_node["code_block"])
+        transformer = InjectTransformer(anchor_name=anchor, injected_code=code_block)
         modified_module = module.visit(transformer)
         patched_code = modified_module.code
 
@@ -53,7 +45,6 @@ class FederatedCSTPatchPlanner:
             "diff": diff,
             "metadata": {
                 "insertion_point": anchor,
-                "node_name": new_node["node_name"],
                 "change_type": "insert",
                 "repo_id": self.context.get("repo_id"),
                 "file_path": self.context.get("file_path"),

@@ -13,10 +13,12 @@ from models.federation_schemas import CommitPatchRequest
 from services.replicator.ast_patch_composer import ASTPatchComposer
 from models.federation_schemas import PatchASTProposal
 from services.replicator.manual_review_queue import submit_to_manual_review_queue
+from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 import uuid
 import json
 import logging
 import zipfile, io
+
 
 
 
@@ -43,6 +45,7 @@ class FederationService():
         self.github = GitHubService()
         self.proposal_manager = ProposalManager()
         self.ast_composer = ASTPatchComposer()
+        self.planner = FederatedCSTPatchPlanner()
 
     def _tag_semantic_node(self, node):
         tags = []
@@ -235,10 +238,10 @@ class FederationService():
             old_code = original["content"]
 
             # Generate patch via LibCST planner
-            patch_result = self.patch_planner.generate_patch(
+            patch_result = self.planner.generate_patch(
                 old_code=old_code,
-                new_node={"code_block": patch.code_block},
-                anchor=patch.anchor
+                anchor=patch.anchor,
+                code_block=patch.code_block
             )
 
             patch_payload = {
@@ -267,15 +270,15 @@ class FederationService():
             branch=patch["branch"]
         )
 
-        # SHA validation
+        # 🔐 SHA consistency check
         if live_file["sha"] != patch["base_sha"]:
             raise Exception("SHA mismatch: file has changed since patch proposal")
 
-        # Noop check
+        # 🧠 Noop check — skip if unchanged
         if live_file["content"].strip() == patch["patched_code"].strip():
             return {"status": "noop", "reason": "No changes to apply"}
 
-        # Commit to GitHub
+        # 🌀 Push patch to GitHub
         commit_result = self.github.commit_patch(
             repo_id=patch["repo_id"],
             file_path=patch["file_path"],
@@ -285,5 +288,8 @@ class FederationService():
             message=patch["commit_message"]
         )
 
-        self.proposal_manager.update_patch_status(patch, "committed")
+        # 📌 Patch ID is required here
+        if "proposal_id" in patch:
+            self.proposal_manager.update_patch_status(patch["proposal_id"], "committed")
+
         return {"status": "patch_committed", "data": commit_result}
