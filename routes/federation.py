@@ -5,12 +5,12 @@ from models.federation_schemas import ProposePatchRequest, PatchProposalResponse
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 
 from services.db.proposal_manager import ProposalManager
-from services.db.repo_manager import get_file_content_by_sha
+from services.db.repo_manager import RepoManager
 router = APIRouter(prefix='/federation')
 service = FederationService()
 planner = FederatedCSTPatchPlanner()
 proposal_manager = ProposalManager(service.db)
-
+RepoManager = RepoManager()
 @router.post('/import-repo')
 async def import_repo(payload: ImportRepoRequest):
     try:
@@ -35,7 +35,7 @@ async def propose_patch(request: ProposePatchRequest):
     proposals = []
 
     for patch in request.patches:
-        old_code = get_file_content_by_sha(
+        old_code = RepoManager.get_file_content_by_sha(
             repo_id=request.repo_id,
             file_path=patch.file_path,
             sha=patch.base_sha
