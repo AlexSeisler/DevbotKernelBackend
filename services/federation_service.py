@@ -255,6 +255,8 @@ class FederationService():
                 "base_sha": file_data["sha"],
                 "proposed_by": request.proposed_by,
                 "commit_message": request.commit_message,
+                "anchor": patch.anchor,
+                "code_block": patch.code_block,
                 "patched_code": patch_result["patched_code"],
                 "diff": patch_result["diff"],
                 "metadata": patch_result.get("metadata", {})
