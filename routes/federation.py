@@ -2,11 +2,14 @@ from fastapi import APIRouter, HTTPException, Query, Body
 from services.federation_service import FederationService
 from models.federation_schemas import ImportRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
 from models.federation_schemas import PatchProposalRequest, PatchProposalResponse
-from services.replicator.patch_composer import generate_federated_patch
-from services.db.proposal_manager import save_patch_proposal
+from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
+
+from services.db.proposal_manager import ProposalManager
 from services.db.repo_manager import get_file_content_by_sha
 router = APIRouter(prefix='/federation')
 service = FederationService()
+planner = FederatedCSTPatchPlanner()
+proposal_manager = ProposalManager(service.db)
 
 @router.post('/import-repo')
 async def import_repo(payload: ImportRepoRequest):
@@ -38,7 +41,7 @@ async def propose_patch(request: ProposePatchRequest):
             sha=patch.base_sha
         )
 
-        result = generate_federated_patch(
+        result = planner.generate_patch(
             old_code=old_code,
             anchor=patch.anchor,
             code_block=patch.code_block
@@ -51,12 +54,14 @@ async def propose_patch(request: ProposePatchRequest):
             "base_sha": patch.base_sha,
             "proposed_by": request.proposed_by,
             "commit_message": request.commit_message,
+            "anchor": patch.anchor,
+            "code_block": patch.code_block,
             "patched_code": result["patched_code"],
             "diff": result["diff"],
             "metadata": result.get("metadata", {})
         }
 
-        save_patch_proposal(patch_payload)
+        service.proposal_manager.save_patch_proposal(patch_payload)
         proposals.append(patch_payload)
 
     return {"status": "success", "proposals": proposals}

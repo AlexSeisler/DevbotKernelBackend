@@ -162,3 +162,8 @@ class RepoManager:
                 return row[0]
         finally:
             self.db.release_connection(conn)
+    # Add this method to class RepoManager:
+    def get_file_content_by_sha(self, repo_id: int, file_path: str, sha: str, token: str = None) -> str:
+        slug = self.get_slug_by_id(repo_id)  # "owner/repo"
+        owner, repo = slug.split("/")
+        return get_file_content_by_sha(self, owner, repo, file_path, sha, token)
