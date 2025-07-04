@@ -10,6 +10,7 @@ class ProposalManager:
         self.db = db
 
     def save_patch_proposal(self, patch: dict):
+        print("patch proposal:", patch)
         """
         Accepts a single patch dictionary and inserts it into the DB.
         Returns the generated proposal_id.
