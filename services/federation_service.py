@@ -43,7 +43,7 @@ class FederationService():
         self.semantic_parser = SemanticParser()
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
-        self.proposal_manager = ProposalManager()
+        self.proposal_manager = ProposalManager(Database)
         self.ast_composer = ASTPatchComposer()
         self.planner = FederatedCSTPatchPlanner()
 
@@ -230,7 +230,7 @@ class FederationService():
         proposals = []
         for patch in request.patches:
             # Fetch original file content by SHA
-            original = self.github.get_file_by_sha(
+            original = RepoManager.get_file_content_by_sha(
                 repo_id=request.repo_id,
                 file_path=patch.file_path,
                 sha=patch.base_sha
