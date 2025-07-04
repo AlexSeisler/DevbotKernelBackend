@@ -17,11 +17,7 @@ import uuid
 import json
 import logging
 import zipfile, io
-from services.replicator.build_plan import build_replication_plan
-from services.replicator.patch_composer import generate_federated_patch
-from services.db.repo_manager import get_file_sha, update_file_content
-from services.db.proposal_manager import save_patch_proposal
-from services.semantic_manager import fetch_semantic_node
+
 
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
