@@ -129,26 +129,6 @@ class GitHubService:
             print(f"[❌] create_branch failed: {str(e)}")
             raise
 
-    def commit_patch(self, repo_name, branch, file_path, commit_message, base_sha, updated_content):
-        encoded_path = urllib.parse.quote(file_path, safe="")
-        url = f"{self.base_url}/repos/{repo_name}/contents/{encoded_path}"
-        print(f"Committing to GitHub repo: {repo_name}, file: {file_path}, branch: {branch}")
-
-        content_encoded = encode_file_content(updated_content)
-
-        body = {
-            "message": commit_message,
-            "content": content_encoded,
-            "branch": branch,
-            "sha": base_sha
-        }
-
-        response = requests.put(url, headers=self.headers, json=body)
-
-        if response.status_code not in [200, 201]:
-            raise Exception(f"Commit failed: {response.status_code} {response.text}")
-
-        return response.json()
     def multi_file_commit(self, message, files, branch="main"):
         ref_url = f"{self.base_url}/repos/{self.owner}/{self.repo}/git/refs/heads/{branch}"
         latest_commit_sha = self._request("GET", ref_url)["object"]["sha"]

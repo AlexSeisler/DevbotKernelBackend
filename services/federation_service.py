@@ -336,14 +336,16 @@ class FederationService():
             return {"status": "noop", "reason": "No changes to apply"}
 
         print("[patch] 🌀 Committing to GitHub")
-        commit_result = self.github.commit_patch(
-            repo_id=get(patch, "repo_id"),
+        commit_result = self.commit_patch_to_github(
+            owner=owner,
+            repo=repo,
             file_path=get(patch, "file_path"),
             branch=get(patch, "branch"),
             content=get(patch, "patched_code"),
             sha=get(patch, "base_sha"),
             message=get(patch, "commit_message")
         )
+
 
         if hasattr(patch, "proposal_id") or (isinstance(patch, dict) and "proposal_id" in patch):
             pid = get(patch, "proposal_id")
@@ -352,3 +354,17 @@ class FederationService():
 
         print("[patch] ✅ Patch committed")
         return {"status": "patch_committed", "data": commit_result}
+
+    def commit_patch_to_github(self, owner, repo, file_path, branch, content, sha, message):
+        url = f"{self.base_url}/repos/{owner}/{repo}/contents/{file_path}"
+        payload = {
+            "message": message,
+            "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+            "sha": sha,
+            "branch": branch
+        }
+        res = requests.put(url, headers=self.headers, json=payload)
+        if not res.ok:
+            print(f"[commit] ❌ GitHub error: {res.status_code} - {res.text}")
+        res.raise_for_status()
+        return res.json()
