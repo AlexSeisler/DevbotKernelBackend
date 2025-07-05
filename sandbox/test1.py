@@ -75,4 +75,6 @@ def f9():
     return 9
 
 def f10():
+    print("Patch routed through internal commit handler")
+    exit(0)
     return 10
