@@ -79,33 +79,53 @@ class GitHubService:
 
         try:
             file_data = self._request("GET", url)
+
+            # If metadata loads, check size for fallback
             size = file_data.get("size", 0)
-            if size > 1000000:  # ~1MB size limit
-                print(f"[get_file] ⚠️ File too large ({size} bytes), falling back to blob API")
+            if size > 1000000:
+                print(f"[get_file] ⚠️ File too large ({size} bytes), using blob fallback")
                 content = self.get_large_file_blob(owner, repo, file_path, branch)
                 return {
                     "content": content,
-                    "sha": file_data.get("sha"),  # From /contents metadata
+                    "sha": file_data.get("sha"),  # From metadata
                     "size": size,
                     "encoding": "utf-8"
                 }
+
+            if include_meta:
+                return {
+                    "content": base64.b64decode(file_data["content"]).decode("utf-8"),
+                    "sha": file_data.get("sha"),
+                    "size": file_data.get("size"),
+                    "encoding": file_data.get("encoding", "utf-8")
+                }
+
+            return file_data
+
         except RequestException as e:
+            if "ResponseTooLargeError" in str(e) or "too_large" in str(e).lower():
+                print(f"[get_file] 🚨 Triggered fallback due to large file error — blob fetch for: {file_path}")
+                content = self.get_large_file_blob(owner, repo, file_path, branch)
+                return {
+                    "content": content,
+                    "sha": "blob-only",  # SHA unknown unless tree is parsed again
+                    "size": None,
+                    "encoding": "utf-8"
+                }
+
             if fallback and "404" in str(e):
-                print(f"⚠️ File {file_path} not found on branch {branch}, retrying on 'main'")
+                print(f"⚠️ File {file_path} not found on {branch}, retrying 'main'")
                 fallback_url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref=main"
                 file_data = self._request("GET", fallback_url)
-            else:
-                raise
+                content = base64.b64decode(file_data["content"]).decode("utf-8")
+                return {
+                    "content": content,
+                    "sha": file_data.get("sha"),
+                    "size": file_data.get("size"),
+                    "encoding": "utf-8"
+                }
 
-        if include_meta:
-            return {
-                "content": base64.b64decode(file_data["content"]).decode("utf-8"),
-                "sha": file_data.get("sha"),
-                "size": file_data.get("size"),
-                "encoding": file_data.get("encoding", "utf-8")
-            }
-
-        return file_data
+            raise
 
 
     def get_large_file_blob(self, owner, repo, file_path, branch):
