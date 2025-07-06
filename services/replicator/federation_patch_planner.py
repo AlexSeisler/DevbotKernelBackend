@@ -50,7 +50,15 @@ class FederatedCSTPatchPlanner:
         # 🚫 Check if anchor already contains the exact code_block
         for node in module.body:
             if isinstance(node, cst.FunctionDef) and node.name.value == anchor:
-                existing_lines = node.body.code.strip().splitlines()
+                # Extract raw code from the function's body safely
+                try:
+                    anchor_body_code = module.code_for_node(node.body)
+                    existing_lines = anchor_body_code.strip().splitlines()
+                    if code_block.strip() in [line.strip() for line in existing_lines]:
+                        raise ValueError("[patch-gen] ⚠️ Identical code block already exists in anchor — skipping")
+                except Exception as e:
+                    print(f"[patch-gen] ⚠️ Failed to extract anchor code: {e}")
+
                 if code_block.strip() in [line.strip() for line in existing_lines]:
                     raise ValueError("[patch-gen] ⚠️ Identical code block already exists in anchor — skipping")
 
