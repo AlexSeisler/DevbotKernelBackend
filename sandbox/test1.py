@@ -87,3 +87,9 @@ def f10():
     print("Patch routed through internal commit handler")
     exit(0)
     return 10
+def nested_test():
+    print("Top-level function")
+
+class MyContainer:
+    def nested_test(self):
+        print("Class-scoped method")
