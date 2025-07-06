@@ -56,6 +56,9 @@ def f1():
     return 1
 
 def f2():
+    print("Line 1")
+    x = 123
+    print("Line 3")
     """Return integer 2"""
     return 2
 
