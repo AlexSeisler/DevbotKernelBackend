@@ -47,6 +47,13 @@ class FederatedCSTPatchPlanner:
         print(f"[patch-gen] 📌 Anchor: {anchor}")
         print(f"[patch-gen] 📄 Injecting Code Block:\n{code_block}")
 
+        # 🚫 Check if anchor already contains the exact code_block
+        for node in module.body:
+            if isinstance(node, cst.FunctionDef) and node.name.value == anchor:
+                existing_lines = node.body.code.strip().splitlines()
+                if code_block.strip() in [line.strip() for line in existing_lines]:
+                    raise ValueError("[patch-gen] ⚠️ Identical code block already exists in anchor — skipping")
+
         transformer = InjectTransformer(anchor_name=anchor, injected_code=code_block)
         modified_module = module.visit(transformer)
 
