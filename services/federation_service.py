@@ -239,6 +239,11 @@ class FederationService():
                 branch=request.branch,
                 include_meta=True
             )
+            # SHA validation — prevent drift before generating patch
+            if patch.base_sha and patch.base_sha != file_data["sha"]:
+                print(f"[propose] ❌ SHA mismatch: incoming {patch.base_sha} vs live {file_data['sha']}")
+                raise ValueError("SHA mismatch: file has changed since patch base_sha was recorded")
+
             old_code = file_data["content"]
             print(f"[propose] 📂 Fetched file SHA: {file_data['sha']}")
             print(f"[propose] 📂 Fetched file size: {len(old_code)} bytes")
