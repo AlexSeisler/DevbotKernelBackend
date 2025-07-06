@@ -245,6 +245,11 @@ class FederationService():
                 raise ValueError("SHA mismatch: file has changed since patch base_sha was recorded")
 
             old_code = file_data["content"]
+                        # Post-diff check — prevent noop
+            if old_code.strip() == patch_result["patched_code"].strip():
+                print("[propose] 🚫 No changes detected — skipping")
+                return {"status": "noop", "reason": "No changes to apply"}
+            
             print(f"[propose] 📂 Fetched file SHA: {file_data['sha']}")
             print(f"[propose] 📂 Fetched file size: {len(old_code)} bytes")
             print("old_code:", old_code)  # Print first 1000 chars for debugging
