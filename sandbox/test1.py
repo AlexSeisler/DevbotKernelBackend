@@ -46,6 +46,7 @@ def unused_function():
     pass
 
 def f1():
+    print("✅ SHA Drift — Initial Patch")
     """Return integer 1"""
     return 1
 
