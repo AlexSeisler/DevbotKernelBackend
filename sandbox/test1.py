@@ -63,6 +63,7 @@ def f2():
     return 2
 
 def f3():
+    print("Patch 1")
     return 3
 
 def f4():
