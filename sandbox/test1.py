@@ -88,6 +88,7 @@ def f10():
     exit(0)
     return 10
 def nested_test():
+    print("🔒 Class method patch only")
     print("Top-level function")
 
 class MyContainer:
