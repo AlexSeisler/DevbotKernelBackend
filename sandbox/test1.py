@@ -46,20 +46,32 @@ def unused_function():
     pass
 
 def f1():
+    print("✅ SHA Drift — Initial Patch")
+    print("✅ SHA Drift — Initial Patch")
+    print("✅ SHA Drift — Initial Patch")
+    print("✅ SHA Drift — Initial Patch")
+    print("✅ SHA Drift — Initial Patch")
+    print("✅ SHA Drift — Initial Patch")
     """Return integer 1"""
     return 1
 
 def f2():
+    print("Line 1")
+    x = 123
+    print("Line 3")
     """Return integer 2"""
     return 2
 
 def f3():
+    print("Patch 1")
     return 3
 
 def f4():
+    print("Patch 2")
     return 4
 
 def f5():
+    print("Patch 3")
     return 5
 
 def f6():
@@ -78,3 +90,10 @@ def f10():
     print("Patch routed through internal commit handler")
     exit(0)
     return 10
+def nested_test():
+    print("🔒 Class method patch only")
+    print("Top-level function")
+
+class MyContainer:
+    def nested_test(self):
+        print("Class-scoped method")
