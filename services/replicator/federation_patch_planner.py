@@ -32,6 +32,24 @@ class InjectTransformer(cst.CSTTransformer):
             return updated_node.with_changes(body=new_body)
         return updated_node
 
+    def leave_Module(self, original_node, updated_node):
+        if self.anchor_name == "BOF" and not self.inserted:
+            print("[transform] 🎯 Match Anchor: BOF")
+            try:
+                injected_nodes = cst.parse_module(self.injected_code).body
+            except Exception as e:
+                raise ValueError(f"[transform] ❌ Failed to parse injected code block: {e}")
+            self.inserted = True
+            return updated_node.with_changes(body=tuple(list(injected_nodes) + list(updated_node.body)))
+        elif self.anchor_name == "EOF" and not self.inserted:
+            print("[transform] 🎯 Match Anchor: EOF")
+            try:
+                injected_nodes = cst.parse_module(self.injected_code).body
+            except Exception as e:
+                raise ValueError(f"[transform] ❌ Failed to parse injected code block: {e}")
+            self.inserted = True
+            return updated_node.with_changes(body=tuple(list(updated_node.body) + list(injected_nodes)))
+        return updated_node
 
 class FederatedCSTPatchPlanner:
     def __init__(self, context: dict = None):
