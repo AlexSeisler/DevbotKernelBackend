@@ -71,6 +71,7 @@ def f4():
     return 4
 
 def f5():
+    print("Patch 3")
     return 5
 
 def f6():
