@@ -74,12 +74,21 @@ class GitHubService:
     # Replace or extend this method inside GitHubService:
 
     def get_file(self, owner, repo, file_path, branch, fallback=True, include_meta=False):
-
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
-        
+
         try:
             file_data = self._request("GET", url)
+            size = file_data.get("size", 0)
+            if size > 1000000:  # ~1MB size limit
+                print(f"[get_file] ⚠️ File too large ({size} bytes), falling back to blob API")
+                content = self.get_large_file_blob(owner, repo, file_path, branch)
+                return {
+                    "content": content,
+                    "sha": file_data.get("sha"),  # From /contents metadata
+                    "size": size,
+                    "encoding": "utf-8"
+                }
         except RequestException as e:
             if fallback and "404" in str(e):
                 print(f"⚠️ File {file_path} not found on branch {branch}, retrying on 'main'")
@@ -98,6 +107,25 @@ class GitHubService:
 
         return file_data
 
+
+    def get_large_file_blob(self, owner, repo, file_path, branch):
+        print(f"[blob] 🔍 Fetching tree for branch: {branch}")
+        tree_url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
+        tree_data = self._request("GET", tree_url)
+
+        blob_entry = next((item for item in tree_data["tree"] if item["path"] == file_path), None)
+        if not blob_entry:
+            raise ValueError(f"[blob] ❌ File {file_path} not found in branch tree")
+
+        print(f"[blob] 📦 Blob SHA: {blob_entry['sha']}")
+        blob_url = f"{self.base_url}/repos/{owner}/{repo}/git/blobs/{blob_entry['sha']}"
+        blob_data = self._request("GET", blob_url)
+
+        if blob_data.get("encoding") != "base64":
+            raise ValueError(f"[blob] ❌ Unexpected encoding: {blob_data.get('encoding')}")
+
+        decoded = base64.b64decode(blob_data["content"]).decode("utf-8")
+        return decoded
 
     def get_file_history(self, owner, repo, file_path, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/commits?path={file_path}&sha={branch}"
