@@ -258,8 +258,7 @@ class FederationService():
             print("[propose] 📤 PATCHED OUTPUT START")
             print(patch_result["patched_code"])
             print("[propose] 📤 PATCHED OUTPUT END")
-            # Post-diff check — prevent noop
-            if old_code.strip() == patch_result["patched_code"].strip():
+            if not patch_result["diff"].strip():
                 print("[propose] 🚫 No changes detected — skipping")
                 return {"status": "noop", "reason": "No changes to apply"}
             
