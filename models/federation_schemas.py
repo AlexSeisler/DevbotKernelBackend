@@ -29,6 +29,7 @@ class PatchProposal(BaseModel):
     base_sha: str
     anchor: str
     code_block: str
+    anchor_lines: Optional[List[int]] = None  # New field
 
 
 

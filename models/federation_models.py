@@ -37,4 +37,5 @@ class PatchProposalModel(Base):
     status = Column(Text, default="pending")
     risk_class = Column(Text)
     diff_summary = Column(Text)
+    anchor_lines = Column(JSON, nullable=True)  # ✅ NEW
     created_at = Column(TIMESTAMP, default=datetime.utcnow)

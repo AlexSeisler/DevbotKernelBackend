@@ -242,13 +242,22 @@ class FederationService():
             old_code = file_data["content"]
             print(f"[propose] 📂 Fetched file SHA: {file_data['sha']}")
             print(f"[propose] 📂 Fetched file size: {len(old_code)} bytes")
-            print("old_code:", old_code)  # Print first 1000 chars for debugging
+
+            # Pass context with optional anchor_lines
+            self.planner.context = {
+                "repo_id": request.repo_id,
+                "file_path": patch.file_path,
+                "base_sha": file_data["sha"],
+                "anchor_lines": getattr(patch, "anchor_lines", None)
+            }
+
             print("[propose] 🔧 Generating patch diff")
             patch_result = self.planner.generate_patch(
                 old_code=old_code,
                 anchor=patch.anchor,
                 code_block=patch.code_block
             )
+
             print("[propose] 📤 PATCHED OUTPUT START")
             print(patch_result["patched_code"])
             print("[propose] 📤 PATCHED OUTPUT END")
@@ -264,7 +273,8 @@ class FederationService():
                 "code_block": patch.code_block,
                 "patched_code": patch_result["patched_code"],
                 "diff": patch_result["diff"],
-                "metadata": patch_result.get("metadata", {})
+                "metadata": patch_result.get("metadata", {}),
+                "anchor_lines": getattr(patch, "anchor_lines", None)
             }
 
             print("[propose] 💾 Saving patch proposal to DB")
