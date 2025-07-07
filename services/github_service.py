@@ -198,36 +198,74 @@ class GitHubService:
         }
     def parse_structure_from_code(code: str) -> list:
         """
-        Parse classes and functions with their line ranges using LibCST.
-        Returns a list of dicts with type, name, start_line, end_line.
+        Full structural breakdown of Python code using LibCST.
+        Captures classes, functions, imports, assignments, expressions with line numbers.
         """
         structure = []
 
-        class StructureVisitor(cst.CSTVisitor):
-            def visit_FunctionDef(self, node: cst.FunctionDef):
-                structure.append({
-                    "type": "function",
-                    "name": node.name.value,
-                    "start_line": node.body.start.line,
-                    "end_line": node.body.end.line
-                })
+        def safe_line(node, attr, fallback=-1):
+            try:
+                return getattr(getattr(node, attr, None), "line", fallback)
+            except Exception:
+                return fallback
 
+        class StructureVisitor(cst.CSTVisitor):
             def visit_ClassDef(self, node: cst.ClassDef):
                 structure.append({
                     "type": "class",
                     "name": node.name.value,
-                    "start_line": node.body.start.line,
-                    "end_line": node.body.end.line
+                    "start_line": safe_line(node.body, "start"),
+                    "end_line": safe_line(node.body, "end")
+                })
+
+            def visit_FunctionDef(self, node: cst.FunctionDef):
+                structure.append({
+                    "type": "function",
+                    "name": node.name.value,
+                    "start_line": safe_line(node.body, "start"),
+                    "end_line": safe_line(node.body, "end")
+                })
+
+            def visit_Import(self, node: cst.Import):
+                structure.append({
+                    "type": "import",
+                    "name": None,
+                    "start_line": safe_line(node, "start"),
+                    "end_line": safe_line(node, "end")
+                })
+
+            def visit_ImportFrom(self, node: cst.ImportFrom):
+                structure.append({
+                    "type": "import_from",
+                    "name": None,
+                    "start_line": safe_line(node, "start"),
+                    "end_line": safe_line(node, "end")
+                })
+
+            def visit_Assign(self, node: cst.Assign):
+                structure.append({
+                    "type": "assign",
+                    "name": None,
+                    "start_line": safe_line(node, "start"),
+                    "end_line": safe_line(node, "end")
+                })
+
+            def visit_Expr(self, node: cst.Expr):
+                structure.append({
+                    "type": "expr",
+                    "name": None,
+                    "start_line": safe_line(node, "start"),
+                    "end_line": safe_line(node, "end")
                 })
 
         try:
-            print(f"[structure-parse] 📦 Starting LibCST parse on code block (length: {len(code.splitlines())} lines)")
+            print(f"[structure-parse] 📦 Starting full LibCST scan ({len(code.splitlines())} lines)")
             module = cst.parse_module(code)
             module.visit(StructureVisitor())
-            print(f"[structure-parse] ✅ Parsed structure with {len(structure)} anchors")
+            print(f"[structure-parse] ✅ Structure parsed with {len(structure)} elements")
         except Exception as e:
-            print(f"[structure-parse] ❌ LibCST parsing error: {e}")
-            print(f"[structure-parse] 🔍 Sample code start:\n{code[:500]}")
+            print(f"[structure-parse] ❌ Full parse error: {e}")
+            print(f"[structure-parse] 🔍 Code preview:\n{code[:500]}")
             return []
 
         return structure
