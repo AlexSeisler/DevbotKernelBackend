@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Optional
+from fastapi import APIRouter, HTTPException
+from typing import Optional
 from services.github_service import GitHubService
 from models.schemas import BranchCreateRequest
 import urllib.parse
