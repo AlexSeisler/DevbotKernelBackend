@@ -77,12 +77,15 @@ class GitHubService:
     def get_file(self, owner, repo, file_path, branch, fallback=True, include_meta=False, start_line=1, chunk_size=None):
         encoded_path = urllib.parse.quote(file_path, safe="")
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{encoded_path}?ref={branch}"
+        print(f"[get_file] 🔍 Request: file_path={file_path}, branch={branch}, start_line={start_line}, chunk_size={chunk_size}, include_meta={include_meta}")
 
         try:
             file_data = self._request("GET", url)
             size = file_data.get("size", 0)
 
-            if size > 1000000:
+            if size > 100000:
+                print(f"[get_file] 📦 Using blob fallback for chunk: {start_line}–{end_idx}")
+
                 print(f"[get_file] ⚠️ File too large ({size} bytes), using blob fallback")
                 content = self.get_large_file_blob(owner, repo, file_path, branch)
                 lines = content.splitlines()
