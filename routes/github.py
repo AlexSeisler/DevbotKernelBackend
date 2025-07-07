@@ -48,13 +48,14 @@ async def get_file_content(
         raise HTTPException(status_code=500, detail="Failed to retrieve file content")
 
 # ✅ 3️⃣ Parse structure for a given file
-@router.get("/structure")
+@router.get("/repo/file/structure")
 async def parse_file_structure(file_path: str, branch: str = "main"):
     try:
-        from services.federation_service import parse_structure_for_file
+        from services.github_service import parse_structure_for_file
+        print(f"[routes/structure] 🔍 Incoming request — file_path={file_path}, branch={branch}")
         return parse_structure_for_file(OWNER, REPO, file_path, branch)
     except Exception as e:
-        print(f"[ERROR] parse_file_structure failed: {str(e)}")
+        print(f"[routes/structure] ❌ Exception in parse_file_structure: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to parse file structure")
 
 
