@@ -174,29 +174,26 @@ class GitHubService:
         return decoded
     def get_file_chunk(self, owner, repo, file_path, branch, start_line=1, chunk_size=1000):
         print(f"[chunk] 🔍 Getting lines {start_line}–{start_line + chunk_size - 1} of {file_path} on {branch}")
-        
-        # Pull full content (with fallback to blob)
-        full = self.get_file(owner, repo, file_path, branch, include_meta=True)
-        content = full["content"]
-        
-        lines = content.splitlines()
-        total = len(lines)
 
-        start_idx = max(0, start_line - 1)
-        end_idx = min(total, start_idx + chunk_size)
+        # Use chunk-aware get_file
+        result = self.get_file(
+            owner, repo, file_path, branch,
+            include_meta=False,  # important: do not decode full base64 upfront
+            start_line=start_line,
+            chunk_size=chunk_size
+        )
 
-        chunk = lines[start_idx:end_idx]
-        sliced = "\n".join(chunk)
-
+        # If 'content' is already sliced, use as-is
         return {
-            "content": sliced,
-            "start_line": start_line,
-            "end_line": end_idx,
-            "total_lines": total,
-            "more": end_idx < total,
-            "sha": full.get("sha"),
-            "encoding": full.get("encoding", "utf-8")
+            "content": result["content"],
+            "start_line": result.get("start_line", start_line),
+            "end_line": result.get("end_line", start_line + chunk_size - 1),
+            "total_lines": result.get("total_lines", -1),
+            "more": result.get("more", False),
+            "sha": result.get("sha", None),
+            "encoding": result.get("encoding", "utf-8")
         }
+
     def parse_structure_from_code(code: str) -> list:
         """
         Full structural breakdown of Python code using LibCST.
