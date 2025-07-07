@@ -9,6 +9,7 @@ from requests.exceptions import RequestException
 from dotenv import load_dotenv
 import libcst as cst
 load_dotenv()
+from libcst.metadata import PositionProvider, MetadataWrapper
 
 class GitHubService:
     def __init__(self):
@@ -203,74 +204,93 @@ class GitHubService:
         """
         structure = []
 
-        def safe_line(node, attr, fallback=-1):
-            try:
-                return getattr(getattr(node, attr, None), "line", fallback)
-            except Exception:
-                return fallback
-
         class StructureVisitor(cst.CSTVisitor):
+            METADATA_DEPENDENCIES = (PositionProvider,)
+
             def visit_ClassDef(self, node: cst.ClassDef):
-                structure.append({
-                    "type": "class",
-                    "name": node.name.value,
-                    "start_line": safe_line(node.body, "start"),
-                    "end_line": safe_line(node.body, "end")
-                })
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "class",
+                        "name": node.name.value,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ ClassDef error: {e}")
 
             def visit_FunctionDef(self, node: cst.FunctionDef):
-                structure.append({
-                    "type": "function",
-                    "name": node.name.value,
-                    "start_line": safe_line(node.body, "start"),
-                    "end_line": safe_line(node.body, "end")
-                })
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "function",
+                        "name": node.name.value,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ FunctionDef error: {e}")
 
             def visit_Import(self, node: cst.Import):
-                structure.append({
-                    "type": "import",
-                    "name": None,
-                    "start_line": safe_line(node, "start"),
-                    "end_line": safe_line(node, "end")
-                })
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "import",
+                        "name": None,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ Import error: {e}")
 
             def visit_ImportFrom(self, node: cst.ImportFrom):
-                structure.append({
-                    "type": "import_from",
-                    "name": None,
-                    "start_line": safe_line(node, "start"),
-                    "end_line": safe_line(node, "end")
-                })
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "import_from",
+                        "name": None,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ ImportFrom error: {e}")
 
             def visit_Assign(self, node: cst.Assign):
-                structure.append({
-                    "type": "assign",
-                    "name": None,
-                    "start_line": safe_line(node, "start"),
-                    "end_line": safe_line(node, "end")
-                })
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "assign",
+                        "name": None,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ Assign error: {e}")
 
             def visit_Expr(self, node: cst.Expr):
-                structure.append({
-                    "type": "expr",
-                    "name": None,
-                    "start_line": safe_line(node, "start"),
-                    "end_line": safe_line(node, "end")
-                })
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "expr",
+                        "name": None,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ Expr error: {e}")
 
         try:
-            print(f"[structure-parse] 📦 Starting full LibCST scan ({len(code.splitlines())} lines)")
+            print(f"[structure-parse] 📦 LibCST scan on {len(code.splitlines())} lines")
             module = cst.parse_module(code)
-            module.visit(StructureVisitor())
-            print(f"[structure-parse] ✅ Structure parsed with {len(structure)} elements")
+            wrapper = MetadataWrapper(module)
+            wrapper.visit(StructureVisitor())
+            print(f"[structure-parse] ✅ Found {len(structure)} structural elements")
         except Exception as e:
-            print(f"[structure-parse] ❌ Full parse error: {e}")
-            print(f"[structure-parse] 🔍 Code preview:\n{code[:500]}")
+            print(f"[structure-parse] ❌ LibCST failure: {e}")
+            print(f"[structure-parse] 🔍 Code sample:\n{code[:500]}")
             return []
 
         return structure
-
-
     def parse_structure_for_file(self, owner: str, repo: str, file_path: str, branch: str = "main"):
         print(f"[structure-fetch] 🔍 Fetching file: {file_path} on branch: {branch}")
         file = self.get_file(owner, repo, file_path, branch, include_meta=True)
@@ -281,30 +301,41 @@ class GitHubService:
         structure = []
 
         class StructureVisitor(cst.CSTVisitor):
-            def visit_FunctionDef(self, node: cst.FunctionDef):
-                structure.append({
-                    "type": "function",
-                    "name": node.name.value,
-                    "start_line": node.body.start.line,
-                    "end_line": node.body.end.line
-                })
+            METADATA_DEPENDENCIES = (PositionProvider,)
 
             def visit_ClassDef(self, node: cst.ClassDef):
-                structure.append({
-                    "type": "class",
-                    "name": node.name.value,
-                    "start_line": node.body.start.line,
-                    "end_line": node.body.end.line
-                })
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "class",
+                        "name": node.name.value,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ ClassDef error: {e}")
+
+            def visit_FunctionDef(self, node: cst.FunctionDef):
+                try:
+                    pos = self.get_metadata(PositionProvider, node)
+                    structure.append({
+                        "type": "function",
+                        "name": node.name.value,
+                        "start_line": pos.start.line,
+                        "end_line": pos.end.line
+                    })
+                except Exception as e:
+                    print(f"[visitor] ⚠️ FunctionDef error: {e}")
 
         try:
-            print(f"[structure-fetch] 🚀 Beginning LibCST parse")
+            print(f"[structure-fetch] 🚀 Starting LibCST parse")
             module = cst.parse_module(code)
-            module.visit(StructureVisitor())
-            print(f"[structure-fetch] ✅ Structure parsed — {len(structure)} anchors found")
+            wrapper = MetadataWrapper(module)
+            wrapper.visit(StructureVisitor())
+            print(f"[structure-fetch] ✅ Parsed {len(structure)} anchors")
         except Exception as e:
-            print(f"[structure-fetch] ❌ Failed to parse structure: {e}")
-            print(f"[structure-fetch] 🔍 Code sample start:\n{code[:500]}")
+            print(f"[structure-fetch] ❌ Structure parse error: {e}")
+            print(f"[structure-fetch] 🔍 Code snippet:\n{code[:500]}")
             return {
                 "file_path": file_path,
                 "branch": branch,
@@ -316,6 +347,7 @@ class GitHubService:
             "branch": branch,
             "structure": structure
         }
+
 
     def get_file_history(self, owner, repo, file_path, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/commits?path={file_path}&sha={branch}"
