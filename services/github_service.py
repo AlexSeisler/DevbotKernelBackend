@@ -221,17 +221,24 @@ class GitHubService:
                 })
 
         try:
+            print(f"[structure-parse] 📦 Starting LibCST parse on code block (length: {len(code.splitlines())} lines)")
             module = cst.parse_module(code)
             module.visit(StructureVisitor())
+            print(f"[structure-parse] ✅ Parsed structure with {len(structure)} anchors")
         except Exception as e:
-            print(f"[structure-parse] ❌ Failed to parse: {e}")
+            print(f"[structure-parse] ❌ LibCST parsing error: {e}")
+            print(f"[structure-parse] 🔍 Sample code start:\n{code[:500]}")
             return []
 
         return structure
-    
+
+
     def parse_structure_for_file(self, owner: str, repo: str, file_path: str, branch: str = "main"):
+        print(f"[structure-fetch] 🔍 Fetching file: {file_path} on branch: {branch}")
         file = self.get_file(owner, repo, file_path, branch, include_meta=True)
         code = file["content"]
+
+        print(f"[structure-fetch] 📏 File length: {len(code.splitlines())} lines")
 
         structure = []
 
@@ -253,10 +260,13 @@ class GitHubService:
                 })
 
         try:
+            print(f"[structure-fetch] 🚀 Beginning LibCST parse")
             module = cst.parse_module(code)
             module.visit(StructureVisitor())
+            print(f"[structure-fetch] ✅ Structure parsed — {len(structure)} anchors found")
         except Exception as e:
-            print(f"[structure-parse] ❌ Failed to parse structure: {e}")
+            print(f"[structure-fetch] ❌ Failed to parse structure: {e}")
+            print(f"[structure-fetch] 🔍 Code sample start:\n{code[:500]}")
             return {
                 "file_path": file_path,
                 "branch": branch,
@@ -268,6 +278,7 @@ class GitHubService:
             "branch": branch,
             "structure": structure
         }
+
     def get_file_history(self, owner, repo, file_path, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/commits?path={file_path}&sha={branch}"
         return self._request("GET", url)
