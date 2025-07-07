@@ -82,7 +82,7 @@ class GitHubService:
         try:
             file_data = self._request("GET", url)
             size = file_data.get("size", 0)
-
+            print(f"[get_file] 📏 File size: {size} bytes")
             if size > 100000:
                 print(f"[get_file] 📦 Using blob fallback for chunk: {start_line}–{end_idx}")
 
