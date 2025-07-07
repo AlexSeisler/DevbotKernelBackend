@@ -109,6 +109,8 @@ class GitHubService:
                 }
 
             if include_meta:
+                print(f"[get_file] 📦 Including metadata for: {file_path}")
+                print("content:", file_data.get("content", "N/A"))
                 content = base64.b64decode(file_data["content"]).decode("utf-8")
                 return {
                     "content": content,
