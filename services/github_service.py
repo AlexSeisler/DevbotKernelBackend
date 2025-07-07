@@ -98,6 +98,8 @@ class GitHubService:
                 sliced = "\n".join(chunk)
                 more = end_idx < total_lines
                 print(f"[get_file] 📦 Using blob fallback for chunk: {start_line}–{end_idx}")
+                print(f"[get_file] 📏 Total lines: {total_lines}, Sliced lines: {len(chunk)}")
+                print("sliced chunk: ", sliced[:1000], "...")  # Print first 100 chars for debug
                 return {
                     "content": sliced,
                     "sha": file_data.get("sha", "blob-only"),
