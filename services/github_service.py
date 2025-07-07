@@ -84,7 +84,7 @@ class GitHubService:
             size = file_data.get("size", 0)
             print(f"[get_file] 📏 File size: {size} bytes")
             if size > 32500 or chunk_size > 500:
-                print(f"[get_file] 📦 Using blob fallback for chunk: {start_line}–{end_idx}")
+                
 
                 print(f"[get_file] ⚠️ File too large ({size} bytes), using blob fallback")
                 content = self.get_large_file_blob(owner, repo, file_path, branch)
@@ -97,7 +97,7 @@ class GitHubService:
                 chunk = lines[start_idx:end_idx]
                 sliced = "\n".join(chunk)
                 more = end_idx < total_lines
-
+                print(f"[get_file] 📦 Using blob fallback for chunk: {start_line}–{end_idx}")
                 return {
                     "content": sliced,
                     "sha": file_data.get("sha", "blob-only"),
