@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Optional
 from services.github_service import GitHubService
 from models.schemas import BranchCreateRequest
 import urllib.parse
@@ -24,14 +24,38 @@ async def get_repo_tree(branch: str = "main", recursive: bool = True):
 
 # ✅ 2️⃣ Hardened File Content Retrieval
 @router.get("/file")
-async def get_file_content(file_path: str, branch: str = "main"):
+async def get_file_content(
+    file_path: str,
+    branch: str = "main",
+    include_meta: bool = False,
+    start_line: int = 1,
+    chunk_size: Optional[int] = None
+):
     try:
-        encoded_path = urllib.parse.quote(file_path, safe="")
-        result = github_service.get_file(OWNER, REPO, file_path, branch)
+        result = github_service.get_file(
+            OWNER,
+            REPO,
+            file_path,
+            branch,
+            include_meta=include_meta,
+            start_line=start_line,
+            chunk_size=chunk_size
+        )
         return result
     except Exception as e:
         print(f"[ERROR] get_file_content failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve file content")
+
+# ✅ 3️⃣ Parse structure for a given file
+@router.get("/structure")
+async def parse_file_structure(file_path: str, branch: str = "main"):
+    try:
+        from services.federation_service import parse_structure_for_file
+        return parse_structure_for_file(OWNER, REPO, file_path, branch)
+    except Exception as e:
+        print(f"[ERROR] parse_file_structure failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to parse file structure")
+
 
 # ✅ 3️⃣ Hardened File History Retrieval
 @router.get("/history")
