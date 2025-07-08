@@ -287,8 +287,8 @@ class GitHubService:
         return structure
     def parse_structure_for_file(self, owner: str, repo: str, file_path: str, branch: str = "main"):
         print(f"[structure-fetch] 🔍 Fetching file: {file_path} on branch: {branch}")
-        file = self.get_file(owner, repo, file_path, branch, include_meta=True)
-        code = file["content"]
+        code = self.get_large_file_blob(owner, repo, file_path, branch)
+
 
         print(f"[structure-fetch] 📏 File length: {len(code.splitlines())} lines")
 
