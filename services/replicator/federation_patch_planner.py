@@ -127,6 +127,8 @@ class FederatedCSTPatchPlanner:
                 "repo_id": self.context.get("repo_id"),
                 "file_path": self.context.get("file_path"),
                 "base_sha": self.context.get("base_sha"),
-                "anchor_lines": anchor_lines
+                "anchor_lines": anchor_lines,
+                "anchor_path": anchor_path   # ✅ ADD THIS LINE
             }
         }
+
