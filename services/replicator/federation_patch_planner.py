@@ -127,6 +127,10 @@ class FederatedCSTPatchPlanner:
 
         diff = "\n".join(diff_lines)
         print("[patch-gen] ✅ Diff generated.")
+        print(f"[patch-gen] Incoming anchor_lines: {self.context.get('anchor_lines')}")
+        print(f"[patch-gen] Anchor: {anchor}")
+        print(f"[patch-gen] Code Block:\n{code_block}")
+        print(f"[patch-gen] Chunk received:\n{old_code[:300]}...")  # preview only
 
         return {
             "patched_code": patched_code,

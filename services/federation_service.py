@@ -273,6 +273,11 @@ class FederationService():
             patched_full_file = "\n".join(final_lines)
 
             sha = self.github.get_latest_file_sha(owner, repo, patch.file_path, request.branch)
+            print(f"[propose-debug] Structure keys: {list(structure.keys())}")
+            print(f"[propose-debug] Total anchors: {len(structure['structure'])}")
+            print(f"[propose-debug] First 3 anchors: {structure['structure'][:3]}")
+            print(f"[propose-debug] Looking for anchor: {patch.anchor}")
+            print(f"[propose-debug] Anchor match found: {anchor_match}")
 
             patch_payload = {
                 "repo_id": request.repo_id,
@@ -297,6 +302,9 @@ class FederationService():
             print("[propose] 🌀 Auto-committing patch")
             self.commit_patch(patch_payload)
             proposals.append(patch_payload)
+
+
+        
 
         print("[propose] ✅ Proposal flow complete")
         return proposals
