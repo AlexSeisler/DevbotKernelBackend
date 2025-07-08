@@ -230,60 +230,63 @@ class FederationService():
         proposals = []
 
         for patch in request.patches:
-            print(f"[propose] 📂 Fetching file: {patch.file_path} on {request.branch}")
             owner, repo = request.repo_id.split("/")
-            file_data = self.github.get_file(
-                owner=owner,
-                repo=repo,
-                file_path=patch.file_path,
-                branch=request.branch,
-                include_meta=True
+            print(f"[propose] 🔍 Resolving structure for: {patch.file_path}")
+            structure = self.github.parse_structure_for_file(owner, repo, patch.file_path, request.branch)
+
+            anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
+            if not anchor_match:
+                print("[propose] ❌ Anchor not found in structure — aborting")
+                raise ValueError("Anchor not found in parsed structure")
+
+            anchor_lines = [anchor_match["start_line"], anchor_match["end_line"]]
+            print(f"[propose] 🎯 Resolved anchor lines: {anchor_lines}")
+
+            chunk_result = self.github.get_file_chunk(
+                owner, repo, patch.file_path, request.branch,
+                start_line=anchor_lines[0]
             )
-            # SHA validation — prevent drift before generating patch
-            if patch.base_sha and patch.base_sha != file_data["sha"]:
-                print(f"[propose] ❌ SHA mismatch: incoming {patch.base_sha} vs live {file_data['sha']}")
-                raise ValueError("SHA mismatch: file has changed since patch base_sha was recorded")
 
-            old_code = file_data["content"]
-            
-            print(f"[propose] 📂 Fetched file SHA: {file_data['sha']}")
-            print(f"[propose] 📂 Fetched file size: {len(old_code)} bytes")
+            chunk_code = chunk_result["content"]
+            print(f"[propose] 📦 Chunk lines: {chunk_result['start_line']}–{chunk_result['end_line']}, size={len(chunk_code)}")
 
-            # Pass context with optional anchor_lines
             self.planner.context = {
                 "repo_id": request.repo_id,
                 "file_path": patch.file_path,
-                "base_sha": file_data["sha"],
-                "anchor_lines": getattr(patch, "anchor_lines", None)
+                "base_sha": chunk_result["sha"],
+                "anchor_lines": anchor_lines
             }
 
             print("[propose] 🔧 Generating patch diff")
             patch_result = self.planner.generate_patch(
-                old_code=old_code,
+                old_code=chunk_code,
                 anchor=patch.anchor,
                 code_block=patch.code_block
             )
 
-            print("[propose] 📤 PATCHED OUTPUT START")
-            print(patch_result["patched_code"])
-            print("[propose] 📤 PATCHED OUTPUT END")
-            if not patch_result["diff"].strip():
-                print("[propose] 🚫 No changes detected — skipping")
-                return {"status": "noop", "reason": "No changes to apply"}
-            
+            full_file_code = self.github.get_large_file_blob(owner, repo, patch.file_path, request.branch)
+            old_lines = full_file_code.splitlines()
+            start, end = anchor_lines
+            prefix = old_lines[:start - 1]
+            suffix = old_lines[end:]
+            final_lines = prefix + patch_result["patched_code"].splitlines() + suffix
+            patched_full_file = "\n".join(final_lines)
+
+            sha = self.github.get_latest_file_sha(owner, repo, patch.file_path, request.branch)
+
             patch_payload = {
                 "repo_id": request.repo_id,
                 "branch": request.branch,
                 "file_path": patch.file_path,
-                "base_sha": file_data["sha"],
+                "base_sha": sha,
                 "proposed_by": request.proposed_by,
                 "commit_message": request.commit_message,
                 "anchor": patch.anchor,
                 "code_block": patch.code_block,
-                "patched_code": patch_result["patched_code"],
+                "patched_code": patched_full_file,
                 "diff": patch_result["diff"],
                 "metadata": patch_result.get("metadata", {}),
-                "anchor_lines": getattr(patch, "anchor_lines", None)
+                "anchor_lines": anchor_lines
             }
 
             print("[propose] 💾 Saving patch proposal to DB")
@@ -297,6 +300,7 @@ class FederationService():
 
         print("[propose] ✅ Proposal flow complete")
         return proposals
+
 
 
     def handle_commit_patch(self, payload):
