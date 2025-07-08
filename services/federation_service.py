@@ -237,13 +237,15 @@ class FederationService():
 
             # Anchor path resolution (supports nested paths)
             anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
-            anchor_path = [patch.anchor] if anchor_match else []
-            if not anchor_path:
+            if not anchor_match:
                 print("[propose] ❌ Anchor not found in structure — aborting")
                 raise ValueError("Anchor not found in parsed structure")
 
+            anchor_path = anchor_match.get("path", [patch.anchor])
             anchor_lines = [anchor_match["start_line"], anchor_match["end_line"]]
-            print(f"[propose] 🎯 Resolved anchor lines: {anchor_lines}")
+
+            print(f"[propose] 🎯 Resolved anchor path: {anchor_path}")
+            print(f"[propose] 🧬 Anchor lines: {anchor_lines}")
 
             chunk_result = self.github.get_file_chunk(
                 owner, repo, patch.file_path, request.branch,
