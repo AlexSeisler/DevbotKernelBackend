@@ -18,21 +18,28 @@ class InjectTransformer(cst.CSTTransformer):
 
     def _check_and_inject(self, node_name: str, updated_node, body: cst.IndentedBlock):
         self.current_path.append(node_name)
+        print(f"[transform-debug] Entering: {node_name}")
+        print(f"[transform-debug] Current path: {' → '.join(self.current_path)}")
+        print(f"[transform-debug] Target anchor_path: {' → '.join(self.anchor_path)}")
+
         if self.current_path == self.anchor_path and not self.inserted:
             print(f"[transform] 🎯 Match Path: {' → '.join(self.anchor_path)}")
             new_body = self._inject_into_body(body)
             self.inserted = True
             return updated_node.with_changes(body=new_body)
+
         return updated_node
 
     def leave_FunctionDef(self, original_node, updated_node):
         result = self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
         self.current_path.pop()
+        print(f"[transform-debug] Leaving Function: {original_node.name.value}")
         return result
 
     def leave_ClassDef(self, original_node, updated_node):
         result = self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
         self.current_path.pop()
+        print(f"[transform-debug] Leaving Class: {original_node.name.value}")
         return result
 
     def leave_Module(self, original_node, updated_node):
