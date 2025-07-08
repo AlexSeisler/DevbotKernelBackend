@@ -29,7 +29,8 @@ class PatchProposal(BaseModel):
     base_sha: str
     anchor: str
     code_block: str
-    anchor_lines: Optional[List[int]] = None  # New field
+    anchor_lines: Optional[List[int]] = None
+    anchor_path: Optional[List[str]] = None  # ✅ NEW: hierarchical path to anchor
 
 
 
