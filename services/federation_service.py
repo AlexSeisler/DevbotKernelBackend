@@ -233,7 +233,7 @@ class FederationService():
             owner, repo = request.repo_id.split("/")
             print(f"[propose] 🔍 Resolving structure for: {patch.file_path}")
             structure = self.github.parse_structure_for_file(owner, repo, patch.file_path, request.branch)
-
+            print(f"[propose-debug] 🔬 Full structure response:\n{json.dumps(structure, indent=2)}")
             anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
             if not anchor_match:
                 print("[propose] ❌ Anchor not found in structure — aborting")
