@@ -328,7 +328,7 @@ class GitHubService:
             wrapper.visit(StructureVisitor())
         
             print(f"[structure-fetch] ✅ Parsed {len(structure)} anchors")
-            print("structure: {structure}")
+            print("structure:", {structure})
         except Exception as e:
             print(f"[structure-fetch] ❌ Structure parse error: {e}")
             print(f"[structure-fetch] 🔍 Code snippet:\n{code[:500]}")
