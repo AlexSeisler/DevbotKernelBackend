@@ -195,35 +195,49 @@ class GitHubService:
         """
         Full structural breakdown of Python code using LibCST.
         Captures classes, functions, imports, assignments, expressions with line numbers.
+        Tracks nesting path for classes/functions.
         """
         structure = []
 
         class StructureVisitor(cst.CSTVisitor):
             METADATA_DEPENDENCIES = (PositionProvider,)
 
+            def __init__(self):
+                self.parent_stack = []
+
             def visit_ClassDef(self, node: cst.ClassDef):
                 try:
+                    self.parent_stack.append(node.name.value)
                     pos = self.get_metadata(PositionProvider, node)
                     structure.append({
                         "type": "class",
                         "name": node.name.value,
                         "start_line": pos.start.line,
-                        "end_line": pos.end.line
+                        "end_line": pos.end.line,
+                        "path": list(self.parent_stack)
                     })
                 except Exception as e:
                     print(f"[visitor] ⚠️ ClassDef error: {e}")
 
+            def leave_ClassDef(self, node: cst.ClassDef):
+                self.parent_stack.pop()
+
             def visit_FunctionDef(self, node: cst.FunctionDef):
                 try:
+                    self.parent_stack.append(node.name.value)
                     pos = self.get_metadata(PositionProvider, node)
                     structure.append({
                         "type": "function",
                         "name": node.name.value,
                         "start_line": pos.start.line,
-                        "end_line": pos.end.line
+                        "end_line": pos.end.line,
+                        "path": list(self.parent_stack)
                     })
                 except Exception as e:
                     print(f"[visitor] ⚠️ FunctionDef error: {e}")
+
+            def leave_FunctionDef(self, node: cst.FunctionDef):
+                self.parent_stack.pop()
 
             def visit_Import(self, node: cst.Import):
                 try:
@@ -285,10 +299,10 @@ class GitHubService:
             return []
 
         return structure
+
     def parse_structure_for_file(self, owner: str, repo: str, file_path: str, branch: str = "main"):
         print(f"[structure-fetch] 🔍 Fetching file: {file_path} on branch: {branch}")
         code = self.get_large_file_blob(owner, repo, file_path, branch)
-
 
         print(f"[structure-fetch] 📏 File length: {len(code.splitlines())} lines")
 
@@ -297,36 +311,48 @@ class GitHubService:
         class StructureVisitor(cst.CSTVisitor):
             METADATA_DEPENDENCIES = (PositionProvider,)
 
+            def __init__(self):
+                self.parent_stack = []
+
             def visit_ClassDef(self, node: cst.ClassDef):
                 try:
+                    self.parent_stack.append(node.name.value)
                     pos = self.get_metadata(PositionProvider, node)
                     structure.append({
                         "type": "class",
                         "name": node.name.value,
                         "start_line": pos.start.line,
-                        "end_line": pos.end.line
+                        "end_line": pos.end.line,
+                        "path": list(self.parent_stack)
                     })
                 except Exception as e:
                     print(f"[visitor] ⚠️ ClassDef error: {e}")
 
+            def leave_ClassDef(self, node: cst.ClassDef):
+                self.parent_stack.pop()
+
             def visit_FunctionDef(self, node: cst.FunctionDef):
                 try:
+                    self.parent_stack.append(node.name.value)
                     pos = self.get_metadata(PositionProvider, node)
                     structure.append({
                         "type": "function",
                         "name": node.name.value,
                         "start_line": pos.start.line,
-                        "end_line": pos.end.line
+                        "end_line": pos.end.line,
+                        "path": list(self.parent_stack)
                     })
                 except Exception as e:
                     print(f"[visitor] ⚠️ FunctionDef error: {e}")
+
+            def leave_FunctionDef(self, node: cst.FunctionDef):
+                self.parent_stack.pop()
 
         try:
             print(f"[structure-fetch] 🚀 Starting LibCST parse")
             module = cst.parse_module(code)
             wrapper = MetadataWrapper(module)
             wrapper.visit(StructureVisitor())
-        
             print(f"[structure-fetch] ✅ Parsed {len(structure)} anchors")
         except Exception as e:
             print(f"[structure-fetch] ❌ Structure parse error: {e}")

@@ -234,8 +234,11 @@ class FederationService():
             print(f"[propose] 🔍 Resolving structure for: {patch.file_path}")
             structure = self.github.parse_structure_for_file(owner, repo, patch.file_path, request.branch)
             print(f"[propose-debug] 🔬 Full structure response:\n{json.dumps(structure, indent=2)}")
+
+            # Anchor path resolution (supports nested paths)
             anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
-            if not anchor_match:
+            anchor_path = [patch.anchor] if anchor_match else []
+            if not anchor_path:
                 print("[propose] ❌ Anchor not found in structure — aborting")
                 raise ValueError("Anchor not found in parsed structure")
 
@@ -254,7 +257,8 @@ class FederationService():
                 "repo_id": request.repo_id,
                 "file_path": patch.file_path,
                 "base_sha": chunk_result["sha"],
-                "anchor_lines": anchor_lines
+                "anchor_lines": anchor_lines,
+                "anchor_path": anchor_path
             }
 
             print("[propose] 🔧 Generating patch diff")
@@ -303,11 +307,9 @@ class FederationService():
             self.commit_patch(patch_payload)
             proposals.append(patch_payload)
 
-
-        
-
         print("[propose] ✅ Proposal flow complete")
         return proposals
+
 
 
 
