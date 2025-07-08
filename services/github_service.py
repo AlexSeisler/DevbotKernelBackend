@@ -83,58 +83,48 @@ class GitHubService:
             file_data = self._request("GET", url)
             size = file_data.get("size", 0)
             print(f"[get_file] 📏 File size: {size} bytes")
-            if size > 32500 or chunk_size > 500:
-                
 
-                print(f"[get_file] ⚠️ File too large ({size} bytes), using blob fallback")
-                content = self.get_large_file_blob(owner, repo, file_path, branch)
-                lines = content.splitlines()
+            # Use base64-decoded content
+            content = base64.b64decode(file_data["content"]).decode("utf-8")
+            lines = content.splitlines()
+            total_lines = len(lines)
 
-                total_lines = len(lines)
-                start_idx = max(start_line - 1, 0)
-                end_idx = start_idx + (chunk_size or total_lines)
+            # DEFAULT FLOW — Enforce 500-line max
+            start_idx = max(start_line - 1, 0)
+            limit = 500
+            end_idx = min(start_idx + limit, total_lines)
 
-                chunk = lines[start_idx:end_idx]
-                sliced = "\n".join(chunk)
-                more = end_idx < total_lines
-                print(f"[get_file] 📦 Using blob fallback for chunk: {start_line}–{end_idx}")
-                print(f"[get_file] 📏 Total lines: {total_lines}, Sliced lines: {len(chunk)}")
-                print("sliced chunk: ", sliced[:1000], "...")  # Print first 100 chars for debug
-                return {
-                    "content": sliced,
-                    "sha": file_data.get("sha", "blob-only"),
-                    "start_line": start_line,
-                    "end_line": end_idx,
-                    "more": more,
-                    "total_lines": total_lines,
-                    "encoding": "utf-8"
-                }
+            sliced = "\n".join(lines[start_idx:end_idx])
+            more = end_idx < total_lines
 
-            if include_meta:
-                print(f"[get_file] 📦 Including metadata for: {file_path}")
-                print("content:", file_data.get("content", "N/A"))
-                content = base64.b64decode(file_data["content"]).decode("utf-8")
-                return {
-                    "content": content,
-                    "sha": file_data.get("sha"),
-                    "size": size,
-                    "encoding": file_data.get("encoding", "utf-8")
-                }
-
-            return file_data
+            print(f"[get_file] 📦 Slicing {start_line}–{end_idx}, more={more}")
+            return {
+                "content": sliced,
+                "sha": file_data.get("sha"),
+                "start_line": start_line,
+                "end_line": end_idx,
+                "more": more,
+                "total_lines": total_lines,
+                "encoding": file_data.get("encoding", "utf-8")
+            }
 
         except RequestException as e:
+            # Large file fallback
             if "ResponseTooLargeError" in str(e) or "too_large" in str(e).lower():
-                print(f"[get_file] 🚨 Triggered fallback due to large file error — blob fetch for: {file_path}")
+                print(f"[get_file] 🚨 Triggered fallback due to size — blob fetch")
                 content = self.get_large_file_blob(owner, repo, file_path, branch)
                 lines = content.splitlines()
                 total_lines = len(lines)
+
                 start_idx = max(start_line - 1, 0)
-                end_idx = start_idx + (chunk_size or total_lines)
+                limit = 500
+                end_idx = min(start_idx + limit, total_lines)
+
                 chunk = lines[start_idx:end_idx]
                 sliced = "\n".join(chunk)
                 more = end_idx < total_lines
 
+                print(f"[get_file] 📦 BLOB slice {start_line}–{end_idx}, more={more}")
                 return {
                     "content": sliced,
                     "sha": "blob-only",
@@ -179,7 +169,7 @@ class GitHubService:
 
         decoded = base64.b64decode(blob_data["content"]).decode("utf-8")
         return decoded
-    def get_file_chunk(self, owner, repo, file_path, branch, start_line=1, chunk_size=1000):
+    def get_file_chunk(self, owner, repo, file_path, branch, start_line=1, chunk_size=500):
         print(f"[chunk] 🔍 Getting lines {start_line}–{start_line + chunk_size - 1} of {file_path} on {branch}")
 
         # Use chunk-aware get_file
