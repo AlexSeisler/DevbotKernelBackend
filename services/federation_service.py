@@ -242,7 +242,14 @@ class FederationService():
                 raise ValueError("Anchor not found in parsed structure")
 
             anchor_path = anchor_match.get("path", [patch.anchor])
-            anchor_lines = [anchor_match["start_line"], anchor_match["end_line"]]
+            # Determine outermost ancestor (first item in path)
+            outermost_name = anchor_path[0]
+            outermost_match = next((s for s in structure["structure"] if s["name"] == outermost_name and s["path"] == [outermost_name]), None)
+            if not outermost_match:
+                print(f"[propose] ❌ Outermost anchor '{outermost_name}' not found — aborting")
+                raise ValueError(f"Outermost anchor '{outermost_name}' not found in structure")
+
+            anchor_lines = [outermost_match["start_line"], outermost_match["end_line"]]
 
             print(f"[propose] 🎯 Resolved anchor path: {anchor_path}")
             print(f"[propose] 🧬 Anchor lines: {anchor_lines}")

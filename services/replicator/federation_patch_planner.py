@@ -9,14 +9,21 @@ class InjectTransformer(cst.CSTTransformer):
         self.inserted = False
         self.current_path = []
 
-    def _inject_into_body(self, body: cst.IndentedBlock) -> cst.IndentedBlock:
+    def _inject_into_body(self, body: cst.BaseSuite) -> cst.BaseSuite:
         try:
             injected_nodes = cst.parse_module(self.injected_code).body
         except Exception as e:
             raise ValueError(f"[transform] ❌ Failed to parse injected code block: {e}")
-        return body.with_changes(body=tuple(list(injected_nodes) + list(body.body)))
 
-    def _check_and_inject(self, node_name: str, updated_node, body: cst.IndentedBlock):
+        # Support both IndentedBlock and SimpleStatementSuite
+        if isinstance(body, cst.IndentedBlock):
+            return body.with_changes(body=tuple(list(injected_nodes) + list(body.body)))
+        elif isinstance(body, cst.SimpleStatementSuite):
+            return cst.IndentedBlock(body=list(injected_nodes) + list(body.body))
+        else:
+            raise ValueError(f"[transform] ❌ Unsupported block type for injection: {type(body)}")
+
+    def _check_and_inject(self, node_name: str, updated_node, body: cst.BaseSuite):
         self.current_path.append(node_name)
         print(f"[transform-debug] Entering: {node_name}")
         print(f"[transform-debug] Current path: {' → '.join(self.current_path)}")
