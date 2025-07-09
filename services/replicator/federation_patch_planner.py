@@ -17,22 +17,18 @@ class InjectTransformer(cst.CSTTransformer):
         print(f"[init] 💉 injected_code:\n{self.injected_code.strip()}")
 
     def _inject_into_body(self, body: cst.BaseSuite) -> cst.BaseSuite:
-        indent = "    " * self.nesting_level
-        indented_code = textwrap.indent(self.injected_code.strip(), indent)
-        
         print(f"[inject] 🧾 Original injected_code:\n{self.injected_code!r}")
-        print(f"[inject] 🔧 Computed indent: '{indent}' (nest={self.nesting_level})")
-        print(f"[inject] 🧪 Parsing indented injected_code:\n{indented_code!r}")
 
         try:
-            injected_nodes = cst.parse_module(indented_code).body
+            # Parse without any indentation — LibCST handles placement inside the block
+            injected_nodes = cst.parse_module(self.injected_code.strip()).body
             print(f"[inject] ✅ Parsed {len(injected_nodes)} node(s)")
         except Exception as e:
             print(f"[inject] ❌ Parsing failed with exception: {e}")
-            raise ValueError(f"[transform] ❌ Failed to parse injected code block:\n{indented_code}\nError: {e}")
+            raise ValueError(f"[transform] ❌ Failed to parse injected code block:\n{self.injected_code}\nError: {e}")
 
         if isinstance(body, cst.IndentedBlock):
-            print(f"[inject] ➕ Appending to existing IndentedBlock")
+            print(f"[inject] ➕ Appending to existing IndentedBlock (nest={self.nesting_level})")
             return body.with_changes(body=tuple(injected_nodes + list(body.body)))
         elif isinstance(body, cst.SimpleStatementSuite):
             print(f"[inject] 🔁 Wrapping new IndentedBlock from SimpleStatementSuite")
