@@ -29,7 +29,7 @@ class InjectTransformer(cst.CSTTransformer):
 
         if isinstance(body, cst.IndentedBlock):
             print(f"[inject] ➕ Appending to existing IndentedBlock (nest={self.nesting_level})")
-            return body.with_changes(body=tuple(injected_nodes + list(body.body)))
+            return body.with_changes(body=tuple(injected_nodes) + tuple(body.body))
         elif isinstance(body, cst.SimpleStatementSuite):
             print(f"[inject] 🔁 Wrapping new IndentedBlock from SimpleStatementSuite")
             return cst.IndentedBlock(body=list(injected_nodes) + list(body.body))
