@@ -18,24 +18,29 @@ class InjectTransformer(cst.CSTTransformer):
         indented_code = textwrap.indent(self.injected_code.strip(), indent)
 
         try:
+            print(f"[transform] 🧪 Parsing injected code at depth {self.nesting_level}:\n{indented_code}")
             injected_nodes = cst.parse_module(indented_code).body
         except Exception as e:
             raise ValueError(f"[transform] ❌ Failed to parse injected code block:\n{indented_code}\nError: {e}")
 
         if isinstance(body, cst.IndentedBlock):
+            print(f"[transform] ✅ Appending to IndentedBlock (nest={self.nesting_level})")
             return body.with_changes(body=tuple(injected_nodes + list(body.body)))
         elif isinstance(body, cst.SimpleStatementSuite):
+            print(f"[transform] 🔁 Wrapping new IndentedBlock from SimpleStatementSuite")
             return cst.IndentedBlock(body=list(injected_nodes) + list(body.body))
         else:
-            raise ValueError(f"[transform] ❌ Unsupported block type for injection: {type(body)}")
+            raise ValueError(f"[transform] ❌ Unsupported block type: {type(body)}")
 
     def _check_and_inject(self, node_name: str, updated_node, body: Optional[cst.BaseSuite]):
         self.current_path.append(node_name)
+        print(f"[transform] 🔍 Visiting node: {node_name} — Current path: {self.current_path}")
 
         if self.current_path == self.anchor_path and not self.inserted:
+            print(f"[transform] 🎯 Anchor match! Inserting into: {' → '.join(self.current_path)}")
             self.nesting_level = len(self.anchor_path)
             if not body:
-                raise ValueError(f"[transform] ❌ Cannot inject into anchor '{node_name}' — body is None")
+                raise ValueError(f"[transform] ❌ Cannot inject — '{node_name}' has no body")
 
             try:
                 new_body = self._inject_into_body(body)
@@ -43,6 +48,8 @@ class InjectTransformer(cst.CSTTransformer):
                 return updated_node.with_changes(body=new_body)
             except Exception as e:
                 raise ValueError(f"[transform] ❌ Injection failed for '{node_name}': {e}")
+        else:
+            print(f"[transform] ⏭️ No match — skipping")
 
         return updated_node
 
@@ -57,8 +64,10 @@ class InjectTransformer(cst.CSTTransformer):
         return result
 
     def leave_Module(self, original_node, updated_node):
+        print(f"[transform] 📦 leave_Module — anchor_path: {self.anchor_path}")
         if self.anchor_path == ["BOF"] and not self.inserted:
             try:
+                print(f"[transform] ✨ Injecting at BOF")
                 injected_nodes = cst.parse_module(self.injected_code.strip()).body
                 self.inserted = True
                 return updated_node.with_changes(body=tuple(injected_nodes + list(updated_node.body)))
@@ -67,14 +76,15 @@ class InjectTransformer(cst.CSTTransformer):
 
         elif self.anchor_path == ["EOF"] and not self.inserted:
             try:
+                print(f"[transform] ✨ Injecting at EOF")
                 injected_nodes = cst.parse_module(self.injected_code.strip()).body
                 self.inserted = True
                 return updated_node.with_changes(body=tuple(list(updated_node.body) + list(injected_nodes)))
             except Exception as e:
                 raise ValueError(f"[transform] ❌ EOF injection failed: {e}")
 
+        print(f"[transform] 🧩 No module-level injection performed")
         return updated_node
-
 
 class FederatedCSTPatchPlanner:
     def __init__(self, context: dict = None):
