@@ -7,8 +7,6 @@ import json
 
 class InjectTransformer(cst.CSTTransformer):
     def __init__(self, anchor_path: list, injected_code: str):
-        print(f"[init] anchor_path: {anchor_path}")
-        print(f"[init] injected_code:\n{injected_code}")
         self.anchor_path = anchor_path
         self.injected_code = injected_code
         self.inserted = False
@@ -18,64 +16,50 @@ class InjectTransformer(cst.CSTTransformer):
     def _inject_into_body(self, body: cst.BaseSuite) -> cst.BaseSuite:
         indent = "    " * self.nesting_level
         indented_code = textwrap.indent(self.injected_code.strip(), indent)
-        print(f"[inject] nesting_level: {self.nesting_level}, indent: '{indent}'")
-        print(f"[inject] indented_code:\n{indented_code}")
-
         try:
+            print(f"[transform] 🧪 Parsing injected code at depth {self.nesting_level}:\n{indented_code}")
             injected_nodes = cst.parse_module(indented_code).body
         except Exception as e:
             raise ValueError(f"[transform] ❌ Failed to parse injected code block:\n{indented_code}\nError: {e}")
 
         if isinstance(body, cst.IndentedBlock):
-            print(f"[inject] ✅ Appending to IndentedBlock")
+            print(f"[transform] ✅ Appending to IndentedBlock (nest={self.nesting_level})")
             return body.with_changes(body=tuple(injected_nodes + list(body.body)))
         elif isinstance(body, cst.SimpleStatementSuite):
-            print(f"[inject] 🔁 Wrapping new IndentedBlock from SimpleStatementSuite")
+            print(f"[transform] 🔁 Wrapping new IndentedBlock from SimpleStatementSuite")
             return cst.IndentedBlock(body=list(injected_nodes) + list(body.body))
         else:
             raise ValueError(f"[transform] ❌ Unsupported block type: {type(body)}")
 
     def _check_and_inject(self, node_name: str, updated_node, body: Optional[cst.BaseSuite]):
-        trial_path = self.current_path + [node_name]
+        self.current_path.append(node_name)
         print(f"[check] 🔍 Checking node: {node_name}")
-        print(f"[check] 📏 Current path trial: {trial_path}")
+        print(f"[check] 📏 Current path trial: {self.current_path}")
         print(f"[check] 📌 Target anchor_path: {self.anchor_path}")
 
-        if trial_path == self.anchor_path and not self.inserted:
-            print(f"[check] 🎯 Match! Injecting into: {' → '.join(trial_path)}")
+        if self.current_path == self.anchor_path and not self.inserted:
+            print(f"[check] 🎯 Anchor match! Inserting into: {' → '.join(self.current_path)}")
             self.nesting_level = len(self.anchor_path)
             if not body:
-                raise ValueError(f"[check] ❌ '{node_name}' has no body for injection")
+                raise ValueError(f"[transform] ❌ Cannot inject — '{node_name}' has no body")
             try:
+                print(f"[transform] 💥 Injection Triggered — Nesting Level: {self.nesting_level}")
                 new_body = self._inject_into_body(body)
                 self.inserted = True
                 return updated_node.with_changes(body=new_body)
             except Exception as e:
-                raise ValueError(f"[check] ❌ Injection failed at {trial_path}: {e}")
+                raise ValueError(f"[transform] ❌ Injection failed for '{node_name}': {e}")
         else:
-            print(f"[check] ⏭️ No match for path: {' → '.join(trial_path)}")
+            print(f"[check] ⏭️ No match for path: {' → '.join(self.current_path)}")
 
+        self.current_path.pop()
         return updated_node
 
-    def visit_ClassDef(self, node: cst.ClassDef):
-        print(f"[visit] ➕ ClassDef: {node.name.value}")
-        self.current_path.append(node.name.value)
-
     def leave_ClassDef(self, original_node, updated_node):
-        print(f"[leave] ⬅️ ClassDef: {original_node.name.value}")
-        result = self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
-        self.current_path.pop()
-        return result
-
-    def visit_FunctionDef(self, node: cst.FunctionDef):
-        print(f"[visit] ➕ FunctionDef: {node.name.value}")
-        self.current_path.append(node.name.value)
+        return self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
 
     def leave_FunctionDef(self, original_node, updated_node):
-        print(f"[leave] ⬅️ FunctionDef: {original_node.name.value}")
-        result = self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
-        self.current_path.pop()
-        return result
+        return self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
 
     def leave_Module(self, original_node, updated_node):
         print(f"[module] 📦 leave_Module — anchor_path: {self.anchor_path}")
@@ -86,7 +70,8 @@ class InjectTransformer(cst.CSTTransformer):
                 self.inserted = True
                 return updated_node.with_changes(body=tuple(injected_nodes + list(updated_node.body)))
             except Exception as e:
-                raise ValueError(f"[module] ❌ BOF injection failed: {e}")
+                raise ValueError(f"[transform] ❌ BOF injection failed: {e}")
+
         elif self.anchor_path == ["EOF"] and not self.inserted:
             try:
                 print(f"[module] ✨ Injecting at EOF")
@@ -94,10 +79,11 @@ class InjectTransformer(cst.CSTTransformer):
                 self.inserted = True
                 return updated_node.with_changes(body=tuple(list(updated_node.body) + list(injected_nodes)))
             except Exception as e:
-                raise ValueError(f"[module] ❌ EOF injection failed: {e}")
+                raise ValueError(f"[transform] ❌ EOF injection failed: {e}")
 
         print(f"[module] 🧩 No module-level injection performed")
         return updated_node
+
 
 class FederatedCSTPatchPlanner:
     def __init__(self, context: dict = None):
