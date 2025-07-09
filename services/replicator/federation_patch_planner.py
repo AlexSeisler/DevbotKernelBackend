@@ -3,7 +3,7 @@ import libcst as cst
 import difflib
 from typing import Optional
 import textwrap
-
+import json
 
 class InjectTransformer(cst.CSTTransformer):
     def __init__(self, anchor_path: list, injected_code: str):
