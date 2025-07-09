@@ -347,7 +347,7 @@ class FederationService():
             "patched_code": payload.updated_content,
             "proposal_id": payload.proposal_id
         }
-
+        print("patch_dict", patch_dict)
         result = self.commit_patch(patch_dict)
         print("[commit] ✅ Commit finished")
         self.proposal_manager.update_patch_status(payload.proposal_id, "committed")
