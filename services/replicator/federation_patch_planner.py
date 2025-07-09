@@ -33,11 +33,10 @@ class InjectTransformer(cst.CSTTransformer):
             raise ValueError(f"[transform] ❌ Unsupported block type: {type(body)}")
 
     def _check_and_inject(self, node_name: str, updated_node, body: Optional[cst.BaseSuite]):
-        self.current_path.append(node_name)
-        print(f"[transform] 🔍 Visiting node: {node_name} — Current path: {self.current_path}")
+        print(f"[transform] 🔍 Checking node: {node_name} — Current path: {self.current_path + [node_name]}")
 
-        if self.current_path == self.anchor_path and not self.inserted:
-            print(f"[transform] 🎯 Anchor match! Inserting into: {' → '.join(self.current_path)}")
+        if self.current_path + [node_name] == self.anchor_path and not self.inserted:
+            print(f"[transform] 🎯 Anchor match! Inserting into: {' → '.join(self.current_path + [node_name])}")
             self.nesting_level = len(self.anchor_path)
             if not body:
                 raise ValueError(f"[transform] ❌ Cannot inject — '{node_name}' has no body")
@@ -49,16 +48,22 @@ class InjectTransformer(cst.CSTTransformer):
             except Exception as e:
                 raise ValueError(f"[transform] ❌ Injection failed for '{node_name}': {e}")
         else:
-            print(f"[transform] ⏭️ No match — skipping")
+            print(f"[transform] ⏭️ No match for path: {' → '.join(self.current_path + [node_name])}")
 
         return updated_node
 
-    def leave_FunctionDef(self, original_node, updated_node):
+    def visit_ClassDef(self, node: cst.ClassDef):
+        self.current_path.append(node.name.value)
+
+    def leave_ClassDef(self, original_node, updated_node):
         result = self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
         self.current_path.pop()
         return result
 
-    def leave_ClassDef(self, original_node, updated_node):
+    def visit_FunctionDef(self, node: cst.FunctionDef):
+        self.current_path.append(node.name.value)
+
+    def leave_FunctionDef(self, original_node, updated_node):
         result = self._check_and_inject(original_node.name.value, updated_node, updated_node.body)
         self.current_path.pop()
         return result
