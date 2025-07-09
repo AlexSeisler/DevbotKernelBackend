@@ -235,7 +235,6 @@ class FederationService():
             structure = self.github.parse_structure_for_file(owner, repo, patch.file_path, request.branch)
             print(f"[propose-debug] 🔬 Full structure response:\n{json.dumps(structure, indent=2)}")
 
-            # Anchor path resolution (supports nested paths)
             anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
             if not anchor_match:
                 print("[propose] ❌ Anchor not found in structure — aborting")
@@ -247,50 +246,34 @@ class FederationService():
             print(f"[propose] 🎯 Resolved anchor path: {anchor_path}")
             print(f"[propose] 🧬 Anchor lines: {anchor_lines}")
 
-            chunk_result = self.github.get_file_chunk(
-                owner, repo, patch.file_path, request.branch,
-                start_line=max(1, anchor_lines[-1])
-            )
-
-            chunk_code = chunk_result["content"]
-            print(f"[propose] 📦 Chunk lines: {chunk_result['start_line']}–{chunk_result['end_line']}, size={len(chunk_code)}")
-            print(f"[propose-debug] 🔍 Chunk preview:\n{chunk_code[:300]}")
+            full_file_code = self.github.get_large_file_blob(owner, repo, patch.file_path, request.branch)
+            print(f"[propose-debug] 📄 Original file preview:\n{full_file_code[:300]}")
 
             self.planner.context = {
                 "repo_id": request.repo_id,
                 "file_path": patch.file_path,
-                "base_sha": chunk_result["sha"],
+                "base_sha": self.github.get_latest_file_sha(owner, repo, patch.file_path, request.branch),
                 "anchor_lines": anchor_lines,
                 "anchor_path": anchor_path
             }
 
             print("[propose] 🔧 Generating patch diff")
             patch_result = self.planner.generate_patch(
-                old_code=chunk_code,
+                old_code=full_file_code,
                 anchor=patch.anchor,
                 code_block=patch.code_block
             )
-
-            full_file_code = self.github.get_large_file_blob(owner, repo, patch.file_path, request.branch)
-            old_lines = full_file_code.splitlines()
-            start, end = anchor_lines
-            prefix = old_lines[:start - 1]
-            suffix = old_lines[end:]
-            final_lines = prefix + patch_result["patched_code"].splitlines() + suffix
-            patched_full_file = "\n".join(final_lines)
-
-            sha = self.github.get_latest_file_sha(owner, repo, patch.file_path, request.branch)
 
             patch_payload = {
                 "repo_id": request.repo_id,
                 "branch": request.branch,
                 "file_path": patch.file_path,
-                "base_sha": sha,
+                "base_sha": self.planner.context["base_sha"],
                 "proposed_by": request.proposed_by,
                 "commit_message": request.commit_message,
                 "anchor": patch.anchor,
                 "code_block": patch.code_block,
-                "patched_code": patched_full_file,
+                "patched_code": patch_result["patched_code"],
                 "diff": patch_result["diff"],
                 "metadata": patch_result.get("metadata", {}),
                 "anchor_lines": anchor_lines
@@ -299,7 +282,6 @@ class FederationService():
             print(f"[propose2] 📦 Patch payload: {json.dumps(patch_payload, indent=2)}")
             print("[propose] 💾 Saving patch proposal to DB")
             proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
-            print(f"[propose] ✅ Saved with ID: {proposal_id}")
             patch_payload["proposal_id"] = proposal_id
 
             print("[propose] 🌀 Auto-committing patch")
