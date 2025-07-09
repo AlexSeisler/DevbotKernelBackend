@@ -233,7 +233,6 @@ class FederationService():
             owner, repo = request.repo_id.split("/")
             print(f"[propose] 🔍 Resolving structure for: {patch.file_path}")
             structure = self.github.parse_structure_for_file(owner, repo, patch.file_path, request.branch)
-            print(f"[propose-debug] 🔬 Full structure response:\n{json.dumps(structure, indent=2)}")
 
             anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
             if not anchor_match:
@@ -247,12 +246,15 @@ class FederationService():
             print(f"[propose] 🧬 Anchor lines: {anchor_lines}")
 
             full_file_code = self.github.get_large_file_blob(owner, repo, patch.file_path, request.branch)
-            print(f"[propose-debug] 📄 Original file preview:\n{full_file_code[:300]}")
+            print(f"[propose-debug] 📄 Original file preview (first 300 chars):\n{full_file_code[:300]}")
+
+            latest_sha = self.github.get_latest_file_sha(owner, repo, patch.file_path, request.branch)
+            print(f"[DEBUG] get_latest_file_sha for: {patch.file_path}, branch={request.branch} = {latest_sha}")
 
             self.planner.context = {
                 "repo_id": request.repo_id,
                 "file_path": patch.file_path,
-                "base_sha": self.github.get_latest_file_sha(owner, repo, patch.file_path, request.branch),
+                "base_sha": latest_sha,
                 "anchor_lines": anchor_lines,
                 "anchor_path": anchor_path
             }
@@ -279,7 +281,7 @@ class FederationService():
                 "anchor_lines": anchor_lines
             }
 
-            print(f"[propose2] 📦 Patch payload: {json.dumps(patch_payload, indent=2)}")
+            print(f"[propose2] 📦 Patch payload:\n{json.dumps(patch_payload, indent=2)}")
             print("[propose] 💾 Saving patch proposal to DB")
             proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
             patch_payload["proposal_id"] = proposal_id
@@ -290,6 +292,7 @@ class FederationService():
 
         print("[propose] ✅ Proposal flow complete")
         return proposals
+
 
 
 
