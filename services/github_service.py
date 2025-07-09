@@ -303,7 +303,6 @@ class GitHubService:
     def parse_structure_for_file(self, owner: str, repo: str, file_path: str, branch: str = "main"):
         print(f"[structure-fetch] 🔍 Fetching file: {file_path} on branch: {branch}")
         code = self.get_large_file_blob(owner, repo, file_path, branch)
-
         print(f"[structure-fetch] 📏 File length: {len(code.splitlines())} lines")
 
         structure = []
@@ -323,7 +322,7 @@ class GitHubService:
                         "name": node.name.value,
                         "start_line": pos.start.line,
                         "end_line": pos.end.line,
-                        "path": list(self.parent_stack)
+                        "path": list(self.parent_stack) or [node.name.value]
                     })
                 except Exception as e:
                     print(f"[visitor] ⚠️ ClassDef error: {e}")
@@ -340,7 +339,7 @@ class GitHubService:
                         "name": node.name.value,
                         "start_line": pos.start.line,
                         "end_line": pos.end.line,
-                        "path": list(self.parent_stack)
+                        "path": list(self.parent_stack) or [node.name.value]
                     })
                 except Exception as e:
                     print(f"[visitor] ⚠️ FunctionDef error: {e}")
@@ -368,7 +367,6 @@ class GitHubService:
             "branch": branch,
             "structure": structure
         }
-
 
     def get_file_history(self, owner, repo, file_path, branch):
         url = f"{self.base_url}/repos/{owner}/{repo}/commits?path={file_path}&sha={branch}"
