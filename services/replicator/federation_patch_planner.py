@@ -1,7 +1,7 @@
 import libcst as cst
 import difflib
 from typing import Optional
-
+import textwrap
 class InjectTransformer(cst.CSTTransformer):
     def __init__(self, anchor_path: list, injected_code: str):
         self.anchor_path = anchor_path
@@ -83,12 +83,18 @@ class FederatedCSTPatchPlanner:
             start, end = anchor_lines
             print(f"[patch-gen] 🎯 Using anchor_lines: {start}–{end}")
             chunk_lines = old_lines[start - 1:end]
+            print("cunnk_code:")
             chunk_code = "\n".join(chunk_lines)
         else:
             print("[patch-gen] 📦 Using full file for patching")
             chunk_code = old_code
 
         try:
+            print("chunk_code before dedent:")
+            print(chunk_code)
+            chunk_code = textwrap.dedent(chunk_code)
+            print("chunk_code after dedent:")
+            print(chunk_code)
             module = cst.parse_module(chunk_code)
         except Exception as e:
             raise ValueError(f"[patch-gen] ❌ Failed to parse target code: {e}")
