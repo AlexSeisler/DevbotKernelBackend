@@ -249,7 +249,7 @@ class FederationService():
 
             chunk_result = self.github.get_file_chunk(
                 owner, repo, patch.file_path, request.branch,
-                start_line=max(1, anchor_lines[0] - 3)
+                start_line=max(1, anchor_lines[-1])
             )
 
             chunk_code = chunk_result["content"]
