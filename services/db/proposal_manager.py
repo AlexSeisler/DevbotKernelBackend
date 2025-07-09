@@ -25,7 +25,7 @@ class ProposalManager:
                         proposal_id, repo_id, branch, file_path, base_sha,
                         anchor, code_block, patched_code, diff,
                         metadata, proposed_by, commit_message,
-                        anchor_lines, anchor_path,  -- ✅ NEW columns
+                        anchor_lines, anchor_path,
                         status, risk_class, diff_summary, created_at
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
@@ -38,11 +38,11 @@ class ProposalManager:
                     patch["code_block"],
                     patch["patched_code"],
                     patch["diff"],
-                    json.dumps(patch.get("metadata", {})),
+                    json.dumps(patch.get("metadata", {})),       # still JSON blob
                     patch.get("proposed_by", "devbot"),
                     patch.get("commit_message", "Federated patch proposal"),
-                    json.dumps(patch.get("anchor_lines")),
-                    json.dumps(patch.get("anchor_path")),  # ✅ Ensure JSON-encoded if present
+                    patch.get("anchor_lines", []),               # list: e.g. [12, 13]
+                    patch.get("anchor_path", []),                # list: e.g. ["ClassName", "method"]
                     "pending",
                     "UNKNOWN",
                     None,
@@ -59,6 +59,7 @@ class ProposalManager:
             raise
         finally:
             self.db.release_connection(conn)
+
 
 
 
