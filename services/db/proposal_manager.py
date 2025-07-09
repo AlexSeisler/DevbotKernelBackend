@@ -27,7 +27,7 @@ class ProposalManager:
                         metadata, proposed_by, commit_message,
                         anchor_lines, anchor_path,  -- ✅ NEW columns
                         status, risk_class, diff_summary, created_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,)
                 """, (
                     proposal_id,
                     patch["repo_id"],
