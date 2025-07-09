@@ -255,8 +255,9 @@ class FederationService():
 
             chunk_result = self.github.get_file_chunk(
                 owner, repo, patch.file_path, request.branch,
-                start_line=anchor_lines[0]
+                start_line=max(1, anchor_lines[0] - 2)  # 👈 shift two line up
             )
+
 
             chunk_code = chunk_result["content"]
             print(f"[propose] 📦 Chunk lines: {chunk_result['start_line']}–{chunk_result['end_line']}, size={len(chunk_code)}")
