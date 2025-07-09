@@ -34,6 +34,7 @@ class InjectTransformer(cst.CSTTransformer):
 
     def _check_and_inject(self, node_name: str, updated_node, body: Optional[cst.BaseSuite]):
         print(f"[transform] 🔍 Checking node: {node_name} — Current path: {self.current_path + [node_name]}")
+        print(f"[transform] 📏 Matching: expected={self.anchor_path} actual={self.current_path + [node_name]}")
 
         if self.current_path + [node_name] == self.anchor_path and not self.inserted:
             print(f"[transform] 🎯 Anchor match! Inserting into: {' → '.join(self.current_path + [node_name])}")
@@ -42,6 +43,8 @@ class InjectTransformer(cst.CSTTransformer):
                 raise ValueError(f"[transform] ❌ Cannot inject — '{node_name}' has no body")
 
             try:
+                print(f"[transform] 💥 Injection Triggered — Nesting Level: {self.nesting_level}")
+
                 new_body = self._inject_into_body(body)
                 self.inserted = True
                 return updated_node.with_changes(body=new_body)
