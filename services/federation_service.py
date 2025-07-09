@@ -306,7 +306,7 @@ class FederationService():
                 "metadata": patch_result.get("metadata", {}),
                 "anchor_lines": anchor_lines
             }
-
+            print(f"[propose2] 📦 Patch payload: {json.dumps(patch_payload, indent=2)}")
             print("[propose] 💾 Saving patch proposal to DB")
             proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
             print(f"[propose] ✅ Saved with ID: {proposal_id}")
@@ -347,7 +347,7 @@ class FederationService():
             "patched_code": payload.updated_content,
             "proposal_id": payload.proposal_id
         }
-        print("patch_dict", patch_dict)
+        
         result = self.commit_patch(patch_dict)
         print("[commit] ✅ Commit finished")
         self.proposal_manager.update_patch_status(payload.proposal_id, "committed")
