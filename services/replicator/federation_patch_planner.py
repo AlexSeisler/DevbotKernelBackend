@@ -90,10 +90,7 @@ class FederatedCSTPatchPlanner:
             chunk_code = old_code
 
         try:
-            print("chunk_code before dedent:")
-            print(chunk_code)
-            chunk_code = textwrap.dedent(chunk_code)
-            print("chunk_code after dedent:")
+            print("chunk_code:")
             print(chunk_code)
             module = cst.parse_module(chunk_code)
         except Exception as e:
