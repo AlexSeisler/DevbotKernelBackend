@@ -233,6 +233,7 @@ class FederationService():
             owner, repo = request.repo_id.split("/")
             print(f"[propose] 🔍 Resolving structure for: {patch.file_path}")
             structure = self.github.parse_structure_for_file(owner, repo, patch.file_path, request.branch)
+            print(f"[propose-debug] 🔬 Full structure response:\n{json.dumps(structure, indent=2)}")
 
             # Anchor path resolution (supports nested paths)
             anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
@@ -241,26 +242,19 @@ class FederationService():
                 raise ValueError("Anchor not found in parsed structure")
 
             anchor_path = anchor_match.get("path", [patch.anchor])
-            # Determine outermost ancestor (first item in path)
-            outermost_name = anchor_path[0]
-            outermost_match = next((s for s in structure["structure"] if s["name"] == outermost_name and s["path"] == [outermost_name]), None)
-            if not outermost_match:
-                print(f"[propose] ❌ Outermost anchor '{outermost_name}' not found — aborting")
-                raise ValueError(f"Outermost anchor '{outermost_name}' not found in structure")
-
-            anchor_lines = [outermost_match["start_line"], outermost_match["end_line"]]
+            anchor_lines = [anchor_match["start_line"], anchor_match["end_line"]]
 
             print(f"[propose] 🎯 Resolved anchor path: {anchor_path}")
             print(f"[propose] 🧬 Anchor lines: {anchor_lines}")
 
             chunk_result = self.github.get_file_chunk(
                 owner, repo, patch.file_path, request.branch,
-                start_line=max(1, anchor_lines[0] - 3)  # 👈 shift two line up
+                start_line=max(1, anchor_lines[0] - 3)
             )
-
 
             chunk_code = chunk_result["content"]
             print(f"[propose] 📦 Chunk lines: {chunk_result['start_line']}–{chunk_result['end_line']}, size={len(chunk_code)}")
+            print(f"[propose-debug] 🔍 Chunk preview:\n{chunk_code[:300]}")
 
             self.planner.context = {
                 "repo_id": request.repo_id,
@@ -301,6 +295,7 @@ class FederationService():
                 "metadata": patch_result.get("metadata", {}),
                 "anchor_lines": anchor_lines
             }
+
             print(f"[propose2] 📦 Patch payload: {json.dumps(patch_payload, indent=2)}")
             print("[propose] 💾 Saving patch proposal to DB")
             proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
@@ -313,6 +308,7 @@ class FederationService():
 
         print("[propose] ✅ Proposal flow complete")
         return proposals
+
 
 
 
