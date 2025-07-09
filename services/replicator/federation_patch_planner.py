@@ -19,21 +19,26 @@ class InjectTransformer(cst.CSTTransformer):
     def _inject_into_body(self, body: cst.BaseSuite) -> cst.BaseSuite:
         indent = "    " * self.nesting_level
         indented_code = textwrap.indent(self.injected_code.strip(), indent)
+        
+        print(f"[inject] 🧾 Original injected_code:\n{self.injected_code!r}")
+        print(f"[inject] 🔧 Computed indent: '{indent}' (nest={self.nesting_level})")
+        print(f"[inject] 🧪 Parsing indented injected_code:\n{indented_code!r}")
 
         try:
-            print(f"[inject] 🧪 Parsing injected code at depth {self.nesting_level}:\n{indented_code}")
             injected_nodes = cst.parse_module(indented_code).body
+            print(f"[inject] ✅ Parsed {len(injected_nodes)} node(s)")
         except Exception as e:
-            raise ValueError(f"[inject] ❌ Failed to parse injected code block:\n{indented_code}\nError: {e}")
+            print(f"[inject] ❌ Parsing failed with exception: {e}")
+            raise ValueError(f"[transform] ❌ Failed to parse injected code block:\n{indented_code}\nError: {e}")
 
         if isinstance(body, cst.IndentedBlock):
-            print(f"[inject] ✅ Appending to IndentedBlock (nest={self.nesting_level})")
+            print(f"[inject] ➕ Appending to existing IndentedBlock")
             return body.with_changes(body=tuple(injected_nodes + list(body.body)))
         elif isinstance(body, cst.SimpleStatementSuite):
             print(f"[inject] 🔁 Wrapping new IndentedBlock from SimpleStatementSuite")
             return cst.IndentedBlock(body=list(injected_nodes) + list(body.body))
         else:
-            raise ValueError(f"[inject] ❌ Unsupported block type: {type(body)}")
+            raise ValueError(f"[transform] ❌ Unsupported block type: {type(body)}")
 
     def _check_and_inject(self, updated_node, body: Optional[cst.BaseSuite]):
         print(f"[check] 🔍 Checking node at path: {self.current_path}")
