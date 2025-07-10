@@ -39,4 +39,5 @@ class PatchProposalModel(Base):
     diff_summary = Column(Text)
     anchor_lines = Column(JSON, nullable=True)  # ✅ NEW
     anchor_path = Column(JSON, nullable=True)   # ✅ NEW
+    patch_strategy = Column(Text, nullable=True, default="insert")  # ✅ NEW FIELD
     created_at = Column(TIMESTAMP, default=datetime.utcnow)

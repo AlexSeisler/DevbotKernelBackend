@@ -25,9 +25,9 @@ class ProposalManager:
                         proposal_id, repo_id, branch, file_path, base_sha,
                         anchor, code_block, patched_code, diff,
                         metadata, proposed_by, commit_message,
-                        anchor_lines, anchor_path,
+                        anchor_lines, anchor_path, patch_strategy,
                         status, risk_class, diff_summary, created_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     proposal_id,
                     patch["repo_id"],
@@ -43,11 +43,13 @@ class ProposalManager:
                     patch.get("commit_message", "Federated patch proposal"),
                     patch.get("anchor_lines", []),               # list: e.g. [12, 13]
                     patch.get("anchor_path", []),                # list: e.g. ["ClassName", "method"]
+                    patch.get("patch_strategy", "insert"),       # ✅ NEW: safely default
                     "pending",
                     "UNKNOWN",
                     None,
                     datetime.utcnow()
                 ))
+
 
             conn.commit()
             return proposal_id

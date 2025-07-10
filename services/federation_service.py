@@ -251,19 +251,23 @@ class FederationService():
             latest_sha = self.github.get_latest_file_sha(owner, repo, patch.file_path, request.branch)
             print(f"[DEBUG] get_latest_file_sha for: {patch.file_path}, branch={request.branch} = {latest_sha}")
 
+            patch_strategy = getattr(patch, "patch_strategy", "insert")  # 🔧 Default strategy handling
+
             self.planner.context = {
                 "repo_id": request.repo_id,
                 "file_path": patch.file_path,
                 "base_sha": latest_sha,
                 "anchor_lines": anchor_lines,
-                "anchor_path": anchor_path
+                "anchor_path": anchor_path,
+                "patch_strategy": patch_strategy  # 🔧 Pass into planner
             }
 
             print("[propose] 🔧 Generating patch diff")
             patch_result = self.planner.generate_patch(
                 old_code=full_file_code,
                 anchor=patch.anchor,
-                code_block=patch.code_block
+                code_block=patch.code_block,
+                patch_strategy=patch_strategy  # 🔧 Planner injection
             )
 
             patch_payload = {
@@ -278,7 +282,9 @@ class FederationService():
                 "patched_code": patch_result["patched_code"],
                 "diff": patch_result["diff"],
                 "metadata": patch_result.get("metadata", {}),
-                "anchor_lines": anchor_lines
+                "anchor_lines": anchor_lines,
+                "anchor_path": anchor_path,
+                "patch_strategy": patch_strategy  # 🔧 Add to DB payload
             }
 
             print(f"[propose2] 📦 Patch payload:\n{json.dumps(patch_payload, indent=2)}")

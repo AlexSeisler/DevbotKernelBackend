@@ -30,7 +30,8 @@ class PatchProposal(BaseModel):
     anchor: str
     code_block: str
     anchor_lines: Optional[List[int]] = None
-    anchor_path: Optional[List[str]] = None  # ✅ NEW: hierarchical path to anchor
+    anchor_path: Optional[List[str]] = None  # ✅ hierarchical path to anchor
+    patch_strategy: Optional[str] = "insert"  # ✅ NEW: mutation mode (insert, append, replace, delete)
 
 
 

@@ -105,7 +105,7 @@ class FederatedCSTPatchPlanner:
         self.context = context or {}
         print(f"[planner:init] ⚙️ Context initialized:\n{json.dumps(self.context, indent=2)}")
 
-    def generate_patch(self, old_code: str, anchor: str, code_block: str) -> dict:
+    def generate_patch(self, old_code: str, anchor: str, code_block: str, patch_strategy: Optional[str] = "insert") -> dict:
         print("[patch-gen] 🔍 Starting generate_patch")
         old_lines = old_code.splitlines()
         anchor_lines = self.context.get("anchor_lines")
@@ -114,24 +114,40 @@ class FederatedCSTPatchPlanner:
         print(f"[patch-gen] 📌 anchor: {anchor}")
         print(f"[patch-gen] 📍 anchor_path: {anchor_path}")
         print(f"[patch-gen] 📐 anchor_lines: {anchor_lines}")
+        print(f"[patch-gen] 🛠 strategy: {patch_strategy}")
         print(f"[patch-gen] 📄 old_code line count: {len(old_lines)}")
 
-        try:
+        # === Line-level replacement/delete mode
+        if anchor_lines and patch_strategy in ("replace", "delete"):
+            start, end = anchor_lines
+            print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
+            if patch_strategy == "replace":
+                new_code_lines = old_lines[:start - 1] + code_block.splitlines() + old_lines[end:]
+            else:  # delete
+                new_code_lines = old_lines[:start - 1] + old_lines[end:]
+            patched_code = "\n".join(new_code_lines)
+        else:
+            # === AST-based strategy (insert/append/default)
             print("[patch-gen] 🧪 Parsing original source with LibCST")
-            module = cst.parse_module(old_code)
-        except Exception as e:
-            raise ValueError(f"[patch-gen] ❌ Failed to parse original source: {e}")
+            try:
+                module = cst.parse_module(old_code)
+            except Exception as e:
+                raise ValueError(f"[patch-gen] ❌ Failed to parse original source: {e}")
 
-        print("[patch-gen] 🧬 Instantiating InjectTransformer")
-        transformer = InjectTransformer(anchor_path=anchor_path, injected_code=code_block)
+            print("[patch-gen] 🧬 Instantiating InjectTransformer")
+            transformer = InjectTransformer(anchor_path=anchor_path, injected_code=code_block)
+            transformer._inject_into_body = transformer._inject_into_body if patch_strategy in ("insert", "replace") else \
+                lambda body: body.with_changes(body=tuple(body.body) + tuple(
+                    cst.parse_module(code_block.strip()).body))
 
-        print("[patch-gen] 🔁 Visiting original module with transformer")
-        modified_module = module.visit(transformer)
+            print("[patch-gen] 🔁 Visiting original module with transformer")
+            modified_module = module.visit(transformer)
 
-        if not transformer.inserted:
-            raise ValueError(f"[patch-gen] ❌ Anchor path '{' → '.join(anchor_path)}' not found — patch not applied")
+            if not transformer.inserted:
+                raise ValueError(f"[patch-gen] ❌ Anchor path '{' → '.join(anchor_path)}' not found — patch not applied")
 
-        patched_code = modified_module.code
+            patched_code = modified_module.code
+
         print("[patch-gen] ✅ Patch injected successfully")
         print("[patch-gen] 📊 Calculating diff")
 
@@ -145,17 +161,12 @@ class FederatedCSTPatchPlanner:
             )
         )
 
-        print(f"[patch-gen] 🧾 Diff lines generated: {len(diff_lines)}")
-        for line in diff_lines:
-            if line.startswith("+") or line.startswith("-"):
-                print(f"[patch-gen] Δ {line}")
-
         if not any(line.startswith(('+', '-')) and not line.startswith(('+++', '---')) for line in diff_lines):
             raise ValueError("[patch-gen] ⚠️ Patch resulted in no meaningful changes — commit skipped")
 
         metadata = {
             "insertion_point": " → ".join(anchor_path),
-            "change_type": "insert",
+            "change_type": patch_strategy,
             "repo_id": self.context.get("repo_id"),
             "file_path": self.context.get("file_path"),
             "base_sha": self.context.get("base_sha"),

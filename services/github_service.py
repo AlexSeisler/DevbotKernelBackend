@@ -352,6 +352,45 @@ class GitHubService:
             module = cst.parse_module(code)
             wrapper = MetadataWrapper(module)
             wrapper.visit(StructureVisitor())
+            # === 🔧 Synthesize anchor regions (BOF, EOF, IMPORTS, TOP) ===
+            lines = code.splitlines()
+            total_lines = len(lines)
+
+            # BOF: Always line 1
+            structure.insert(0, {
+                "type": "synthetic",
+                "name": "BOF",
+                "start_line": 1,
+                "end_line": 1
+            })
+
+            # EOF: Last line of file
+            structure.append({
+                "type": "synthetic",
+                "name": "EOF",
+                "start_line": total_lines,
+                "end_line": total_lines
+            })
+
+            # IMPORTS
+            import_lines = [s["end_line"] for s in structure if s["type"] in ("import", "import_from")]
+            if import_lines:
+                structure.append({
+                    "type": "synthetic",
+                    "name": "IMPORTS",
+                    "start_line": max(import_lines) + 1,
+                    "end_line": max(import_lines) + 1
+                })
+
+            # TOP
+            body_lines = [s["end_line"] for s in structure if s["type"] in ("class", "function")]
+            if body_lines:
+                structure.append({
+                    "type": "synthetic",
+                    "name": "TOP",
+                    "start_line": max(body_lines) + 1,
+                    "end_line": max(body_lines) + 1
+                })
             print(f"[structure-fetch] ✅ Parsed {len(structure)} anchors")
         except Exception as e:
             print(f"[structure-fetch] ❌ Structure parse error: {e}")
