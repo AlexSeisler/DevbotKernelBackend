@@ -400,7 +400,8 @@ class GitHubService:
                 "branch": branch,
                 "structure": []
             }
-
+        print(f"[structure-fetch] ✅ Total structure elements: {len(structure)}")
+        print("Full structure:", structure)
         return {
             "file_path": file_path,
             "branch": branch,
