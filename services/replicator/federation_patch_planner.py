@@ -136,18 +136,11 @@ class FederatedCSTPatchPlanner:
                 patched_code = "\n".join(new_code_lines)
                 print("[patch-gen] ✅ Line-level patch applied")
             else:
-                # Fallback for replace — switch to safe AST insert
-                if patch_strategy == "replace":
-                    print("[patch-gen] ⚠️ 'replace' without anchor_lines — switching to AST-safe 'insert'")
-                    patch_strategy = "insert"
-                    self.context["patch_strategy"] = "insert"
-                    goto_ast = True
-                else:
-                    raise ValueError("[patch-gen] ❌ 'delete' strategy requires anchor_lines")
+                raise ValueError(f"[patch-gen] ❌ '{patch_strategy}' strategy requires anchor_lines for scoped mutation")
         else:
             goto_ast = True
 
-        # === AST-based strategy (insert/append/fallback)
+        # === AST-based strategy (insert/append)
         if goto_ast:
             print("[patch-gen] 🧪 Parsing original source with LibCST")
             try:
