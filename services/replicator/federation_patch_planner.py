@@ -122,45 +122,45 @@ class FederatedCSTPatchPlanner:
         print(f"[patch-gen] 📄 old_code line count: {len(old_lines)}")
 
         # === Line-level replacement/delete mode
-if patch_strategy in ("replace", "delete") and anchor_lines:
-    start, end = anchor_lines
-    print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
-    if patch_strategy == "replace":
-        new_code_lines = old_lines[:start - 1] + code_block.splitlines() + old_lines[end:]
-    else:  # delete
-        new_code_lines = old_lines[:start - 1] + old_lines[end:]
-    patched_code = "\n".join(new_code_lines)
+        if patch_strategy in ("replace", "delete") and anchor_lines:
+            start, end = anchor_lines
+            print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
+            if patch_strategy == "replace":
+                new_code_lines = old_lines[:start - 1] + code_block.splitlines() + old_lines[end:]
+            else:  # delete
+                new_code_lines = old_lines[:start - 1] + old_lines[end:]
+            patched_code = "\n".join(new_code_lines)
 
-elif patch_strategy == "replace" and not anchor_lines:
-    print("[patch-gen] ⚠️ 'replace' without anchor_lines — forcing AST-safe insert (non-destructive)")
-    patch_strategy = "insert"
-    # Fall through to AST injection below
+        elif patch_strategy == "replace" and not anchor_lines:
+            print("[patch-gen] ⚠️ 'replace' without anchor_lines — forcing AST-safe insert (non-destructive)")
+            patch_strategy = "insert"
+            # Fall through to AST injection below
 
-    # === AST-based strategy (insert/append/default)
-    if patch_strategy in ("insert", "append"):
-        print("[patch-gen] 🧪 Parsing original source with LibCST")
-        try:
-            module = cst.parse_module(old_code)
-        except Exception as e:
-            raise ValueError(f"[patch-gen] ❌ Failed to parse original source: {e}")
+        # === AST-based strategy (insert/append/default)
+        if patch_strategy in ("insert", "append"):
+            print("[patch-gen] 🧪 Parsing original source with LibCST")
+            try:
+                module = cst.parse_module(old_code)
+            except Exception as e:
+                raise ValueError(f"[patch-gen] ❌ Failed to parse original source: {e}")
 
-        print("[patch-gen] 🧬 Instantiating InjectTransformer")
-        transformer = InjectTransformer(anchor_path=anchor_path, injected_code=code_block)
+            print("[patch-gen] 🧬 Instantiating InjectTransformer")
+            transformer = InjectTransformer(anchor_path=anchor_path, injected_code=code_block)
 
-        if patch_strategy == "insert":
-            transformer._inject_into_body = transformer._inject_into_body
-        elif patch_strategy == "append":
-            transformer._inject_into_body = lambda body: body.with_changes(
-                body=tuple(body.body) + tuple(cst.parse_module(code_block.strip()).body)
-            )
+            if patch_strategy == "insert":
+                transformer._inject_into_body = transformer._inject_into_body
+            elif patch_strategy == "append":
+                transformer._inject_into_body = lambda body: body.with_changes(
+                    body=tuple(body.body) + tuple(cst.parse_module(code_block.strip()).body)
+                )
 
-        print("[patch-gen] 🔁 Visiting original module with transformer")
-        modified_module = module.visit(transformer)
+            print("[patch-gen] 🔁 Visiting original module with transformer")
+            modified_module = module.visit(transformer)
 
-        if not transformer.inserted:
-            raise ValueError(f"[patch-gen] ❌ Anchor path '{' → '.join(anchor_path)}' not found — patch not applied")
+            if not transformer.inserted:
+                raise ValueError(f"[patch-gen] ❌ Anchor path '{' → '.join(anchor_path)}' not found — patch not applied")
 
-        patched_code = modified_module.code
+            patched_code = modified_module.code
 
 
         print("[patch-gen] ✅ Patch injected successfully")
