@@ -121,27 +121,17 @@ class FederatedCSTPatchPlanner:
         print(f"[patch-gen] 🛠 strategy: {patch_strategy}")
         print(f"[patch-gen] 📄 old_code line count: {len(old_lines)}")
 
-        patched_code = None
-        goto_ast = False
-
-        # === Line-level patching (replace/delete)
-        if patch_strategy in ("replace", "delete"):
-            if anchor_lines and isinstance(anchor_lines, (list, tuple)) and len(anchor_lines) == 2:
-                start, end = anchor_lines
-                print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
-                if patch_strategy == "replace":
-                    new_code_lines = old_lines[:start - 1] + code_block.splitlines() + old_lines[end:]
-                else:  # delete
-                    new_code_lines = old_lines[:start - 1] + old_lines[end:]
-                patched_code = "\n".join(new_code_lines)
-                print("[patch-gen] ✅ Line-level patch applied")
-            else:
-                raise ValueError(f"[patch-gen] ❌ '{patch_strategy}' strategy requires anchor_lines for scoped mutation")
+        # === Line-level replacement/delete mode
+        if anchor_lines and patch_strategy in ("replace", "delete"):
+            start, end = anchor_lines
+            print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
+            if patch_strategy == "replace":
+                new_code_lines = old_lines[:start - 1] + code_block.splitlines() + old_lines[end:]
+            else:  # delete
+                new_code_lines = old_lines[:start - 1] + old_lines[end:]
+            patched_code = "\n".join(new_code_lines)
         else:
-            goto_ast = True
-
-        # === AST-based strategy (insert/append)
-        if goto_ast:
+            # === AST-based strategy (insert/append/default)
             print("[patch-gen] 🧪 Parsing original source with LibCST")
             try:
                 module = cst.parse_module(old_code)
@@ -150,6 +140,11 @@ class FederatedCSTPatchPlanner:
 
             print("[patch-gen] 🧬 Instantiating InjectTransformer")
             transformer = InjectTransformer(anchor_path=anchor_path, injected_code=code_block)
+
+            # 🔐 Harden patch strategy handling
+            if patch_strategy == "replace" and not anchor_lines:
+                print("[patch-gen] ⚠️ 'replace' strategy without anchor_lines — falling back to 'insert'")
+                patch_strategy = "insert"
 
             if patch_strategy == "insert":
                 transformer._inject_into_body = transformer._inject_into_body
