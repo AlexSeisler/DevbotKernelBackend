@@ -121,23 +121,34 @@ class FederatedCSTPatchPlanner:
         print(f"[patch-gen] 🛠 strategy: {patch_strategy}")
         print(f"[patch-gen] 📄 old_code line count: {len(old_lines)}")
 
-        # === Line-level replacement/delete mode
-        if patch_strategy in ("replace", "delete") and anchor_lines:
-            start, end = anchor_lines
-            print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
-            if patch_strategy == "replace":
-                new_code_lines = old_lines[:start - 1] + code_block.splitlines() + old_lines[end:]
-            else:  # delete
-                new_code_lines = old_lines[:start - 1] + old_lines[end:]
-            patched_code = "\n".join(new_code_lines)
+        patched_code = None
+        goto_ast = False
 
+        # === Line-level patching (replace/delete)
+        if patch_strategy in ("replace", "delete"):
+            if anchor_lines:
+                start, end = anchor_lines
+                print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
+                if patch_strategy == "replace":
+                    new_code_lines = old_lines[:start - 1] + code_block.splitlines() + old_lines[end:]
+                else:  # delete
+                    new_code_lines = old_lines[:start - 1] + old_lines[end:]
+                patched_code = "\n".join(new_code_lines)
+                print("[patch-gen] ✅ Line-level patch applied")
+            else:
+                # Fallback for replace — switch to safe AST insert
+                if patch_strategy == "replace":
+                    print("[patch-gen] ⚠️ 'replace' without anchor_lines — switching to AST-safe 'insert'")
+                    patch_strategy = "insert"
+                    self.context["patch_strategy"] = "insert"
+                    goto_ast = True
+                else:
+                    raise ValueError("[patch-gen] ❌ 'delete' strategy requires anchor_lines")
         else:
-            # === AST-based strategy fallback logic
-            if patch_strategy == "replace" and not anchor_lines:
-                print("[patch-gen] ⚠️ 'replace' without anchor_lines — forcing AST-safe insert (non-destructive)")
-                patch_strategy = "insert"
-                self.context["patch_strategy"] = "insert"  # ✅ override in metadata path
+            goto_ast = True
 
+        # === AST-based strategy (insert/append/fallback)
+        if goto_ast:
             print("[patch-gen] 🧪 Parsing original source with LibCST")
             try:
                 module = cst.parse_module(old_code)
@@ -180,7 +191,7 @@ class FederatedCSTPatchPlanner:
 
         metadata = {
             "insertion_point": " → ".join(anchor_path),
-            "change_type": self.context.get("patch_strategy", patch_strategy),  # ✅ context-aware fallback
+            "change_type": patch_strategy,
             "repo_id": self.context.get("repo_id"),
             "file_path": self.context.get("file_path"),
             "base_sha": self.context.get("base_sha"),
