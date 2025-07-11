@@ -126,7 +126,7 @@ class FederatedCSTPatchPlanner:
 
         # === Line-level patching (replace/delete)
         if patch_strategy in ("replace", "delete"):
-            if anchor_lines:
+            if anchor_lines and isinstance(anchor_lines, (list, tuple)) and len(anchor_lines) == 2:
                 start, end = anchor_lines
                 print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
                 if patch_strategy == "replace":
