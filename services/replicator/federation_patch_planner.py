@@ -121,8 +121,12 @@ class FederatedCSTPatchPlanner:
         print(f"[patch-gen] 🛠 strategy: {patch_strategy}")
         print(f"[patch-gen] 📄 old_code line count: {len(old_lines)}")
 
-        # === Line-level replacement/delete mode
-        if anchor_lines and patch_strategy in ("replace", "delete"):
+        patched_code = None
+
+        # === Strict line-level patching for replace/delete
+        if patch_strategy in ("replace", "delete"):
+            if not anchor_lines or not isinstance(anchor_lines, (list, tuple)) or len(anchor_lines) != 2:
+                raise ValueError(f"[patch-gen] ❌ '{patch_strategy}' strategy requires valid anchor_lines")
             start, end = anchor_lines
             print(f"[patch-gen] 🔪 Performing line-level {patch_strategy} from {start} to {end}")
             if patch_strategy == "replace":
@@ -130,8 +134,9 @@ class FederatedCSTPatchPlanner:
             else:  # delete
                 new_code_lines = old_lines[:start - 1] + old_lines[end:]
             patched_code = "\n".join(new_code_lines)
+
         else:
-            # === AST-based strategy (insert/append/default)
+            # === AST-based strategy (insert/append)
             print("[patch-gen] 🧪 Parsing original source with LibCST")
             try:
                 module = cst.parse_module(old_code)
@@ -140,11 +145,6 @@ class FederatedCSTPatchPlanner:
 
             print("[patch-gen] 🧬 Instantiating InjectTransformer")
             transformer = InjectTransformer(anchor_path=anchor_path, injected_code=code_block)
-
-            # 🔐 Harden patch strategy handling
-            if patch_strategy == "replace" and not anchor_lines:
-                print("[patch-gen] ⚠️ 'replace' strategy without anchor_lines — falling back to 'insert'")
-                patch_strategy = "insert"
 
             if patch_strategy == "insert":
                 transformer._inject_into_body = transformer._inject_into_body
