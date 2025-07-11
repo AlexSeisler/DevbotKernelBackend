@@ -131,13 +131,13 @@ class FederatedCSTPatchPlanner:
                 new_code_lines = old_lines[:start - 1] + old_lines[end:]
             patched_code = "\n".join(new_code_lines)
 
-        elif patch_strategy == "replace" and not anchor_lines:
-            print("[patch-gen] ⚠️ 'replace' without anchor_lines — forcing AST-safe insert (non-destructive)")
-            patch_strategy = "insert"
-            # Fall through to AST injection below
+        else:
+            # === AST-based strategy fallback logic
+            if patch_strategy == "replace" and not anchor_lines:
+                print("[patch-gen] ⚠️ 'replace' without anchor_lines — forcing AST-safe insert (non-destructive)")
+                patch_strategy = "insert"
+                self.context["patch_strategy"] = "insert"  # ✅ override in metadata path
 
-        # === AST-based strategy (insert/append/default)
-        if patch_strategy in ("insert", "append"):
             print("[patch-gen] 🧪 Parsing original source with LibCST")
             try:
                 module = cst.parse_module(old_code)
@@ -162,7 +162,6 @@ class FederatedCSTPatchPlanner:
 
             patched_code = modified_module.code
 
-
         print("[patch-gen] ✅ Patch injected successfully")
         print("[patch-gen] 📊 Calculating diff")
 
@@ -181,7 +180,7 @@ class FederatedCSTPatchPlanner:
 
         metadata = {
             "insertion_point": " → ".join(anchor_path),
-            "change_type": patch_strategy,
+            "change_type": self.context.get("patch_strategy", patch_strategy),  # ✅ context-aware fallback
             "repo_id": self.context.get("repo_id"),
             "file_path": self.context.get("file_path"),
             "base_sha": self.context.get("base_sha"),
