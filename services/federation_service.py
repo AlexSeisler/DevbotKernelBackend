@@ -243,6 +243,7 @@ class FederationService():
 
             # ✅ Safety check: reject destructive ops without anchor_lines
             if patch.patch_strategy in ("replace", "delete") and not anchor_lines:
+                print(f"[propose] ❌ Strategy '{patch.patch_strategy}' requires explicit 'anchor_lines' — none provided.")
                 raise ValueError(f"❌ Strategy '{patch.patch_strategy}' requires explicit 'anchor_lines' — none provided.")
 
 
