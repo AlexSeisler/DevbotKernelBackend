@@ -89,9 +89,9 @@ class GitHubService:
             lines = content.splitlines()
             total_lines = len(lines)
 
-            # DEFAULT FLOW — Enforce 500-line max
+            # DEFAULT FLOW — Enforce 500-line max or chunk_size override
             start_idx = max(start_line - 1, 0)
-            limit = 500
+            limit = chunk_size if chunk_size else 500
             end_idx = min(start_idx + limit, total_lines)
 
             sliced = "\n".join(lines[start_idx:end_idx])
@@ -116,8 +116,9 @@ class GitHubService:
                 lines = content.splitlines()
                 total_lines = len(lines)
 
+                # DEFAULT FLOW — Enforce 500-line max or chunk_size override
                 start_idx = max(start_line - 1, 0)
-                limit = 500
+                limit = chunk_size if chunk_size else 500
                 end_idx = min(start_idx + limit, total_lines)
 
                 chunk = lines[start_idx:end_idx]
