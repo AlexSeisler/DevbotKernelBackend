@@ -136,9 +136,18 @@ class FederatedCSTPatchPlanner:
 
             print("[patch-gen] 🧬 Instantiating InjectTransformer")
             transformer = InjectTransformer(anchor_path=anchor_path, injected_code=code_block)
-            transformer._inject_into_body = transformer._inject_into_body if patch_strategy in ("insert", "replace") else \
-                lambda body: body.with_changes(body=tuple(body.body) + tuple(
-                    cst.parse_module(code_block.strip()).body))
+
+            # 🔐 Harden patch strategy handling
+            if patch_strategy == "replace" and not anchor_lines:
+                print("[patch-gen] ⚠️ 'replace' strategy without anchor_lines — falling back to 'insert'")
+                patch_strategy = "insert"
+
+            if patch_strategy == "insert":
+                transformer._inject_into_body = transformer._inject_into_body
+            elif patch_strategy == "append":
+                transformer._inject_into_body = lambda body: body.with_changes(
+                    body=tuple(body.body) + tuple(cst.parse_module(code_block.strip()).body)
+                )
 
             print("[patch-gen] 🔁 Visiting original module with transformer")
             modified_module = module.visit(transformer)
