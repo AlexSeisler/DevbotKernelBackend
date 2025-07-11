@@ -78,26 +78,30 @@ class InjectTransformer(cst.CSTTransformer):
 
     def leave_Module(self, original_node, updated_node):
         print(f"[module] 📦 leave_Module — anchor_path: {self.anchor_path}")
+        try:
+            injected_nodes = tuple(cst.parse_module(self.injected_code.strip()).body)
+        except Exception as e:
+            raise ValueError(f"[module] ❌ Failed to parse injected code at module level: {e}")
+
         if self.anchor_path == ["BOF"] and not self.inserted:
             try:
                 print(f"[module] ✨ Injecting at BOF")
-                injected_nodes = cst.parse_module(self.injected_code.strip()).body
                 self.inserted = True
-                return updated_node.with_changes(body=tuple(injected_nodes + list(updated_node.body)))
+                return updated_node.with_changes(body=injected_nodes + updated_node.body)
             except Exception as e:
                 raise ValueError(f"[module] ❌ BOF injection failed: {e}")
 
         elif self.anchor_path == ["EOF"] and not self.inserted:
             try:
                 print(f"[module] ✨ Injecting at EOF")
-                injected_nodes = cst.parse_module(self.injected_code.strip()).body
                 self.inserted = True
-                return updated_node.with_changes(body=tuple(list(updated_node.body) + list(injected_nodes)))
+                return updated_node.with_changes(body=updated_node.body + injected_nodes)
             except Exception as e:
                 raise ValueError(f"[module] ❌ EOF injection failed: {e}")
 
         print(f"[module] 🧩 No module-level injection performed")
         return updated_node
+
 
 
 class FederatedCSTPatchPlanner:
