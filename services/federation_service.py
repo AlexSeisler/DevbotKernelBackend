@@ -236,11 +236,15 @@ class FederationService():
 
             anchor_match = next((s for s in structure["structure"] if s["name"] == patch.anchor), None)
             if not anchor_match:
-                print("[propose] ❌ Anchor not found in structure — aborting")
-                raise ValueError("Anchor not found in parsed structure")
+                raise ValueError(f"Anchor '{patch.anchor}' not found in file structure")
 
             anchor_path = anchor_match.get("path", [patch.anchor])
-            anchor_lines = [anchor_match["start_line"], anchor_match["end_line"]]
+            anchor_lines = patch.anchor_lines  # ✅ Use from request
+
+            # ✅ Safety check: reject destructive ops without anchor_lines
+            if patch.patch_strategy in ("replace", "delete") and not anchor_lines:
+                raise ValueError(f"❌ Strategy '{patch.patch_strategy}' requires explicit 'anchor_lines' — none provided.")
+
 
             print(f"[propose] 🎯 Resolved anchor path: {anchor_path}")
             print(f"[propose] 🧬 Anchor lines: {anchor_lines}")
