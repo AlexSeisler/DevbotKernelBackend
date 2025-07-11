@@ -287,8 +287,7 @@ class FederationService():
                 "patch_strategy": patch_strategy  # 🔧 Add to DB payload
             }
 
-            print(f"[propose2] 📦 Patch payload:\n{json.dumps(patch_payload, indent=2)}")
-            print("[propose] 💾 Saving patch proposal to DB")
+
             proposal_id = self.proposal_manager.save_patch_proposal(patch_payload)
             patch_payload["proposal_id"] = proposal_id
 
