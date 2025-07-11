@@ -239,13 +239,19 @@ class FederationService():
                 raise ValueError(f"Anchor '{patch.anchor}' not found in file structure")
 
             anchor_path = anchor_match.get("path", [patch.anchor])
-            anchor_lines = patch.anchor_lines  # ✅ Use from request
 
-            # ✅ Safety check: reject destructive ops without anchor_lines
-            if patch.patch_strategy in ("replace", "delete") and not anchor_lines:
-                print(f"[propose] ❌ Strategy '{patch.patch_strategy}' requires explicit 'anchor_lines' — none provided.")
-                raise ValueError(f"❌ Strategy '{patch.patch_strategy}' requires explicit 'anchor_lines' — none provided.")
-
+            # 🔐 Patch strategy validation
+            if patch.patch_strategy in ("replace", "delete"):
+                if patch.anchor_lines:
+                    anchor_lines = patch.anchor_lines  # ✅ Explicit override
+                else:
+                    raise ValueError(f"❌ Strategy '{patch.patch_strategy}' requires explicit 'anchor_lines' — none provided.")
+            else:
+                # ✅ Fallback to parsed structure only for safe strategies
+                if patch.anchor_lines:
+                    anchor_lines = patch.anchor_lines
+                else:
+                    anchor_lines = [anchor_match["start_line"], anchor_match["end_line"]]
 
             print(f"[propose] 🎯 Resolved anchor path: {anchor_path}")
             print(f"[propose] 🧬 Anchor lines: {anchor_lines}")
