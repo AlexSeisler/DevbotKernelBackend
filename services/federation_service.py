@@ -405,7 +405,7 @@ class FederationService():
                 'branch': get(patch, "branch"),
                 'file_path': get(patch, "file_path"),
                 'sha': new_sha,
-                'anchor_path': anchor['path'],
+                'anchor_path': anchor.get('path') or [anchor['name']],
                 'anchor_name': anchor['name'],
                 'anchor_type': anchor['type'],
                 'start_line': anchor['start_line'],
