@@ -397,7 +397,10 @@ class GitHubService:
                 print("[structure-fetch] 💾 Writing anchors to file_structure_cache")
                 from services.db.structure_cache_manager import StructureCacheManager
                 from datetime import datetime
-                structure_manager = StructureCacheManager(self.db)
+                from settings import Database
+
+                db = Database()
+                structure_manager = StructureCacheManager(db)
 
                 sha = self.get_file_sha(owner, repo, file_path, branch)
                 rows = []
@@ -414,7 +417,18 @@ class GitHubService:
                         'end_line': anchor["end_line"],
                         'created_at': datetime.utcnow()
                     })
-                structure_manager.insert_structure_rows(rows)
+
+                conn = db.get_connection()
+                try:
+                    structure_manager.delete_structure_cache(f"{owner}/{repo}", file_path, branch, sha)
+                    structure_manager.insert_structure_rows(rows)
+                    conn.commit()
+                except Exception as e:
+                    conn.rollback()
+                    raise e
+                finally:
+                    db.release_connection(conn)
+
         except Exception as e:
             print(f"[structure-fetch] ❌ Structure parse error: {e}")
             print(f"[structure-fetch] 🔍 Code snippet:\n{code[:500]}")
