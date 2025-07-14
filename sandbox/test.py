@@ -1,11 +1,6 @@
 def greet_user(name):
-    '''
-    Greet a user by name.
-    '''
+    '''Greet a user by name.'''
     return f'Hello, {name}!'
-    '''
-    return f'Hello, {name}!'
-    '''
 def get_total():
     return ((1 + 2) + 3)
 
