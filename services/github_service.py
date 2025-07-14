@@ -405,12 +405,13 @@ class GitHubService:
                 sha = self.get_latest_file_sha(owner, repo, file_path, branch)
                 rows = []
                 for anchor in structure:
+                    anchor_path = anchor.get("path") or [anchor["name"]]  # ✅ Safe fallback
                     rows.append({
                         'repo_id': f"{owner}/{repo}",
                         'branch': branch,
                         'file_path': file_path,
                         'sha': sha,
-                        'anchor_path': anchor.get("path", [anchor["name"]]),
+                        'anchor_path': anchor_path,
                         'anchor_name': anchor["name"],
                         'anchor_type': anchor["type"],
                         'start_line': anchor["start_line"],
