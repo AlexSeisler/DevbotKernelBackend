@@ -5,7 +5,7 @@ def greet_user(name):
     return f'Hello, {name}!'
     '''
     return f'Hello, {name}!'
-
+    '''
 def get_total():
     return ((1 + 2) + 3)
 
