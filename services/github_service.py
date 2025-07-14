@@ -402,7 +402,7 @@ class GitHubService:
                 db = Database()
                 structure_manager = StructureCacheManager(db)
 
-                sha = self.get_file_sha(owner, repo, file_path, branch)
+                sha = self.get_latest_file_sha(owner, repo, file_path, branch)
                 rows = []
                 for anchor in structure:
                     rows.append({
