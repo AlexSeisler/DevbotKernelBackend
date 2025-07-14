@@ -387,6 +387,41 @@ class FederationService():
             self.proposal_manager.update_patch_status(pid, "committed")
 
         print("[patch] ✅ Patch committed")
+        # 🧠 Structure Cache Refresh (post-commit only)
+        from services.db.structure_cache_manager import StructureCacheManager
+        from datetime import datetime
+
+        structure_manager = StructureCacheManager(self.db)
+        new_sha = commit_result['content']['sha']
+
+        structure_result = self.github.parse_structure_for_file(
+            owner, repo, file_path=get(patch, "file_path"), branch=get(patch, "branch"), update_cache=True
+        )
+
+        structure_rows = []
+        for anchor in structure_result['structure']:
+            structure_rows.append({
+                'repo_id': get(patch, "repo_id"),
+                'branch': get(patch, "branch"),
+                'file_path': get(patch, "file_path"),
+                'sha': new_sha,
+                'anchor_path': anchor['path'],
+                'anchor_name': anchor['name'],
+                'anchor_type': anchor['type'],
+                'start_line': anchor['start_line'],
+                'end_line': anchor['end_line'],
+                'created_at': datetime.utcnow()
+            })
+
+        structure_manager.delete_structure_cache(
+            get(patch, "repo_id"),
+            get(patch, "file_path"),
+            get(patch, "branch"),
+            new_sha
+        )
+        structure_manager.insert_structure_rows(structure_rows)
+        print("[patch] 🧠 Structure cache refreshed")
+
         return {"status": "patch_committed", "data": commit_result}
 
     def commit_patch_to_github(self, owner, repo, file_path, branch, content, sha, message):

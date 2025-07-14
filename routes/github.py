@@ -52,7 +52,7 @@ async def get_file_content(
 async def parse_file_structure(file_path: str, branch: str = "main"):
     try:
         print(f"[routes/structure] 🔍 Incoming request — file_path={file_path}, branch={branch}")
-        return github_service.parse_structure_for_file(OWNER, REPO, file_path, branch)
+        return github_service.parse_structure_for_file(OWNER, REPO, file_path, branch, update_cache=True)
     except Exception as e:
         print(f"[routes/structure] ❌ Exception in parse_file_structure: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to parse file structure")

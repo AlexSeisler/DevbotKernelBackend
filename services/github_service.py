@@ -301,7 +301,7 @@ class GitHubService:
 
         return structure
 
-    def parse_structure_for_file(self, owner: str, repo: str, file_path: str, branch: str = "main"):
+    def parse_structure_for_file(self, owner: str, repo: str, file_path: str, branch: str = "main", update_cache: bool = False):
         print(f"[structure-fetch] 🔍 Fetching file: {file_path} on branch: {branch}")
         code = self.get_large_file_blob(owner, repo, file_path, branch)
         print(f"[structure-fetch] 📏 File length: {len(code.splitlines())} lines")
@@ -393,6 +393,28 @@ class GitHubService:
                     "end_line": max(body_lines) + 1
                 })
             print(f"[structure-fetch] ✅ Parsed {len(structure)} anchors")
+            if update_cache:
+                print("[structure-fetch] 💾 Writing anchors to file_structure_cache")
+                from services.db.structure_cache_manager import StructureCacheManager
+                from datetime import datetime
+                structure_manager = StructureCacheManager(self.db)
+
+                sha = self.get_file_sha(owner, repo, file_path, branch)
+                rows = []
+                for anchor in structure:
+                    rows.append({
+                        'repo_id': f"{owner}/{repo}",
+                        'branch': branch,
+                        'file_path': file_path,
+                        'sha': sha,
+                        'anchor_path': anchor.get("path", [anchor["name"]]),
+                        'anchor_name': anchor["name"],
+                        'anchor_type': anchor["type"],
+                        'start_line': anchor["start_line"],
+                        'end_line': anchor["end_line"],
+                        'created_at': datetime.utcnow()
+                    })
+                structure_manager.insert_structure_rows(rows)
         except Exception as e:
             print(f"[structure-fetch] ❌ Structure parse error: {e}")
             print(f"[structure-fetch] 🔍 Code snippet:\n{code[:500]}")
