@@ -27,3 +27,7 @@ def describe1():
     print("Line 3")
     print("Line 4")
     return '🔄 Line-shifting test'
+    print("Line 2")
+    print("Line 3")
+    print("Line 4")
+    return '🔄 Line-shifting test'
