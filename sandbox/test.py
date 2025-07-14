@@ -6,8 +6,7 @@ def describe():
     return 'This is a test function.'
 
 def describe1():
-    print("Line 1")
-    print("Line 2")
-    print("Line 3")
-    print("Line 4")
-    return '🔄 Line-shifting test'
+    import logging
+    logging.info("describe1 was called")
+    print("Updated Line C")
+    return '📦 Enhanced logic with logging'
