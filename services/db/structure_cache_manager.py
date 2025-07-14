@@ -15,8 +15,7 @@ class StructureCacheManager:
                     WHERE repo_id = %s
                     AND file_path = %s
                     AND branch = %s
-                    AND sha = %s
-                """, (repo_id, file_path, branch, sha))
+                """, (repo_id, file_path, branch))
                 print(f"[cache] ✅ Delete executed — {cur.rowcount} rows removed")
             conn.commit()
         except Exception as e:
