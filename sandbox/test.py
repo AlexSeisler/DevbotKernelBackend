@@ -6,6 +6,7 @@ def describe():
     return 'This is a test function.'
 
 def describe1():
-    print("Updated Line A")
-    print("Updated Line B")
-    return '✅ Confirmed cache fix'
+    import logging
+    logging.info("describe1 was called")
+    print("Updated Line C")
+    return '📦 Enhanced logic with logging'
