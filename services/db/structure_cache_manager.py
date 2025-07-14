@@ -8,17 +8,20 @@ class StructureCacheManager:
     def delete_structure_cache(self, repo_id, file_path, branch, sha):
         conn = self.db.get_connection()
         try:
+            print(f"[cache] 🗑 Attempting to delete cache for: {repo_id}, {file_path}, {branch}, {sha}")
             with conn.cursor() as cur:
                 cur.execute("""
                     DELETE FROM file_structure_cache
                     WHERE repo_id = %s
-                      AND file_path = %s
-                      AND branch = %s
-                      AND sha = %s
+                    AND file_path = %s
+                    AND branch = %s
+                    AND sha = %s
                 """, (repo_id, file_path, branch, sha))
+                print(f"[cache] ✅ Delete executed — {cur.rowcount} rows removed")
             conn.commit()
         except Exception as e:
             conn.rollback()
+            print(f"[cache] ❌ Delete failed: {e}")
             raise
         finally:
             self.db.release_connection(conn)
