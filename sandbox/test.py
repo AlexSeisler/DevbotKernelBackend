@@ -5,5 +5,5 @@ def greet_user(name):
 def describe():
     return 'This is a test function.'
 
-def describe():
+def describe1():
     return 'This is a test function.'
