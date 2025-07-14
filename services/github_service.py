@@ -421,7 +421,22 @@ class GitHubService:
                 conn = db.get_connection()
                 try:
                     structure_manager.delete_structure_cache(f"{owner}/{repo}", file_path, branch, sha)
-                    structure_manager.insert_structure_rows(rows)
+                    # Deduplicate rows based on full composite key: anchor_path + start_line + type
+                    seen_keys = set()
+                    deduped_rows = []
+                    for r in rows:
+                        key = (
+                            tuple(r['anchor_path']),
+                            r['start_line'],
+                            r['anchor_type']
+                        )
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            deduped_rows.append(r)
+                        else:
+                            print(f"[dedup] ⚠️ Skipped duplicate anchor: {r['anchor_name']} at line {r['start_line']}")
+
+                    structure_manager.insert_structure_rows(deduped_rows)
                     conn.commit()
                 except Exception as e:
                     conn.rollback()
