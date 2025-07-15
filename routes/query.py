@@ -1,11 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from models.query_schema import QueryRequest
 from services.db.query_executor import execute_query, db
 
 router = APIRouter()
 
 @router.post("/query")
-async def query_table(request: QueryRequest):
+async def query_table(request: QueryRequest = Body(...)):
     try:
         print("✅ /query reached: Request payload =", request.dict())
 
