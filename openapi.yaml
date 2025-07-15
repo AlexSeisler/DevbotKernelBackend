@@ -1,0 +1,577 @@
+openapi: 3.1.0
+info:
+  title: DevBot Federation Kernel API
+  version: 4.1.0
+  description: >
+    The DevBot SaaS Federation Kernel Backend — enables GPT agents to orchestrate GitHub
+    repositories safely for SaaS ingestion, semantic parsing, patch-controlled replication,
+    federation mapping, and multi-phase SaaS engineering automation.
+
+servers:
+  - url: https://devbotkernelbackend-v1j2.onrender.com
+
+paths:
+  /health/ping:
+    get:
+      summary: Kernel health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is live
+
+  /repo/tree:
+    get:
+      summary: Retrieve full repository file tree
+      operationId: getRepoTree
+      parameters:
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+        - name: recursive
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: path_prefix
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repo tree retrieved
+
+  /repo/file:
+    get:
+      summary: Retrieve file content (with optional chunking)
+      operationId: getFileContent
+      parameters:
+        - name: file_path
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+        - name: include_meta
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: start_line
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: chunk_size
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: File content retrieved (chunked if requested)
+
+  /repo/file/structure:
+    get:
+      summary: Parse and return file structure (functions, classes)
+      operationId: getFileStructure
+      parameters:
+        - name: file_path
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: File structure retrieved
+
+  /repo/history:
+    get:
+      summary: Retrieve file commit history
+      operationId: getFileHistory
+      parameters:
+        - name: file_path
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: File history retrieved
+
+  /repo/sha:
+    get:
+      summary: Retrieve latest branch SHA
+      operationId: getBranchSHA
+      parameters:
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: Branch SHA retrieved
+
+
+  /repo/branch:
+    post:
+      summary: Create new branch
+      operationId: createBranch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchCreateRequest'
+      responses:
+        '200':
+          description: Branch created
+
+  /repo/pull-request:
+    post:
+      summary: Create pull request
+      operationId: createPullRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PullRequestCreateRequest'
+      responses:
+        '200':
+          description: Pull request created
+
+  /federation/import-repo:
+    post:
+      summary: Ingest new repository into federation kernel
+      operationId: importRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRepoRequest'
+      responses:
+        '200':
+          description: Repo ingested
+
+  /federation-zip/zip-ingest:
+    post:
+      summary: Ingest Github Zip
+      operationId: ingestZip
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZipIngestGitRequest'
+      responses:
+        '200':
+          description: Ingestion result
+
+  /federation/graph/link:
+    post:
+      summary: Link semantic nodes into federation graph
+      operationId: linkFederationNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkFederationNodeRequest'
+      responses:
+        '200':
+          description: Node linked
+
+  /federation/graph/query:
+    get:
+      summary: Query current federation graph memory
+      operationId: queryFederationGraph
+      parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Federation graph returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  repo_id:
+                    type: integer
+                  nodes:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
+                    properties:
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+                      has_more:
+                        type: boolean
+
+
+  /federation/propose-patch:
+    post:
+      summary: Propose federation patch set
+      operationId: proposeFederationPatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposePatchRequest'
+      responses:
+        '200':
+          description: Patch proposal registered
+
+  /federation/commit-patch:
+    post:
+      summary: Commit approved federation patch
+      operationId: commitFederationPatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitPatchRequest'
+      responses:
+        '200':
+          description: Patch committed
+
+  /replication/plan:
+    post:
+      summary: Generate SaaS replication plan
+      operationId: generateReplicationPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationPlanRequest'
+      responses:
+        '200':
+          description: Replication plan generated
+
+  /replication/execute:
+    post:
+      summary: Execute SaaS replication plan
+      operationId: executeReplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationExecutionRequest'
+      responses:
+        '200':
+          description: Replication executed
+
+  /orchestrate/replicate-saas:
+    post:
+      summary: Execute full SaaS federation replication orchestration loop
+      operationId: replicateSaaS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicateSaaSRequest'
+      responses:
+        '200':
+          description: Full replication executed
+
+  /training/build-training-set:
+    get:
+      summary: Export training dataset from federation graph memory
+      operationId: buildTrainingSet
+      responses:
+        '200':
+          description: Training set exported
+  /query:
+    post:
+      summary: Flexible database query interface for federation memory
+      operationId: queryTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Query results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      type: object
+
+components:
+  schemas:
+    QueryRequest:
+      type: object
+      properties:
+        table:
+          type: string
+          enum: [file_structure_cache]
+          description: Name of the allowed table to query
+        filters:
+          type: object
+          additionalProperties: true
+          description: Key-value filter map (e.g., repo_id, branch, sha, anchor_path)
+          example:
+            repo_id: AlexSeisler/DevbotKernelBackend
+            file_path: sandbox/test.py
+            branch: main
+            anchor_path: ["greet_user"]
+            sha: abcdef123456...
+        limit:
+          type: integer
+          default: 100
+          description: Maximum number of rows to return
+        order_by:
+          type: string
+          description: Column to order results by
+        desc:
+          type: boolean
+          default: false
+          description: If true, results are sorted descending
+
+    ImportRepoRequest:
+      type: object
+      properties:
+        owner:
+          type: string
+        repo:
+          type: string
+        default_branch:
+          type: string
+
+    LinkFederationNodeRequest:
+      type: object
+      properties:
+        repo_id:
+          type: integer
+        file_path:
+          type: string
+        name:
+          type: string
+        cross_linked_to:
+          type: string
+        notes:
+          type: string
+        node_type:
+          type: string
+        federation_weight:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+    ProposePatchRequest:
+      type: object
+      properties:
+        repo_id:
+          type: string
+        branch:
+          type: string
+        proposed_by:
+          type: string
+        commit_message:
+          type: string
+        patches:
+          type: array
+          items:
+            type: object
+            properties:
+              file_path:
+                type: string
+              base_sha:
+                type: string
+              anchor:
+                type: string
+              code_block:
+                type: string
+              anchor_lines:
+                type: array
+                items:
+                  type: integer
+                description: >
+                  Optional [start, end] line numbers for scoped patching
+              anchor_path:
+                type: array
+                items:
+                  type: string
+                description: >
+                  Optional full hierarchical path to the anchor 
+                  (e.g., ["OuterClass", "InnerClass", "target_func"])
+              patch_strategy:
+                type: string
+                enum: [insert, append, replace, delete]
+                default: insert
+                description: >
+                  Defines how to apply the code_block in relation to the anchor.
+                  • insert (default): inject at top of node
+                  • append: inject at bottom
+                  • replace: overwrite anchor or anchor_lines
+                  • delete: remove anchor or lines only
+
+    CommitPatchRequest:
+      type: object
+      properties:
+        repo_id:
+          type: string
+        branch:
+          type: string
+        file_path:
+          type: string
+        commit_message:
+          type: string
+        base_sha:
+          type: string
+        updated_content:
+          type: string
+
+    ReplicationPlanRequest:
+      type: object
+      properties:
+        source_repo_id:
+          type: string
+        target_repo_id:
+          type: string
+
+    ReplicationExecutionRequest:
+      type: object
+      properties:
+        source_repo_id:
+          type: string
+        target_repo_id:
+          type: string
+        commit_message:
+          type: string
+        target_branch:
+          type: string
+        modules:
+          type: array
+          items:
+            type: object
+            properties:
+              file_path:
+                type: string
+              node_name:
+                type: string
+              linked_to:
+                type: string
+              replication_strategy:
+                type: string
+
+    ReplicateSaaSRequest:
+      type: object
+      properties:
+        source_repo:
+          type: string
+        target_repo:
+          type: string
+
+    BranchCreateRequest:
+      type: object
+      properties:
+        new_branch:
+          type: string
+        base_branch:
+          type: string
+          default: main
+
+    ZipIngestGitRequest:
+      type: object
+      properties:
+        owner:
+          type: string
+        repo:
+          type: string
+        branch:
+          type: string
+        repo_id:
+          type: integer
+
+    PullRequestCreateRequest:
+      type: object
+      properties:
+        source_branch:
+          type: string
+        target_branch:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
