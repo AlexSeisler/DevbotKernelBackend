@@ -50,3 +50,94 @@ def execute_query(db, table, filters, limit=100, order_by=None, desc=False):
 
     finally:
         db.release_connection(conn)
+def insert_rows(table, rows):
+    if table not in ALLOWED_TABLES:
+        raise ValueError("Table not allowed")
+    if not rows:
+        return []
+    
+    columns = rows[0].keys()
+    values = [[row[col] for col in columns] for row in rows]
+
+    query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) RETURNING *").format(
+        sql.Identifier(table),
+        sql.SQL(", ").join(map(sql.Identifier, columns)),
+        sql.SQL(", ").join(sql.Placeholder() * len(columns))
+    )
+
+    conn = db.get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.executemany(query.as_string(conn), values)
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description]
+            return [dict(zip(columns, row)) for row in rows]
+    finally:
+        db.release_connection(conn)
+
+
+def update_rows(table, filters, updates):
+    if table not in ALLOWED_TABLES:
+        raise ValueError("Table not allowed")
+    
+    set_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in updates]
+    where_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in filters]
+
+    values = list(updates.values()) + list(filters.values())
+
+    query = sql.SQL("UPDATE {} SET {} WHERE {} RETURNING *").format(
+        sql.Identifier(table),
+        sql.SQL(", ").join(set_clause),
+        sql.SQL(" AND ").join(where_clause)
+    )
+
+    conn = db.get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query.as_string(conn), values)
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description]
+            return [dict(zip(columns, row)) for row in rows]
+    finally:
+        db.release_connection(conn)
+
+
+def delete_rows(table, filters):
+    if table not in ALLOWED_TABLES:
+        raise ValueError("Table not allowed")
+
+    where_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in filters]
+    values = list(filters.values())
+
+    query = sql.SQL("DELETE FROM {} WHERE {} RETURNING *").format(
+        sql.Identifier(table),
+        sql.SQL(" AND ").join(where_clause)
+    )
+
+    conn = db.get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query.as_string(conn), values)
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description]
+            return [dict(zip(columns, row)) for row in rows]
+    finally:
+        db.release_connection(conn)
+
+
+def create_table(table, columns):
+    if table not in ALLOWED_TABLES:
+        raise ValueError("Table not allowed")
+
+    column_defs = [f"{col} {dtype}" for col, dtype in columns.items()]
+    query = sql.SQL("CREATE TABLE IF NOT EXISTS {} ({})").format(
+        sql.Identifier(table),
+        sql.SQL(", ").join(sql.SQL(col) for col in column_defs)
+    )
+
+    conn = db.get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query.as_string(conn))
+    finally:
+        db.release_connection(conn)
