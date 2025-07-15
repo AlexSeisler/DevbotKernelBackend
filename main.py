@@ -9,7 +9,7 @@ from routes import federation_zip
 # If this line causes reload logs in Render, hot-reload is working
 
 # 🧠 Import ALL existing route files
-from routes import github, pull_request, health, federation, replication, orchestration, query
+from routes import github, pull_request, health, federation, replication, orchestration, query, db_write
 from services.federation_service import FederationService
 
 # 🔐 Load .env credentials
