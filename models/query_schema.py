@@ -1,17 +1,16 @@
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional, Literal
+from typing import Optional, Literal
+import json
 
 class QueryRequest(BaseModel):
     table: Literal["file_structure_cache"]
-    filters: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        example={
-            "repo_id": "AlexSeisler/DevbotKernelBackend",
-            "file_path": "sandbox/test.py",
-            "branch": "main",
-            "anchor_path": ["greet_user"]
-        }
+    filters: Optional[str] = Field(
+        default="{}",
+        example='{"repo_id": "AlexSeisler/DevbotKernelBackend", "file_path": "sandbox/test.py", "branch": "main", "anchor_path": ["greet_user"]}'
     )
     limit: Optional[int] = 100
     order_by: Optional[str] = None
     desc: Optional[bool] = False
+
+    def parsed_filters(self):
+        return json.loads(self.filters or "{}")

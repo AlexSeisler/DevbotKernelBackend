@@ -386,15 +386,9 @@ components:
           enum: [file_structure_cache]
           description: Name of the allowed table to query
         filters:
-          type: object
-          additionalProperties: true
-          description: Key-value filter map (e.g., repo_id, branch, sha, anchor_path)
-          example:
-            repo_id: AlexSeisler/DevbotKernelBackend
-            file_path: sandbox/test.py
-            branch: main
-            anchor_path: ["greet_user"]
-            sha: abcdef123456...
+          type: string
+          description: JSON stringified filter object (required for compatibility with GPT actions)
+          example: '{"repo_id": "AlexSeisler/DevbotKernelBackend", "file_path": "sandbox/test.py", "branch": "main", "anchor_path": ["greet_user"], "sha": "abcdef123456..."}'
         limit:
           type: integer
           default: 100

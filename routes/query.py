@@ -9,10 +9,12 @@ async def query_table(request: QueryRequest = Body(...)):
     try:
         print("✅ /query reached: Request payload =", request.dict())
 
+        filters_dict = request.parsed_filters()
+
         rows = execute_query(
             db=db,
             table=request.table,
-            filters=request.filters,
+            filters=filters_dict,
             limit=request.limit,
             order_by=request.order_by,
             desc=request.desc
