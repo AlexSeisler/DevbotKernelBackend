@@ -21,7 +21,8 @@ def execute_query(db, table, filters, limit=100, order_by=None, desc=False):
 
         for key, val in filters.items():
             if isinstance(val, list):
-                clauses.append(sql.SQL("{} = ANY(%s)").format(sql.Identifier(key)))
+                # Use Postgres array containment check
+                clauses.append(sql.SQL("{} @> %s").format(sql.Identifier(key)))
             else:
                 clauses.append(sql.SQL("{} = %s").format(sql.Identifier(key)))
             values.append(val)
