@@ -76,8 +76,8 @@ async def serve_manifest():
             "type": "openapi",
             "url": "https://devbotkernelbackend-v1j2.onrender.com/openapi.yaml"
         },
-        "contact_email": "support@example.com",
-        "legal_info_url": "https://example.com/legal"
+        "contact_email": "alex@acsresultsai.net",
+        "legal_info_url": "https://gist.github.com/AlexSeisler/0c5fcf534f39e40b1200887d55f0f7a3"
     })
 
 @app.get("/openapi.yaml", include_in_schema=False)
