@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from dotenv import load_dotenv
 import inspect
 from routes import federation_zip
@@ -62,3 +62,24 @@ app.include_router(replication.router)
 app.include_router(orchestration.router)
 app.include_router(federation_zip.router)
 app.include_router(query.router)
+
+# ✅ Add ai-plugin.json and OpenAPI serving routes
+@app.get("/.well-known/ai-plugin.json", include_in_schema=False)
+async def serve_manifest():
+    return JSONResponse({
+        "schema_version": "v1",
+        "name_for_human": "DevBot Kernel API",
+        "name_for_model": "devbot_kernel_api",
+        "description_for_model": "Federation kernel interface for querying and patching SaaS module structure.",
+        "auth": {"type": "none"},
+        "api": {
+            "type": "openapi",
+            "url": "https://devbotkernelbackend-v1j2.onrender.com/openapi.yaml"
+        },
+        "contact_email": "support@example.com",
+        "legal_info_url": "https://example.com/legal"
+    })
+
+@app.get("/openapi.yaml", include_in_schema=False)
+async def get_openapi_yaml():
+    return FileResponse("openapi.yaml")
