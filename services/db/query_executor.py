@@ -10,9 +10,6 @@ def execute_query(db, table, filters, limit=100, order_by=None, desc=False):
     print(f"Filters: {filters}")
     print(f"Limit: {limit}, Order by: {order_by}, Desc: {desc}")
 
-    if table not in ALLOWED_TABLES:
-        raise ValueError("Table not allowed")
-
     conn = db.get_connection()
     try:
         base = sql.SQL("SELECT * FROM {}").format(sql.Identifier(table))
