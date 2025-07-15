@@ -2,7 +2,7 @@ from psycopg2 import sql
 from settings import Database
 
 db = Database()
-ALLOWED_TABLES = {"file_structure_cache"}
+
 
 def execute_query(db, table, filters, limit=100, order_by=None, desc=False):
     print("[/query] 📥 Incoming query")
