@@ -375,6 +375,87 @@ paths:
                     type: array
                     items:
                       type: object
+  /insert:
+    post:
+      summary: Insert row(s) into a database table
+      operationId: insertRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertRequest'
+      responses:
+        '200':
+          description: Rows inserted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /update:
+    post:
+      summary: Update fields in a database table using filters
+      operationId: updateRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRequest'
+      responses:
+        '200':
+          description: Rows updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /delete:
+    post:
+      summary: Delete rows from a database table using filters
+      operationId: deleteRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteRequest'
+      responses:
+        '200':
+          description: Rows deleted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /create-table:
+    post:
+      summary: Create a new table with defined schema
+      operationId: createTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTableRequest'
+      responses:
+        '200':
+          description: Table created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
 
 components:
   schemas:
@@ -400,6 +481,43 @@ components:
           type: boolean
           default: false
           description: If true, results are sorted descending
+    InsertRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        rows:
+          type: array
+          items:
+            type: object
+
+    UpdateRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        filters:
+          type: object
+        updates:
+          type: object
+
+    DeleteRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        filters:
+          type: object
+
+    CreateTableRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        columns:
+          type: object
+          additionalProperties:
+            type: string
 
     ImportRepoRequest:
       type: object
