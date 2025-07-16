@@ -22,9 +22,12 @@ class UpdateRequest(BaseModel):
     filters: str  # stringified JSON
     updates: str  # stringified JSON
 
+class DeleteRequest(BaseModel):
+    table: str
+    filters: str  # stringified JSON
+
     def parsed_filters(self) -> Dict[str, Any]:
         return json.loads(self.filters)
-
     def parsed_updates(self) -> Dict[str, Any]:
         return json.loads(self.updates)
     table: str
