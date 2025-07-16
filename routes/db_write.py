@@ -36,3 +36,13 @@ async def create_table_handler(req: CreateTableRequest):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+@router.get("/introspect/tables")
+async def introspect_tables():
+    conn = db.get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')")
+            rows = cur.fetchall()
+            return [row[0] for row in rows]
+    finally:
+        db.release_connection(conn)
