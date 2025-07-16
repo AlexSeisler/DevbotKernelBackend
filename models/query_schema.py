@@ -26,9 +26,12 @@ class DeleteRequest(BaseModel):
     table: str
     filters: str  # stringified JSON
 
-    def parsed_filters(self) -> Dict[str, Any]:
-        return json.loads(self.filters)
-    def parsed_updates(self) -> Dict[str, Any]:
+class CreateTableRequest(BaseModel):
+    table: str
+    columns: str  # stringified JSON
+
+    def parsed_columns(self) -> Dict[str, str]:
+        return json.loads(self.columns)
         return json.loads(self.updates)
     table: str
     filters: Dict[str, Any]
