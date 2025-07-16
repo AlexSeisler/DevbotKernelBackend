@@ -48,8 +48,6 @@ def execute_query(db, table, filters, limit=100, order_by=None, desc=False):
     finally:
         db.release_connection(conn)
 def insert_rows(table, rows):
-    if table not in ALLOWED_TABLES:
-        raise ValueError("Table not allowed")
     if not rows:
         return []
     
@@ -74,9 +72,6 @@ def insert_rows(table, rows):
 
 
 def update_rows(table, filters, updates):
-    if table not in ALLOWED_TABLES:
-        raise ValueError("Table not allowed")
-    
     set_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in updates]
     where_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in filters]
 
@@ -100,9 +95,6 @@ def update_rows(table, filters, updates):
 
 
 def delete_rows(table, filters):
-    if table not in ALLOWED_TABLES:
-        raise ValueError("Table not allowed")
-
     where_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in filters]
     values = list(filters.values())
 
@@ -123,9 +115,6 @@ def delete_rows(table, filters):
 
 
 def create_table(table, columns):
-    if table not in ALLOWED_TABLES:
-        raise ValueError("Table not allowed")
-
     column_defs = [f"{col} {dtype}" for col, dtype in columns.items()]
     query = sql.SQL("CREATE TABLE IF NOT EXISTS {} ({})").format(
         sql.Identifier(table),
