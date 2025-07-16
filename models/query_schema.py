@@ -15,7 +15,10 @@ from typing import List, Dict, Any
 
 class InsertRequest(BaseModel):
     table: str
-    rows: List[Dict[str, Any]]
+    rows: str  # stringified JSON array of dicts
+
+    def parsed_rows(self) -> List[Dict[str, Any]]:
+        return json.loads(self.rows)
 
 class UpdateRequest(BaseModel):
     table: str
