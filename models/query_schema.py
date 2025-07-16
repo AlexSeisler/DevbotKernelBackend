@@ -17,10 +17,16 @@ class InsertRequest(BaseModel):
     table: str
     rows: str  # stringified JSON array of dicts
 
-    def parsed_rows(self) -> List[Dict[str, Any]]:
-        return json.loads(self.rows)
-
 class UpdateRequest(BaseModel):
+    table: str
+    filters: str  # stringified JSON
+    updates: str  # stringified JSON
+
+    def parsed_filters(self) -> Dict[str, Any]:
+        return json.loads(self.filters)
+
+    def parsed_updates(self) -> Dict[str, Any]:
+        return json.loads(self.updates)
     table: str
     filters: Dict[str, Any]
     updates: Dict[str, Any]
