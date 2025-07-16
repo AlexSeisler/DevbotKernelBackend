@@ -52,8 +52,6 @@ def insert_rows(table, rows):
         return []
 
     columns = rows[0].keys()
-    values = [[row[col] for col in columns] for row in rows]
-
     query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) RETURNING *").format(
         sql.Identifier(table),
         sql.SQL(", ").join(map(sql.Identifier, columns)),
@@ -63,11 +61,15 @@ def insert_rows(table, rows):
     conn = db.get_connection()
     try:
         with conn.cursor() as cur:
-            cur.executemany(query.as_string(conn), values)
+            inserted = []
+            for row in rows:
+                values = [row[col] for col in columns]
+                cur.execute(query.as_string(conn), values)
+                inserted_row = cur.fetchone()
+                column_names = [desc[0] for desc in cur.description]
+                inserted.append(dict(zip(column_names, inserted_row)))
             conn.commit()
-            rows = cur.fetchall()
-            columns = [desc[0] for desc in cur.description]
-            return [dict(zip(columns, row)) for row in rows]
+            return inserted
     finally:
         db.release_connection(conn)
 
