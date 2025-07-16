@@ -124,6 +124,12 @@ def create_table(table, columns):
     conn = db.get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(query.as_string(conn))
+            sql_str = query.as_string(conn)
+            print(f"[DEBUG] Executing SQL: {sql_str}")
+            cur.execute(sql_str)
+            conn.commit()
+    except Exception as e:
+        print(f"[ERROR] Table creation failed: {e}")
+        raise
     finally:
         db.release_connection(conn)
