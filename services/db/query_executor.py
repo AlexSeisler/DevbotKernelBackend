@@ -50,7 +50,7 @@ def execute_query(db, table, filters, limit=100, order_by=None, desc=False):
 def insert_rows(table, rows):
     if not rows:
         return []
-    
+
     columns = rows[0].keys()
     values = [[row[col] for col in columns] for row in rows]
 
@@ -64,6 +64,7 @@ def insert_rows(table, rows):
     try:
         with conn.cursor() as cur:
             cur.executemany(query.as_string(conn), values)
+            conn.commit()
             rows = cur.fetchall()
             columns = [desc[0] for desc in cur.description]
             return [dict(zip(columns, row)) for row in rows]
@@ -74,7 +75,6 @@ def insert_rows(table, rows):
 def update_rows(table, filters, updates):
     set_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in updates]
     where_clause = [sql.SQL("{} = %s").format(sql.Identifier(k)) for k in filters]
-
     values = list(updates.values()) + list(filters.values())
 
     query = sql.SQL("UPDATE {} SET {} WHERE {} RETURNING *").format(
@@ -87,6 +87,7 @@ def update_rows(table, filters, updates):
     try:
         with conn.cursor() as cur:
             cur.execute(query.as_string(conn), values)
+            conn.commit()
             rows = cur.fetchall()
             columns = [desc[0] for desc in cur.description]
             return [dict(zip(columns, row)) for row in rows]
@@ -107,6 +108,7 @@ def delete_rows(table, filters):
     try:
         with conn.cursor() as cur:
             cur.execute(query.as_string(conn), values)
+            conn.commit()
             rows = cur.fetchall()
             columns = [desc[0] for desc in cur.description]
             return [dict(zip(columns, row)) for row in rows]
