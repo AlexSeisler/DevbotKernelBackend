@@ -2,9 +2,10 @@
 from fastapi import APIRouter, HTTPException
 from models.query_schema import InsertRequest, UpdateRequest, DeleteRequest, CreateTableRequest
 from services.db.query_executor import insert_rows, update_rows, delete_rows, create_table
+from settings import Database
 
 router = APIRouter()
-
+db = Database()
 @router.post("/insert")
 async def insert_handler(req: InsertRequest):
     try:
