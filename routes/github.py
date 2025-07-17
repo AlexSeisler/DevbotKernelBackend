@@ -87,3 +87,16 @@ async def create_branch(payload: BranchCreateRequest):
     except Exception as e:
         print(f"[ERROR] create_branch failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create branch")
+    @router.post("/scaffold/file")
+    async def scaffold_file(req: ScaffoldFileRequest):
+        try:
+            svc = GitHubService()
+            return svc.create_file(
+                repo_id=req.repo_id,
+                branch=req.branch,
+                file_path=req.file_path,
+                content=req.content,
+                commit_message=req.commit_message
+            )
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
