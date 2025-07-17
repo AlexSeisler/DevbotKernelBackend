@@ -116,9 +116,9 @@ class SemanticNode(BaseModel):
     line_range: Optional[Tuple[int, int]] = None
     uuid: str
     tags: Optional[List[str]] = []
-    class ScaffoldFileRequest(BaseModel):
-        repo_id: str  # GitHub format: "owner/repo"
-        branch: str
-        file_path: str
-        content: str  # UTF-8 source code or plain text
-        commit_message: str
+class ScaffoldFileRequest(BaseModel):
+    repo_id: str  # GitHub format: "owner/repo"
+    branch: str
+    file_path: str
+    content: str  # UTF-8 source code or plain text
+    commit_message: str
