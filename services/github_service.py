@@ -585,14 +585,16 @@ class GitHubService:
         from base64 import b64encode
 
         try:
-            if self.get_file(repo_id, file_path, branch=branch):  # Check if file exists
+            owner, repo = repo_id.split("/")
+            if self.get_file(owner, repo, file_path, branch=branch):
                 raise ValueError(f"File already exists at {file_path} in branch {branch}")
+
         except Exception as check_err:
             print(f"[create_file] 🔍 File existence check failed or file does not exist: {check_err}")
 
         encoded = b64encode(content.encode("utf-8")).decode("utf-8")
         owner, repo = repo_id.split("/")
-        url = f"/repos/{owner}/{repo}/contents/{file_path}"
+        url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
         payload = {
             "message": commit_message,
             "content": encoded,
