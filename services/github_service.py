@@ -581,4 +581,19 @@ class GitHubService:
             raise Exception(f"GitHub response missing 'id': {repo_data}")
         
         return repo_data["id"]
+    def create_file(self, repo_id: str, branch: str, file_path: str, content: str, commit_message: str):
+        from base64 import b64encode
+
+        if self.get_file(repo_id, file_path, branch=branch):  # Check if file exists
+            raise ValueError(f"File already exists at {file_path} in branch {branch}")
+
+        encoded = b64encode(content.encode("utf-8")).decode("utf-8")
+        owner, repo = repo_id.split("/")
+        url = f"/repos/{owner}/{repo}/contents/{file_path}"
+        payload = {
+            "message": commit_message,
+            "content": encoded,
+            "branch": branch
+        }
+        return self._request("PUT", url, json=payload)
 
