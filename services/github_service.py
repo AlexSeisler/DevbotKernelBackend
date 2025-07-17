@@ -584,8 +584,11 @@ class GitHubService:
     def create_file(self, repo_id: str, branch: str, file_path: str, content: str, commit_message: str):
         from base64 import b64encode
 
-        if self.get_file(repo_id, file_path, branch=branch):  # Check if file exists
-            raise ValueError(f"File already exists at {file_path} in branch {branch}")
+        try:
+            if self.get_file(repo_id, file_path, branch=branch):  # Check if file exists
+                raise ValueError(f"File already exists at {file_path} in branch {branch}")
+        except Exception as check_err:
+            print(f"[create_file] 🔍 File existence check failed or file does not exist: {check_err}")
 
         encoded = b64encode(content.encode("utf-8")).decode("utf-8")
         owner, repo = repo_id.split("/")
@@ -595,5 +598,14 @@ class GitHubService:
             "content": encoded,
             "branch": branch
         }
-        return self._request("PUT", url, json=payload)
 
+        print(f"[create_file] 📂 Attempting to create file at: {url}")
+        print(f"[create_file] 📦 Payload: {payload}")
+
+        try:
+            response = self._request("PUT", url, json=payload)
+            print(f"[create_file] ✅ File created successfully.")
+            return response
+        except Exception as e:
+            print(f"[create_file] ❌ File creation failed: {e}")
+            raise
