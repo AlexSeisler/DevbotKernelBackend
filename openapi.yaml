@@ -190,27 +190,6 @@ paths:
         '200':
           description: Repo ingested
 
-  /federation-zip/zip-ingest:
-    post:
-      summary: Ingest Github Zip
-      operationId: ingestZip
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ZipIngestGitRequest'
-      responses:
-        '200':
-          description: Ingestion result
-
   /federation/graph/link:
     post:
       summary: Link semantic nodes into federation graph
@@ -225,57 +204,6 @@ paths:
         '200':
           description: Node linked
 
-  /federation/graph/query:
-    get:
-      summary: Query current federation graph memory
-      operationId: queryFederationGraph
-      parameters:
-        - name: repo_id
-          in: query
-          required: true
-          schema:
-            type: integer
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            default: 100
-            minimum: 1
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-            default: 0
-            minimum: 0
-      responses:
-        '200':
-          description: Federation graph returned
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  repo_id:
-                    type: integer
-                  nodes:
-                    type: array
-                    items:
-                      type: object
-                  pagination:
-                    type: object
-                    properties:
-                      limit:
-                        type: integer
-                      offset:
-                        type: integer
-                      has_more:
-                        type: boolean
-
-
   /federation/propose-patch:
     post:
       summary: Propose federation patch set
@@ -289,70 +217,6 @@ paths:
       responses:
         '200':
           description: Patch proposal registered
-
-  /federation/commit-patch:
-    post:
-      summary: Commit approved federation patch
-      operationId: commitFederationPatch
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CommitPatchRequest'
-      responses:
-        '200':
-          description: Patch committed
-
-  /replication/plan:
-    post:
-      summary: Generate SaaS replication plan
-      operationId: generateReplicationPlan
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReplicationPlanRequest'
-      responses:
-        '200':
-          description: Replication plan generated
-
-  /replication/execute:
-    post:
-      summary: Execute SaaS replication plan
-      operationId: executeReplication
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReplicationExecutionRequest'
-      responses:
-        '200':
-          description: Replication executed
-
-  /orchestrate/replicate-saas:
-    post:
-      summary: Execute full SaaS federation replication orchestration loop
-      operationId: replicateSaaS
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReplicateSaaSRequest'
-      responses:
-        '200':
-          description: Full replication executed
-
-  /training/build-training-set:
-    get:
-      summary: Export training dataset from federation graph memory
-      operationId: buildTrainingSet
-      responses:
-        '200':
-          description: Training set exported
   /query:
     post:
       summary: Flexible database query interface for federation memory
@@ -456,6 +320,34 @@ paths:
                   status:
                     type: string
                     example: success
+  /introspect/tables:
+    get:
+      summary: Return list of all accessible database tables
+      operationId: introspectTables
+      responses:
+        '200':
+          description: Table list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /repo/scaffold/file:
+    post:
+      summary: Create a new file in a GitHub repository
+      operationId: scaffoldFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScaffoldFileRequest'
+      responses:
+        '201':
+          description: File successfully created
+        '400':
+          description: File creation failed
 
 components:
   schemas:
@@ -464,8 +356,7 @@ components:
       properties:
         table:
           type: string
-          enum: [file_structure_cache]
-          description: Name of the allowed table to query
+          description: Name of the table to query
         filters:
           type: string
           description: JSON stringified filter object (required for compatibility with GPT actions)
@@ -481,15 +372,15 @@ components:
           type: boolean
           default: false
           description: If true, results are sorted descending
+
     InsertRequest:
       type: object
       properties:
         table:
           type: string
         rows:
-          type: array
-          items:
-            type: object
+          type: string
+          description: JSON stringified list of objects
 
     UpdateRequest:
       type: object
@@ -497,9 +388,11 @@ components:
         table:
           type: string
         filters:
-          type: object
+          type: string
+          description: JSON stringified object
         updates:
-          type: object
+          type: string
+          description: JSON stringified object
 
     DeleteRequest:
       type: object
@@ -507,7 +400,8 @@ components:
         table:
           type: string
         filters:
-          type: object
+          type: string
+          description: JSON stringified object
 
     CreateTableRequest:
       type: object
@@ -515,9 +409,9 @@ components:
         table:
           type: string
         columns:
-          type: object
-          additionalProperties:
-            type: string
+          type: string
+          description: JSON stringified object mapping column names to SQL types
+
 
     ImportRepoRequest:
       type: object
@@ -597,63 +491,24 @@ components:
                   • append: inject at bottom
                   • replace: overwrite anchor or anchor_lines
                   • delete: remove anchor or lines only
-
-    CommitPatchRequest:
+    ScaffoldFileRequest:
       type: object
       properties:
         repo_id:
           type: string
+          description: GitHub repository in the format "owner/repo"
         branch:
           type: string
+          description: Target Git branch for file creation
         file_path:
           type: string
+          description: Path of the new file to create
+        content:
+          type: string
+          description: UTF-8 file content (base64-encoded automatically)
         commit_message:
           type: string
-        base_sha:
-          type: string
-        updated_content:
-          type: string
-
-    ReplicationPlanRequest:
-      type: object
-      properties:
-        source_repo_id:
-          type: string
-        target_repo_id:
-          type: string
-
-    ReplicationExecutionRequest:
-      type: object
-      properties:
-        source_repo_id:
-          type: string
-        target_repo_id:
-          type: string
-        commit_message:
-          type: string
-        target_branch:
-          type: string
-        modules:
-          type: array
-          items:
-            type: object
-            properties:
-              file_path:
-                type: string
-              node_name:
-                type: string
-              linked_to:
-                type: string
-              replication_strategy:
-                type: string
-
-    ReplicateSaaSRequest:
-      type: object
-      properties:
-        source_repo:
-          type: string
-        target_repo:
-          type: string
+          description: Commit message for file creation
 
     BranchCreateRequest:
       type: object
@@ -664,21 +519,12 @@ components:
           type: string
           default: main
 
-    ZipIngestGitRequest:
-      type: object
-      properties:
-        owner:
-          type: string
-        repo:
-          type: string
-        branch:
-          type: string
-        repo_id:
-          type: integer
-
     PullRequestCreateRequest:
       type: object
       properties:
+        repo_id:
+          type: string
+          description: GitHub repo identifier in "owner/repo" format
         source_branch:
           type: string
         target_branch:
