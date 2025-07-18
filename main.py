@@ -60,7 +60,6 @@ app.include_router(pull_request.router)
 app.include_router(federation.router)
 app.include_router(replication.router)
 app.include_router(orchestration.router)
-app.include_router(federation_zip.router)
 app.include_router(query.router)
 app.include_router(db_write.router)
 
