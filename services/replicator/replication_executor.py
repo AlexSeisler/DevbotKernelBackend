@@ -1,16 +1,12 @@
 # FINAL PRODUCTION-GRADE REPLICATION EXECUTOR
 
-from services.replicator.module_extractor import ModuleExtractor
-from services.replicator.ast_patch_composer import ASTPatchComposer
-from services.replicator.manual_review_queue import submit_to_manual_review_queue
+
 from services.federation_service import FederationService
 from services.db.repo_manager import RepoManager
 from services.github_service import GitHubService
 
 class ReplicationExecutor:
     def __init__(self):
-        self.extractor = ModuleExtractor()
-        self.ast_composer = ASTPatchComposer()
         self.federation_service = FederationService()
         self.repo_manager = RepoManager()
         self.github_service = GitHubService()

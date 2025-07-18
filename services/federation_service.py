@@ -8,7 +8,6 @@ from services.db.semantic_manager import SemanticManager
 from settings import Database
 from services.github_service import GitHubService
 from services.db.proposal_manager import ProposalManager
-from services.replicator.ast_patch_composer import ASTPatchComposer
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 from services.github_service import GitHubService
 import uuid
@@ -38,7 +37,6 @@ class FederationService():
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
         self.proposal_manager = ProposalManager(self.db)
-        self.ast_composer = ASTPatchComposer()
         self.planner = FederatedCSTPatchPlanner()
 
     def _tag_semantic_node(self, node):
