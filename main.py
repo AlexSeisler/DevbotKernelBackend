@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from dotenv import load_dotenv
 import inspect
-from routes import federation_zip
 
 # 🚀 Trigger reload check comment
 # If this line causes reload logs in Render, hot-reload is working
