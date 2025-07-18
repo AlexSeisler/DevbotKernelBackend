@@ -21,11 +21,11 @@ class MultiFileCommitRequest(BaseModel):
 
 # 🧠 Pull Request Schema
 class PullRequestCreateRequest(BaseModel):
+    repo_id: str  # Should be full "owner/repo"
     source_branch: str
     target_branch: str
     title: str
     body: str
-    repo_id: Optional[int] = None  # 🔧 Made optional for fallback handling
 
 class ReplicationExecutionRequest(BaseModel):
     source_repo_id: str
