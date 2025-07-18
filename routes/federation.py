@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Body
 from services.federation_service import FederationService
-from models.federation_schemas import ImportRepoRequest, CommitPatchRequest, ProposePatchRequest, ApprovePatchRequest, LinkFederationNodeRequest, PatchASTProposal, PatchProposalResponse
-from models.federation_schemas import ProposePatchRequest, PatchProposalResponse
+from models.federation_schemas import ImportRepoRequest, ProposePatchRequest, LinkFederationNodeRequest
+from models.federation_schemas import ProposePatchRequest
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 from services.github_service import GitHubService  # Ensure this is imported
 from settings import Database
@@ -34,45 +34,6 @@ async def propose_patch(request: ProposePatchRequest):
     try:
         proposals = service.handle_propose_patch(request)
         return {"status": "success", "proposals": proposals}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/commit-patch")
-async def commit_patch(payload: CommitPatchRequest):
-    try:
-        result = service.handle_commit_patch(payload)
-        return {"status": "patch_committed", "data": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get('/scan-federation-graph')
-async def scan_federation_graph():
-    try:
-        result = service.scan_federation_graph()
-        return {'status': 'graph_scanned', 'data': result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get('/list-proposals')
-async def list_proposals():
-    try:
-        return service.list_proposals()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post('/approve-patch')
-async def approve_patch(payload: ApprovePatchRequest):
-    try:
-        result = service.approve_patch(payload.proposal_id)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post('/reject-patch')
-async def reject_patch(payload: ApprovePatchRequest):
-    try:
-        result = service.reject_patch(payload.proposal_id)
-        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

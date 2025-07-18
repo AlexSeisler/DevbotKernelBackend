@@ -16,14 +16,6 @@ class PatchObject(BaseModel):
     risk_class: Optional[str] = "UNKNOWN"  # Phase 2: Risk classification
     diff_summary: Optional[str] = None  # 🧠 Phase 3
 
-
-class CommitPatchRequest(BaseModel):
-    proposal_id: str
-    file_path: str
-    base_sha: str
-    updated_content: str
-
-
 class PatchProposal(BaseModel):
     file_path: str
     base_sha: str

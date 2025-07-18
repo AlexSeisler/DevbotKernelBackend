@@ -7,12 +7,8 @@ from services.db.federation_graph_manager import FederationGraphManager
 from services.db.semantic_manager import SemanticManager
 from settings import Database
 from services.github_service import GitHubService
-from models.federation_schemas import CommitPatchObject
 from services.db.proposal_manager import ProposalManager
-from models.federation_schemas import CommitPatchRequest
 from services.replicator.ast_patch_composer import ASTPatchComposer
-from models.federation_schemas import PatchASTProposal
-from services.replicator.manual_review_queue import submit_to_manual_review_queue
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 from services.github_service import GitHubService
 import uuid
@@ -25,7 +21,6 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 
 logger = logging.getLogger(__name__)
-from models.federation_schemas import PatchProposalResponse
 
 class FederationService():
     from settings import Database
@@ -308,43 +303,6 @@ class FederationService():
 
         print("[propose] ✅ Proposal flow complete")
         return proposals
-
-
-
-
-
-
-    def handle_commit_patch(self, payload):
-        print("[commit] ▶️ Manual commit triggered")
-        proposal = self.proposal_manager.get_patch_by_id(payload.proposal_id)
-        if not proposal:
-            raise Exception("Patch proposal not found")
-
-        if proposal.status not in ["approved", "manual"]:
-            raise Exception("Patch not approved")
-
-        if (
-            proposal.file_path != payload.file_path or
-            proposal.base_sha != payload.base_sha or
-            proposal.updated_content.strip() != payload.updated_content.strip()
-        ):
-            raise Exception("Patch payload does not match proposal")
-
-        patch_dict = {
-            "repo_id": proposal.repo_id,
-            "branch": payload.branch,
-            "file_path": proposal.file_path,
-            "base_sha": proposal.base_sha,
-            "commit_message": payload.commit_message,
-            "patched_code": payload.updated_content,
-            "proposal_id": payload.proposal_id
-        }
-        
-        result = self.commit_patch(patch_dict)
-        print("[commit] ✅ Commit finished")
-        self.proposal_manager.update_patch_status(payload.proposal_id, "committed")
-        return result
-
 
     def commit_patch(self, patch):
         print("[patch] ▶️ Commit patch flow triggered")

@@ -6,7 +6,6 @@ from services.replicator.manual_review_queue import submit_to_manual_review_queu
 from services.federation_service import FederationService
 from services.db.repo_manager import RepoManager
 from services.github_service import GitHubService
-from models.federation_schemas import CommitPatchRequest
 
 class ReplicationExecutor:
     def __init__(self):
