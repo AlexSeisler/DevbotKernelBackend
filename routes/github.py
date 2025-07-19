@@ -10,23 +10,28 @@ router = APIRouter(prefix="/repo")
 # ✅ Load service layer
 github_service = GitHubService()
 
-# ✅ Hardcoded owner/repo for now (should be dynamic in future)
-OWNER = "AlexSeisler"
-REPO = "DevbotKernelBackend"
-
-# ✅ 1️⃣ Hardened Repo Tree Retrieval
-@router.get("/tree")
-async def get_repo_tree(branch: str = "main", recursive: bool = True):
+def parse_repo_id(repo_id: str):
     try:
-        result = github_service.get_repo_tree(OWNER, REPO, branch, recursive)
+        owner, repo = repo_id.split("/")
+        return owner, repo
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid repo_id format. Use 'owner/repo'.")
+
+# ✅ 1️⃣ Repo Tree Retrieval with dynamic repo_id
+@router.get("/tree")
+async def get_repo_tree(repo_id: str, branch: str = "main", recursive: bool = True, path_prefix: Optional[str] = ""):
+    try:
+        owner, repo = parse_repo_id(repo_id)
+        result = github_service.get_repo_tree(owner, repo, branch, recursive, path_prefix)
         return result
     except Exception as e:
         print(f"[ERROR] get_repo_tree failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve repo tree")
 
-# ✅ 2️⃣ Hardened File Content Retrieval
+# ✅ 2️⃣ File Content Retrieval with dynamic repo_id
 @router.get("/file")
 async def get_file_content(
+    repo_id: str,
     file_path: str,
     branch: str = "main",
     include_meta: bool = False,
@@ -34,9 +39,10 @@ async def get_file_content(
     chunk_size: Optional[int] = None
 ):
     try:
+        owner, repo = parse_repo_id(repo_id)
         result = github_service.get_file(
-            OWNER,
-            REPO,
+            owner,
+            repo,
             file_path,
             branch,
             include_meta=include_meta,
@@ -48,51 +54,51 @@ async def get_file_content(
         print(f"[ERROR] get_file_content failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve file content")
 
-# ✅ 3️⃣ Parse structure for a given file
+# ✅ 3️⃣ File Structure Parsing
 @router.get("/file/structure")
-async def parse_file_structure(file_path: str, branch: str = "main"):
+async def parse_file_structure(repo_id: str, file_path: str, branch: str = "main"):
     try:
-        print(f"[routes/structure] 🔍 Incoming request — file_path={file_path}, branch={branch}")
-        return github_service.parse_structure_for_file(OWNER, REPO, file_path, branch, update_cache=True)
+        owner, repo = parse_repo_id(repo_id)
+        return github_service.parse_structure_for_file(owner, repo, file_path, branch, update_cache=True)
     except Exception as e:
-        print(f"[routes/structure] ❌ Exception in parse_file_structure: {str(e)}")
+        print(f"[ERROR] parse_file_structure failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to parse file structure")
 
-
-# ✅ 3️⃣ Hardened File History Retrieval
+# ✅ 4️⃣ File History Retrieval
 @router.get("/history")
-async def get_file_history(file_path: str, branch: str = "main"):
+async def get_file_history(repo_id: str, file_path: str, branch: str = "main"):
     try:
-        result = github_service.get_file_history(OWNER, REPO, file_path, branch)
-        return result
+        owner, repo = parse_repo_id(repo_id)
+        return github_service.get_file_history(owner, repo, file_path, branch)
     except Exception as e:
         print(f"[ERROR] get_file_history failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve file history")
 
-# ✅ 4️⃣ Hardened Branch SHA Retrieval
+# ✅ 5️⃣ Branch SHA Retrieval
 @router.get("/sha")
-async def get_branch_sha(branch: str = "main"):
+async def get_branch_sha(repo_id: str, branch: str = "main"):
     try:
-        result = github_service.get_branch_sha(OWNER, REPO, branch)
-        return result
+        owner, repo = parse_repo_id(repo_id)
+        return github_service.get_branch_sha(owner, repo, branch)
     except Exception as e:
         print(f"[ERROR] get_branch_sha failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve branch SHA")
 
-# ✅ 5️⃣ Hardened Branch Creation
+# ✅ 6️⃣ Branch Creation
 @router.post("/branch")
-async def create_branch(payload: BranchCreateRequest):
+async def create_branch(repo_id: str, payload: BranchCreateRequest):
     try:
-        result = github_service.create_branch(OWNER, REPO, payload.new_branch, payload.base_branch)
-        return result
+        owner, repo = parse_repo_id(repo_id)
+        return github_service.create_branch(owner, repo, payload.new_branch, payload.base_branch)
     except Exception as e:
         print(f"[ERROR] create_branch failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create branch")
+
+# ✅ 7️⃣ File Scaffold Creation (already supports repo_id)
 @router.post("/scaffold/file")
 async def scaffold_file(req: ScaffoldFileRequest):
     try:
-        svc = GitHubService()
-        return svc.create_file(
+        return github_service.create_file(
             repo_id=req.repo_id,
             branch=req.branch,
             file_path=req.file_path,
