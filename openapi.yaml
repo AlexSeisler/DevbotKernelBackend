@@ -24,6 +24,11 @@ paths:
       summary: Retrieve full repository file tree
       operationId: getRepoTree
       parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
         - name: branch
           in: query
           required: false
@@ -62,6 +67,11 @@ paths:
       summary: Retrieve file content (with optional chunking)
       operationId: getFileContent
       parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
         - name: file_path
           in: query
           required: true
@@ -97,6 +107,11 @@ paths:
       summary: Parse and return file structure (functions, classes)
       operationId: getFileStructure
       parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
         - name: file_path
           in: query
           required: true
@@ -117,6 +132,11 @@ paths:
       summary: Retrieve file commit history
       operationId: getFileHistory
       parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
         - name: file_path
           in: query
           required: true
@@ -137,6 +157,11 @@ paths:
       summary: Retrieve latest branch SHA
       operationId: getBranchSHA
       parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
         - name: branch
           in: query
           required: false
@@ -146,7 +171,6 @@ paths:
       responses:
         '200':
           description: Branch SHA retrieved
-
 
   /repo/branch:
     post:
@@ -161,7 +185,6 @@ paths:
       responses:
         '200':
           description: Branch created
-
   /repo/pull-request:
     post:
       summary: Create pull request
@@ -513,6 +536,8 @@ components:
     BranchCreateRequest:
       type: object
       properties:
+        repo_id:
+          type: string
         new_branch:
           type: string
         base_branch:
