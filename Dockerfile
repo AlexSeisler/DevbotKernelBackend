@@ -1,7 +1,7 @@
-# ✅ Base Python image — stable, minimal, compatible with astdiff
+# ✅ Base Python image — stable, minimal
 FROM python:3.11-slim
 
-# 🛠️ Build tools required for psycopg2 and others
+# 🛠️ Build tools for psycopg2 and more
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -14,33 +14,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ✅ Set working directory
 WORKDIR /app
 
-# ✅ Pre-copy requirements for Docker cache layer
+# ✅ Install deps first for Docker caching
 COPY requirements.txt constraints.txt ./
-
-# ✅ Upgrade pip + prevent cache pollution
 RUN pip install --upgrade pip setuptools wheel && \
-    pip cache purge
+    pip cache purge && \
+    pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
-# ✅ Install all dependencies deterministically
-RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
-
-# ✅ Patch astdiff (AST compare tooling)
+# ✅ Patch astdiff
 RUN curl -sSL https://raw.githubusercontent.com/auntbertha/ASTdiff/master/astdiff/astdiff.py \
-    -o /usr/local/lib/python3.11/site-packages/astdiff/astdiff.py && \
-    echo "from .astdiff import compare_ast" >> /usr/local/lib/python3.11/site-packages/astdiff/__init__.py
+  -o /usr/local/lib/python3.11/site-packages/astdiff/astdiff.py && \
+  echo "from .astdiff import compare_ast" >> /usr/local/lib/python3.11/site-packages/astdiff/__init__.py
 
-# ✅ Copy full application code (layered after deps for cache efficiency)
+# ✅ Copy all application code
 COPY . .
 
-# ✅ Optional: create non-root user for container safety
+# ✅ Create safe user and set ownership
 RUN useradd -m devbot && chown -R devbot /app
 USER devbot
 
-# ✅ Expose port for Render/local dev
+# ✅ Expose API port
+ENV PORT=8000
 EXPOSE 8000
 
-# ✅ Runtime mode env flag (adjustable per container or agent role)
-ENV DEV_MODE=1
-
-# ✅ Entrypoint — uvicorn with hot reload (swap `--reload` in production)
+# ✅ Start Uvicorn in production mode
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
