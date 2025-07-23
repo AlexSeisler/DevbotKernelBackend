@@ -43,4 +43,4 @@ EXPOSE 8000
 ENV DEV_MODE=1
 
 # ✅ Entrypoint — uvicorn with hot reload (swap `--reload` in production)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
