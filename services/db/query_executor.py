@@ -1,7 +1,7 @@
 from psycopg2 import sql
-from settings import Database
+from settings import _db_instance
 
-db = Database()
+db = _db_instance
 
 
 def execute_query(db, table, filters, limit=100, order_by=None, desc=False):

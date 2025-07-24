@@ -1,4 +1,4 @@
-from settings import Database
+from settings import _db_instance
 from services.db.repo_manager import RepoManager
 import traceback
 import psycopg2.extras
@@ -7,7 +7,7 @@ from typing import List, Dict, Any
 
 class FederationGraphManager:
     def __init__(self):
-        self.db = Database()
+        self.db = _db_instance
         self.repo_manager = RepoManager()
 
     def insert_graph_link_tx(self, cur, logical_repo_id, file_path, node_type, name, cross_linked_to, federation_weight, notes, tags=None):

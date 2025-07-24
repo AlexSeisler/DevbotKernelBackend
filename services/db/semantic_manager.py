@@ -1,11 +1,11 @@
-from settings import Database
+from settings import _db_instance
 import json
 from typing import Optional, Dict
 
 
 class SemanticManager:
     def __init__(self):
-        self.db = Database()
+        self.db = _db_instance
 
     def save_semantic_node(self, repo_pk, node):
         conn = self.db.get_connection()

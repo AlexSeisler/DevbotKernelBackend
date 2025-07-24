@@ -4,14 +4,11 @@ from models.federation_schemas import ImportRepoRequest, ProposePatchRequest, Li
 from models.federation_schemas import ProposePatchRequest
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 from services.github_service import GitHubService  # Ensure this is imported
-from settings import Database
-from services.db.proposal_manager import ProposalManager
 from services.db.repo_manager import RepoManager
 router = APIRouter(prefix='/federation')
 service = FederationService()
 planner = FederatedCSTPatchPlanner()
 github_service = GitHubService()
-proposal_manager = ProposalManager(Database())
 repo_manager = RepoManager()
 
 @router.post('/import-repo')

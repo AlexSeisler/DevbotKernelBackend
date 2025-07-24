@@ -5,7 +5,7 @@ from services.semantic_parser import SemanticParser
 from services.db.repo_manager import RepoManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.db.semantic_manager import SemanticManager
-from settings import Database
+from settings import _db_instance
 from services.github_service import GitHubService
 from services.db.proposal_manager import ProposalManager
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
@@ -22,15 +22,12 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 logger = logging.getLogger(__name__)
 
 class FederationService():
-    from settings import Database
-
-class FederationService():
 
     def __init__(self):
         self.base_url = 'https://api.github.com'
         self.github_token = os.getenv('FEDERATION_GITHUB_TOKEN')
         self.headers = {'Authorization': f'token {self.github_token}', 'Accept': 'application/vnd.github.v3+json'}
-        self.db = Database()
+        self.db = _db_instance
         self.repo_manager = RepoManager()
         self.graph_manager = FederationGraphManager()
         self.semantic_parser = SemanticParser()

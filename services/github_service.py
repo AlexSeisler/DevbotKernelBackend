@@ -397,9 +397,9 @@ class GitHubService:
                 print("[structure-fetch] 💾 Writing anchors to file_structure_cache")
                 from services.db.structure_cache_manager import StructureCacheManager
                 from datetime import datetime
-                from settings import Database
+                from settings import _db_instance
 
-                db = Database()
+                db = _db_instance
                 structure_manager = StructureCacheManager(db)
 
                 sha = self.get_latest_file_sha(owner, repo, file_path, branch)
