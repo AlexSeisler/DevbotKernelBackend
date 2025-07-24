@@ -16,7 +16,7 @@ class Database:
             try:
                 self.pool = SimpleConnectionPool(
                     minconn=1,
-                    maxconn=2,  # 🔧 Supabase Free Tier Safe
+                    maxconn=2,  # Supabase Free Tier Limit
                     dsn=self.dsn
                 )
                 if self.pool:
@@ -49,3 +49,6 @@ class Database:
     def close_all(self):
         print("🛑 [POOL] Closing all connections")
         self.pool.closeall()
+
+# ✅ Singleton pattern — globally shared pool
+_db_instance = Database()

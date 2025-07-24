@@ -1,9 +1,10 @@
-from settings import Database
+from settings import _db_instance
 from models.federation_models import FederationRepo
 import requests, psycopg2
 class RepoManager:
     def __init__(self):
-        self.db = Database()
+        self.db = _db_instance
+
 
     def save_repo_tx(self, cur, logical_repo_id, branch, root_sha):
         cur.execute("""
