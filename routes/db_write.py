@@ -19,6 +19,7 @@ async def update_handler(req: UpdateRequest):
         return update_rows(req.table, req.parsed_filters(), req.parsed_updates())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    print("[DevBot] patch test executed")
 
 @router.post("/delete")
 async def delete_handler(req: DeleteRequest):
