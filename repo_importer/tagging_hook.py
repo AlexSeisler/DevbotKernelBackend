@@ -35,7 +35,7 @@ class TaggingHook():
 
         return tags
 
-    def tag_all_semantic_nodes(nodes):
+    def _tag_all_semantic_nodes(self, nodes):
         for node in nodes:
-            node['tags'] = TaggingHook._tag_semantic_node(node)
+            node['tags'] = self._tag_semantic_node(node)
         return nodes
