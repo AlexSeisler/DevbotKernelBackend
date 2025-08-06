@@ -22,6 +22,7 @@ class RepoIngestion:
         self.semantic_parser = SemanticParser()
         self.tagging_hook = TaggingHook()
 
+
     def import_repo(self, payload: ImportRepoRequest):
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
         local_repo_id = f'{owner}/{repo}'

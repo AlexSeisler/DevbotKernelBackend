@@ -4,6 +4,7 @@ from repo_importer.importer import RepoIngestion
 from models.federation_schemas import LinkFederationNodeRequest
 from services.db.repo_manager import RepoManager
 from services.db.federation_graph_manager import FederationGraphManager
+from settings import _db_instance
 import logging
 import os
 
@@ -12,7 +13,7 @@ router = APIRouter(prefix='/repo-ingestion')
 service = RepoIngestion()
 repo_manager = RepoManager()
 graph_manager = FederationGraphManager()
-
+database = _db_instance
 @router.post('/import-repo')
 async def import_repo(payload: ImportRepoRequest):
     try:
@@ -47,7 +48,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         if not node:
             raise HTTPException(status_code=404, detail="Semantic node not found")
 
-        conn = service.db.get_connection()
+        conn = database.get_connection()
         try:
             cross_linked_to = payload.dict().get("cross_linked_to", "")
             federation_weight = payload.dict().get("federation_weight", 1.0)
@@ -71,7 +72,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
             conn.rollback()
             raise e
         finally:
-            service.db.release_connection(conn)
+            database.release_connection(conn)
 
         return {'status': 'success'}
     except Exception as e:
