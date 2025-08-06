@@ -1,9 +1,17 @@
 # Core Zip → Node logic will be migrated here from FederationService
+import os, requests
 from services.db.repo_manager import RepoManager
 from services.db.semantic_manager import SemanticManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.github_service import GitHubService
 from services.semantic_parser import SemanticParser
+
+import zipfile
+import tempfile
+
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
 class RepoIngestion:
     def __init__(self):
         self.repo_manager = RepoManager()
