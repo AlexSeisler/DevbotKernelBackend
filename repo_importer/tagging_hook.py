@@ -1,5 +1,9 @@
 # Wrapper to integrate subsystem_tagging during ingestion
 
 def tag_semantic_node(node):
+    node["subsystem"] = "TODO: tagging logic"
+    return node
+
+def tag_semantic_node(node):
     # Placeholder for tagging logic
     return node
