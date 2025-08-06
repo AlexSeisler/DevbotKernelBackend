@@ -10,7 +10,7 @@ class TaggingHook():
         else:
             return 'core'
 
-    def _tag_semantic_node(node):
+    def _tag_semantic_node(self, node):
         tags = []
 
         name = node.get("name", "")
