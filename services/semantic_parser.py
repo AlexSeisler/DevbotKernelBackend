@@ -21,7 +21,7 @@ class SemanticParser:
                         "decorators": decorators,
                         "code_block": ast.get_source_segment(file_content, node),
                         "file_path": file_path,
-                        "line_range": (node.lineno, getattr(node, 'end_lineno', node.lineno)),
+                        "line_range": [node.lineno, getattr(node, 'end_lineno', node.lineno)],
                         "uuid": self._generate_uuid(node.name, file_path, node.lineno),
                         "interface_type": "API route" if any("@router." in d for d in decorators) else None
                     })
@@ -39,7 +39,7 @@ class SemanticParser:
                         "decorators": decorators,
                         "code_block": ast.get_source_segment(file_content, node),
                         "file_path": file_path,
-                        "line_range": (node.lineno, getattr(node, 'end_lineno', node.lineno)),
+                        "line_range": [node.lineno, getattr(node, 'end_lineno', node.lineno)],
                         "uuid": self._generate_uuid(node.name, file_path, node.lineno),
                         "interface_type": None  # Optional: extend heuristic here too
                     })
