@@ -39,14 +39,19 @@ class RepoIngestion:
         except Exception as e:
             raise Exception(f'GitHub repo ID resolution failed: {str(e)}')
 
+        try:
+            sha = self.github.get_branch_sha(owner, repo, branch)
+        except Exception as e:
+            raise Exception(f'Failed to fetch branch SHA: {str(e)}')
+
         pk_id = self.repo_manager.insert_or_update_repo(
             repo_id=gh_repo_id,
             owner=owner,
             repo=repo,
             branch=branch,
-            root_sha=self.github.get_branch_sha(owner, repo, branch),
+            root_sha=sha,
         )
-        print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}')
+        print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}, sha={sha}')
 
         headers = {
             "Accept": "application/vnd.github+json",
@@ -98,7 +103,9 @@ class RepoIngestion:
 
                             try:
                                 nodes = self.semantic_parser.parse_python_file(content, file_path=rel_path)
-                            except Exception:
+                                print(f"[PARSE] Parsed {len(nodes)} nodes from {rel_path}")
+                            except Exception as e:
+                                print(f"[FAILSAFE] Node fallback for {rel_path}: {e}")
                                 nodes = [{
                                     "name": os.path.basename(rel_path),
                                     "node_type": "blob",
@@ -114,7 +121,10 @@ class RepoIngestion:
 
                             for node in nodes:
                                 node['file_path'] = rel_path
+
+                            print(f"[TAGGING] Tagging {len(nodes)} nodes from {rel_path}")
                             nodes = self.tagging_hook._tag_all_semantic_nodes(nodes)
+
                             semantic_results.extend(nodes)
                             files_scanned += 1
                     except Exception as e:
@@ -125,8 +135,10 @@ class RepoIngestion:
             for rel_path, content in heavy_file_queue:
                 try:
                     nodes = self.semantic_parser.parse_large_python_file(content)
+                    print(f"[HEAVY PARSE] {len(nodes)} nodes from {rel_path}")
                     for node in nodes:
                         node['file_path'] = rel_path
+                    print(f"[TAGGING] Tagging {len(nodes)} heavy nodes from {rel_path}")
                     nodes = self.tagging_hook._tag_all_semantic_nodes(nodes)
                     semantic_results.extend(nodes)
                     files_scanned += 1
@@ -134,7 +146,13 @@ class RepoIngestion:
                     print(f"[SUBPROCESS FAIL] {rel_path}: {e}")
                     failed.append((rel_path, 'heavy_parse'))
 
-        self.semantic_manager.bulk_save_semantic_nodes(pk_id, semantic_results)
+        print(f"[DB PREP] Saving {len(semantic_results)} semantic nodes")
+        try:
+            self.semantic_manager.bulk_save_semantic_nodes(pk_id, semantic_results)
+        except Exception as db_error:
+            print(f"[💥 DB ERROR] {db_error}")
+            raise db_error
+
         print(f'✅ Saved {len(semantic_results)} semantic nodes from {files_scanned} files.')
 
         return {
@@ -143,3 +161,4 @@ class RepoIngestion:
             'semantic_nodes_extracted': len(semantic_results),
             'failed': failed
         }
+
