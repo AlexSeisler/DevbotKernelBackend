@@ -16,7 +16,14 @@ graph_manager = RepoManager()
 @router.post('/import-repo')
 async def import_repo(payload: ImportRepoRequest):
     try:
-        return import_repo(payload)
+        result = service.import_repo(payload)
+        return {
+            "status": "ok",
+            "repo_id": result["repo_id"],
+            "files_scanned": result.get("files_scanned", 0),
+            "semantic_nodes_extracted": result.get("semantic_nodes_extracted", 0),
+            "failed": result.get("failed", [])
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
