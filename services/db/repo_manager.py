@@ -97,6 +97,8 @@ class RepoManager:
             with conn.cursor() as cur:
                 name = repo
                 logical_repo_id = f"{owner}/{repo}"
+                print(f"[DEBUG] Inserting with repo_id={repo_id} ({type(repo_id)})")
+                assert isinstance(repo_id, (str, int)), f"repo_id must be str or int — got {type(repo_id)}"
                 cur.execute("""
                     INSERT INTO federation_repo (repo_id, owner, repo, name, logical_repo_id, branch, root_sha, ingestion_date)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
