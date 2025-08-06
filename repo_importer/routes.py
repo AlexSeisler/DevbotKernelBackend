@@ -3,15 +3,15 @@ from models.federation_schemas import ImportRepoRequest
 from repo_importer.importer import RepoIngestion
 from models.federation_schemas import LinkFederationNodeRequest
 from services.db.repo_manager import RepoManager
-from services.db.semantic_manager import SemanticManager
+from services.db.federation_graph_manager import FederationGraphManager
 import logging
 import os
 
 router = APIRouter(prefix='/repo-ingestion')
 
 service = RepoIngestion()
-graph_manager = RepoManager()
-
+repo_manager = RepoManager()
+graph_manager = FederationGraphManager()
 
 @router.post('/import-repo')
 async def import_repo(payload: ImportRepoRequest):
@@ -34,7 +34,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
         if payload.name.strip() == "*":
             default_notes = payload.notes if payload.notes else "autolinked"
             default_node_type = payload.node_type if payload.node_type else "unspecified"
-            service.graph_manager.auto_link_all_nodes(
+            graph_manager.auto_link_all_nodes(
                 repo_id=payload.repo_id,
                 default_notes=default_notes,
                 default_node_type=default_node_type
@@ -55,7 +55,7 @@ async def link_federation_node(payload: LinkFederationNodeRequest):
             tags = payload.dict().get("tags", [])
 
             with conn.cursor() as cur:
-                service.graph_manager.insert_graph_link_tx(
+                graph_manager.insert_graph_link_tx(
                     cur,
                     logical_repo_id,
                     payload.file_path,

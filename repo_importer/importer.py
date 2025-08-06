@@ -34,7 +34,6 @@ class RepoIngestion():
         self.db = _db_instance
         self.repo_manager = RepoManager()
         self.graph_manager = FederationGraphManager()
-        self.semantic_parser = SemanticParser()
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
         self.proposal_manager = ProposalManager(self.db)
