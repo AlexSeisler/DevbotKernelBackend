@@ -37,7 +37,6 @@ class RepoIngestion:
         try:
             gh_repo_info = self.github.get_repo_id(owner, repo)
             print(f"[DEBUG] GitHub Repo Info: {gh_repo_info}")
-            repo_db_id = gh_repo_info["id"]
         except Exception as e:
             raise Exception(f'GitHub repo ID resolution failed: {str(e)}')
 
@@ -47,13 +46,13 @@ class RepoIngestion:
             raise Exception(f'Failed to fetch branch SHA: {str(e)}')
 
         pk_id = self.repo_manager.insert_or_update_repo(
-            repo_id=repo_db_id,
+            repo_id=gh_repo_info,
             owner=owner,
             repo=repo,
             branch=branch,
             root_sha=sha,
         )
-        print(f'[FEDERATION IMPORT] Finalized ingest: local={repo_db_id}, pk={pk_id}, sha={sha}')
+        print(f'[FEDERATION IMPORT] Finalized ingest: local={gh_repo_info}, pk={pk_id}, sha={sha}')
 
         headers = {
             "Accept": "application/vnd.github+json",
