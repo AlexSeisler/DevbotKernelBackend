@@ -25,17 +25,19 @@ class RepoIngestion:
 
     def import_repo(self, payload: ImportRepoRequest):
         (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
-        local_repo_id = f'{owner}/{repo}'
-        print(f'[FEDERATION IMPORT] Starting import for: {local_repo_id}')
+        repo_id = f'{owner}/{repo}'
+        print(f'[FEDERATION IMPORT] Starting import for: {repo_id}')
 
-        existing_id = self.repo_manager.try_resolve_pk(local_repo_id)
+        existing_id = self.repo_manager.try_resolve_pk(repo_id)
         if existing_id:
-            print(f'[FEDERATION IMPORT] Repo already ingested: {local_repo_id} (ID={existing_id})')
+            print(f'[FEDERATION IMPORT] Repo already ingested: {repo_id} (ID={existing_id})')
             return {'repo_id': existing_id, 'files_ingested': 0}
 
-        print(f'[FEDERATION IMPORT] New repo detected: {local_repo_id}')
+        print(f'[FEDERATION IMPORT] New repo detected: {repo_id}')
         try:
-            gh_repo_id = self.github.get_repo_id(owner, repo)
+            gh_repo_info = self.github.get_repo_id(owner, repo)
+            print(f"[DEBUG] GitHub Repo Info: {gh_repo_info}")
+            repo_db_id = gh_repo_info["id"]
         except Exception as e:
             raise Exception(f'GitHub repo ID resolution failed: {str(e)}')
 
@@ -45,13 +47,13 @@ class RepoIngestion:
             raise Exception(f'Failed to fetch branch SHA: {str(e)}')
 
         pk_id = self.repo_manager.insert_or_update_repo(
-            repo_id=gh_repo_id,
+            repo_id=repo_db_id,
             owner=owner,
             repo=repo,
             branch=branch,
             root_sha=sha,
         )
-        print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}, sha={sha}')
+        print(f'[FEDERATION IMPORT] Finalized ingest: local={repo_db_id}, pk={pk_id}, sha={sha}')
 
         headers = {
             "Accept": "application/vnd.github+json",
