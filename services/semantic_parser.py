@@ -52,26 +52,26 @@ class SemanticParser:
         return hashlib.sha256(seed.encode()).hexdigest()
 
 
-def _internal_parse(code: str):
-    try:
-        tree = ast.parse(code)
-        return [{
-            "name": "LargeParsedModule",
-            "node_type": "module",
-            "docstring": ast.get_docstring(tree),
-            "args": [],
-            "decorators": [],
-            "parents": [],
-            "returns": None,
-            "file_path": None,
-            "code_block": code,
-            "interface_type": None
-        }]
-    except Exception as e:
-        raise Exception(f"AST parse failed: {e}")
+    def _internal_parse(code: str):
+        try:
+            tree = ast.parse(code)
+            return [{
+                "name": "LargeParsedModule",
+                "node_type": "module",
+                "docstring": ast.get_docstring(tree),
+                "args": [],
+                "decorators": [],
+                "parents": [],
+                "returns": None,
+                "file_path": None,
+                "code_block": code,
+                "interface_type": None
+            }]
+        except Exception as e:
+            raise Exception(f"AST parse failed: {e}")
 
 
-def parse_large_python_file(code: str, timeout: int = 10):
-    with multiprocessing.Pool(1) as pool:
-        result = pool.apply_async(_internal_parse, (code,))
-        return result.get(timeout=timeout)
+    def parse_large_python_file(code: str, timeout: int = 10):
+        with multiprocessing.Pool(1) as pool:
+            result = pool.apply_async(_internal_parse, (code,))
+            return result.get(timeout=timeout)

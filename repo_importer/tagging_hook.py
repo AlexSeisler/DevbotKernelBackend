@@ -1,5 +1,4 @@
 class TaggingHook:
-    @staticmethod
     def infer_subsystem(node):
         path = node.get('file_path', '')
         if 'auth' in path:
@@ -11,7 +10,6 @@ class TaggingHook:
         else:
             return 'core'
 
-    @staticmethod
     def _tag_semantic_node(node):
         tags = []
 
@@ -37,8 +35,7 @@ class TaggingHook:
 
         return tags
 
-    @classmethod
-    def tag_all_semantic_nodes(cls, nodes):
+    def tag_all_semantic_nodes(nodes):
         for node in nodes:
-            node['tags'] = cls._tag_semantic_node(node)
+            node['tags'] = TaggingHook._tag_semantic_node(node)
         return nodes
