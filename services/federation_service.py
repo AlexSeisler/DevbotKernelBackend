@@ -37,12 +37,6 @@ class FederationService():
         self.planner = FederatedCSTPatchPlanner()
 
 
-
-
-
-
-
-
     def _get_branch_sha(self, owner, repo, branch):
         url = f'{self.base_url}/repos/{owner}/{repo}/git/ref/heads/{branch}'
         res = requests.get(url, headers=self.headers)

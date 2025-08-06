@@ -1,29 +1,18 @@
 # Core Zip → Node logic will be migrated here from FederationService
-
-
+from services.db.repo_manager import RepoManager
+from services.db.semantic_manager import SemanticManager
+from services.db.federation_graph_manager import FederationGraphManager
+from services.github_service import GitHubService
+from services.semantic_parser import SemanticParser
+class RepoIngestion:
+    def __init__(self):
+        self.repo_manager = RepoManager()
+        self.semantic_manager = SemanticManager()
+        self.graph_manager = FederationGraphManager()
+        self.github = GitHubService()
+        self.semantic_parser = SemanticParser()
 
 def import_repo(self, payload: ImportRepoRequest):
-    class RepoIngestion:
-        def __init__(self):
-            from services.db.repo_manager import RepoManager
-            from services.db.semantic_manager import SemanticManager
-            from services.db.federation_graph_manager import FederationGraphManager
-            from services.github_service import GitHubService
-            from services.semantic_parser import SemanticParser
-
-            self.repo_manager = RepoManager()
-            self.semantic_manager = SemanticManager()
-            self.graph_manager = FederationGraphManager()
-            self.github = GitHubService()
-            self.semantic_parser = SemanticParser()
-
-
-        def import_repo(self, payload):
-            # Placeholder — logic will be integrated here post-init setup
-            pass
-    import tempfile
-    from services.semantic_parser import parse_large_python_file
-
     (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
     local_repo_id = f'{owner}/{repo}'
     print(f'[FEDERATION IMPORT] Starting import for: {local_repo_id}')
