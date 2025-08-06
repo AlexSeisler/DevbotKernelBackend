@@ -41,7 +41,7 @@ def import_repo(self, payload: ImportRepoRequest):
         owner=owner,
         repo=repo,
         branch=branch,
-        root_sha=self._get_branch_sha(owner, repo, branch),
+        root_sha=self.github._get_branch_sha(owner, repo, branch),
     )
     print(f'[FEDERATION IMPORT] Finalized ingest: local={local_repo_id}, pk={pk_id}')
 
