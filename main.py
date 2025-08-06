@@ -1,4 +1,4 @@
-from repo_importer.routes import repo_ingestion
+from repo_importer import routes
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -62,7 +62,7 @@ app.include_router(replication.router)
 app.include_router(orchestration.router)
 app.include_router(query.router)
 app.include_router(db_write.router)
-app.include_router(repo_ingestion.router)
+app.include_router(routes.router)
 
 # ✅ Add ai-plugin.json and OpenAPI serving routes
 @app.get("/.well-known/ai-plugin.json", include_in_schema=False)
