@@ -1,8 +1,23 @@
 # Core Zip → Node logic will be migrated here from FederationService
 
-import os
-import tempfile
 from fastapi import HTTPException
+from models.federation_schemas import ImportRepoRequest
+from services.federation_service import FederationService
+
+service = FederationService()
+
+async def import_repo_logic(payload: ImportRepoRequest):
+    try:
+        result = service.import_repo(payload)
+        return {
+            "status": "ok",
+            "repo_id": result["repo_id"],
+            "files_scanned": result.get("files_scanned", 0),
+            "semantic_nodes_extracted": result.get("semantic_nodes_extracted", 0),
+            "failed": result.get("failed", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 from services.github_service import fetch_github_repo
 from services.semantic_parser import extract_semantic_nodes
 from models.semantic_nodes import insert_nodes
