@@ -5,7 +5,8 @@ from services.db.semantic_manager import SemanticManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.github_service import GitHubService
 from services.semantic_parser import SemanticParser
-
+from repo_importer.tagging_hook import TaggingHook
+from models.federation_schemas import ImportRepoRequest
 import zipfile
 import tempfile
 
@@ -19,6 +20,7 @@ class RepoIngestion:
         self.graph_manager = FederationGraphManager()
         self.github = GitHubService()
         self.semantic_parser = SemanticParser()
+        self.tagging_hook = TaggingHook()
 
 def import_repo(self, payload: ImportRepoRequest):
     (owner, repo, branch) = (payload.owner, payload.repo, payload.default_branch)
@@ -111,7 +113,7 @@ def import_repo(self, payload: ImportRepoRequest):
 
                         for node in nodes:
                             node['file_path'] = rel_path
-                        nodes = self._tag_all_semantic_nodes(nodes)
+                        nodes = self.tagging_hook._tag_all_semantic_nodes(nodes)
                         semantic_results.extend(nodes)
                         files_scanned += 1
                 except Exception as e:
@@ -121,10 +123,10 @@ def import_repo(self, payload: ImportRepoRequest):
         # 🧠 Phase 1: Offload heavy files to subprocess-based parser
         for rel_path, content in heavy_file_queue:
             try:
-                nodes = parse_large_python_file(content)
+                nodes = self.semantic_parser.parse_large_python_file(content)
                 for node in nodes:
                     node['file_path'] = rel_path
-                nodes = self._tag_all_semantic_nodes(nodes)
+                nodes = self.tagging_hook._tag_all_semantic_nodes(nodes)
                 semantic_results.extend(nodes)
                 files_scanned += 1
             except Exception as e:
