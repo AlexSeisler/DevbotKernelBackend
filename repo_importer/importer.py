@@ -41,7 +41,8 @@ class RepoIngestion:
             raise Exception(f'GitHub repo ID resolution failed: {str(e)}')
 
         try:
-            sha = self.github.get_branch_sha(owner, repo, branch)
+            sha = self.github.get_branch_sha(owner, repo, branch)["object"]["sha"],
+
         except Exception as e:
             raise Exception(f'Failed to fetch branch SHA: {str(e)}')
 
