@@ -61,10 +61,6 @@ class FederationService():
 
         return tags
 
-    def _tag_all_semantic_nodes(self, nodes):
-        for node in nodes:
-            node['tags'] = self._tag_semantic_node(node)
-        return nodes
 
 
 
