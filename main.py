@@ -84,4 +84,3 @@ async def serve_manifest():
 @app.get("/openapi.yaml", include_in_schema=False)
 async def get_openapi_yaml():
     return FileResponse("openapi.yaml")
-    app.include_router(repo_importer_router)
