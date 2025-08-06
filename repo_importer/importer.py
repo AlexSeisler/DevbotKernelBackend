@@ -1,15 +1,5 @@
 # Core Zip → Node logic will be migrated here from FederationService
 
-import os
-import tempfile
-from fastapi import HTTPException
-from models.federation_schemas import ImportRepoRequest
-from models.semantic_nodes import SemanticManager
-from services.semantic_parser import SemanticParser
-from services.repo_manager import RepoManager
-from services.graph_manager import FederationGraphManager
-from services.github_service import GitHubService
-from repo_importer.tagging_hook import tag_semantic_node
 
 
 def import_repo(self, payload: ImportRepoRequest):
