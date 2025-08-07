@@ -1,5 +1,5 @@
 class TaggingHook():
-    def infer_subsystem(node):
+    def infer_subsystem(self, node):
         path = node.get('file_path', '')
         if 'auth' in path:
             return 'auth'
