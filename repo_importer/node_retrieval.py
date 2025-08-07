@@ -1,22 +1,17 @@
 from services.db.query_executor import execute_query
+from settings import _db_instance
+
+db = _db_instance
 
 def fetch_nodes_by_subsystem(repo_id: str, subsystem: str = None):
     filters = {"repo_id": repo_id}
     if subsystem:
-        filters["subsystem"] = subsystem
-
-    query = {
-        "table": "semantic_node",
-        "filters": json.dumps(filters)
-    }
-    return execute_query(**query)
+        filters["subsystem"] = [subsystem]  # wrap in list for Postgres overlap
+    return execute_query(db, "semantic_node", filters)
 
 def generate_node_summary(repo_id: str):
-    query = {
-        "table": "semantic_node",
-        "filters": json.dumps({"repo_id": repo_id})
-    }
-    rows = execute_query(**query)
+    filters = {"repo_id": repo_id}
+    rows = execute_query(db, "semantic_node", filters)
 
     total_nodes = len(rows)
     subsystems = set()
