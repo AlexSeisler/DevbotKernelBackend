@@ -108,6 +108,7 @@ class SemanticNode(BaseModel):
     line_range: Optional[Tuple[int, int]] = None
     uuid: str
     tags: Optional[List[str]] = []
+    subsystem: Optional[List[str]] = []
 class ScaffoldFileRequest(BaseModel):
     repo_id: str  # GitHub format: "owner/repo"
     branch: str

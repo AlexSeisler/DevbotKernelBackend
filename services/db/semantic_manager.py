@@ -24,11 +24,11 @@ class SemanticManager:
                         repo_id, file_path, node_type, name, args,
                         docstring, methods, inherits_from,
                         return_type, decorators, code_block, interface_type,
-                        tags
+                        tags, subsystem
                     ) VALUES (%s, %s, %s, %s, %s,
                             %s, %s, %s,
                             %s, %s, %s, %s,
-                            %s)
+                            %s, %s)
                     """,
                     (
                         repo_pk,
@@ -43,7 +43,8 @@ class SemanticManager:
                         json.dumps(node.get("decorators")),
                         node.get("code_block"),
                         node.get("interface_type"),
-                        tags  # ✅ Native Python list to match TEXT[]
+                        tags if tags else [],
+                        node.get("subsystem", []),
                     )
                 )
                 conn.commit()
@@ -66,8 +67,8 @@ class SemanticManager:
                         INSERT INTO semantic_node (
                             repo_id, file_path, node_type, name, args, docstring,
                             methods, inherits_from, return_type, decorators,
-                            code_block, interface_type, tags
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            code_block, interface_type, tags, subsystem
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT DO NOTHING
                         """,
                         (
@@ -84,6 +85,7 @@ class SemanticManager:
                             node.get("code_block"),
                             node.get("interface_type"),
                             node.get("tags", []),
+                            node.get("subsystem", []),
                         ),
                     )
             conn.commit()
