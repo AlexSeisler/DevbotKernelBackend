@@ -128,8 +128,21 @@ class TaggingHook:
                 self._tag_semantic_node(node)
 
         return nodes
+    def _normalize_subsystems(self, scores):
+        # Filter subsystems with confidence above threshold
+        threshold = 1.0
+        selected = [k for k, v in scores.items() if v >= threshold]
+        
+        # Fallback: choose highest-scoring subsystem(s)
+        if not selected and scores:
+            max_score = max(scores.values())
+            selected = [k for k, v in scores.items() if v == max_score]
+
+        return selected
 
     def infer_subsystem(self, file_path, imports, decorators, content_lines):
+        from collections import defaultdict
+
         subsystems = defaultdict(float)
         file = file_path.split("/")[-1]
 
@@ -142,65 +155,67 @@ class TaggingHook:
         if not subsystems:
             return ["core"]
 
-        return [k for k, v in subsystems.items() if v >= 1.0] or ["core"]
+        normalized = self._normalize_subsystems(subsystems)
+        return normalized or ["core"]
 
     def _score_path(self, path):
+        from collections import defaultdict
         scores = defaultdict(float)
-        path_map = {
-            'auth': 1.0,
-            'queue': 1.0,
-            'task': 1.0,
-            'orchestrator': 1.0,
-            'training': 1.0,
-            'replicator': 1.0,
-        }
-        for key, weight in path_map.items():
-            if key in path:
-                scores[key] += weight
+
+        normalized_path = path.lower()
+
+        for subsystem, patterns in subsystem_map.get("paths", {}).items():
+            for pattern in patterns:
+                if pattern in normalized_path:
+                    scores[subsystem] += 1.0  # Full weight for path match
         return scores
+
 
     def _score_filename(self, file):
+        from collections import defaultdict
         scores = defaultdict(float)
-        if file.endswith('_auth.py'):
-            scores['auth'] += 0.9
-        if file.endswith('_worker.py'):
-            scores['task'] += 0.9
-        if file.endswith('_queue.py'):
-            scores['queue'] += 0.9
+
+        normalized_filename = file.lower()
+
+        for subsystem, keywords in subsystem_map.get("filenames", {}).items():
+            for keyword in keywords:
+                if keyword in normalized_filename:
+                    scores[subsystem] += 0.9  # Strong filename match
         return scores
+
 
     def _score_imports(self, imports):
+        from collections import defaultdict
         scores = defaultdict(float)
-        import_map = {
-            'jwt': 'auth', 'authlib': 'auth', 'bcrypt': 'auth',
-            'celery': 'queue', 'kombu': 'queue',
-            'sqlalchemy': 'db', 'orm': 'db',
-            'torch': 'training', 'tensorflow': 'training',
-        }
-        for i in imports:
-            for key, subsystem in import_map.items():
-                if key in i:
-                    scores[subsystem] += 0.7
+
+        for imp in imports:
+            normalized_imp = imp.lower()
+            for subsystem, keywords in subsystem_map.get("imports", {}).items():
+                for keyword in keywords:
+                    if keyword.lower() in normalized_imp:
+                        scores[subsystem] += 1.0  # Full hit for confidence
         return scores
 
+
     def _score_decorators(self, decorators):
+        from collections import defaultdict
         scores = defaultdict(float)
+
         for d in decorators:
-            if any(k in d for k in ("route", "get", "post")):
-                scores['http'] += 0.6
-            if "task" in d:
-                scores['queue'] += 0.6
+            for subsystem, patterns in subsystem_map.get("decorators", {}).items():
+                for pattern in patterns:
+                    if pattern in d:
+                        scores[subsystem] += 0.6
         return scores
 
     def _score_inline_content(self, lines):
+        from collections import defaultdict
         scores = defaultdict(float)
-        signals = {
-            'model.fit': 'training',
-            'db.session': 'db',
-            'queue.enqueue': 'queue',
-        }
+
         for line in lines:
-            for key, subsystem in signals.items():
-                if key in line:
-                    scores[subsystem] += 0.5
+            normalized_line = line.lower()
+            for subsystem, patterns in subsystem_map.get("content", {}).items():
+                for pattern in patterns:
+                    if pattern.lower() in normalized_line:
+                        scores[subsystem] += 0.5  # Medium weight for inline signals
         return scores
