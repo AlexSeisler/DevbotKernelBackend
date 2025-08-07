@@ -15,12 +15,12 @@ def fetch_nodes_by_subsystem(repo_id: str, subsystem: str = None):
     filters = {"repo_id": uuid}
     if subsystem:
         filters["subsystem"] = [subsystem]
-    return execute_query(db, "semantic_node", filters)
+    return execute_query(db, "semantic_node", filters, limit=10000)
 
 def generate_node_summary(repo_id: str):
     uuid = _resolve_uuid(repo_id)
     filters = {"repo_id": uuid}
-    rows = execute_query(db, "semantic_node", filters)
+    rows = execute_query(db, "semantic_node", filters, limit=10000)
 
     total_nodes = len(rows)
     subsystems = set()
