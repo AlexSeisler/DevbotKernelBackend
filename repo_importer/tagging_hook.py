@@ -1,23 +1,19 @@
 class TaggingHook():
-    def infer_subsystem(self, node):
-        path = node.get('file_path', '')
-        file = path.split('/')[-1]
-        imports = node.get('imports', [])
+    def infer_subsystem(self, file_path, imports, decorators, content_lines):
+        from collections import defaultdict
+        subsystems = defaultdict(float)
+        file = file_path.split("/")[-1]
 
-        if 'auth' in path or 'user' in path:
-            return 'auth'
-        elif 'queue' in path or 'task_queue' in path:
-            return 'queue'
-        elif 'worker' in path or 'celery' in path:
-            return 'task'
-        elif 'replicator' in path:
-            return 'replicator'
-        elif 'training' in path:
-            return 'training'
-        elif 'orchestrator' in path:
-            return 'orchestration'
+        subsystems.update(self._score_path(file_path))
+        subsystems.update(self._score_filename(file))
+        subsystems.update(self._score_imports(imports))
+        subsystems.update(self._score_decorators(decorators))
+        subsystems.update(self._score_inline_content(content_lines))
 
-        if file.endswith('_auth.py'):
+        if not subsystems:
+            return ["core"]
+
+        return [k for k, v in subsystems.items() if v >= 1.0] or ["core"]
             return 'auth'
         elif file.endswith('_worker.py'):
             return 'task'
