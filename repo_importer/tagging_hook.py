@@ -10,6 +10,28 @@ class TaggingHook():
             return 'queue'
         elif 'worker' in path or 'celery' in path:
             return 'task'
+        elif 'replicator' in path:
+            return 'replicator'
+        elif 'training' in path:
+            return 'training'
+        elif 'orchestrator' in path:
+            return 'orchestration'
+
+        if file.endswith('_auth.py'):
+            return 'auth'
+        elif file.endswith('_worker.py'):
+            return 'task'
+        elif file.endswith('_queue.py'):
+            return 'queue'
+
+        if any("jwt" in i or "authlib" in i for i in imports):
+            return 'auth'
+        if any("celery" in i for i in imports):
+            return 'task'
+        if any("sqlalchemy" in i or "orm" in i for i in imports):
+            return 'db'
+
+        return 'core'
     def _tag_semantic_node(self, node):
         tags = []
 
