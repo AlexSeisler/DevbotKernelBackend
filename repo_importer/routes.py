@@ -7,6 +7,7 @@ from services.db.federation_graph_manager import FederationGraphManager
 from settings import _db_instance
 import logging
 import os
+from typing import Optional
 
 router = APIRouter(prefix='/repo-ingestion')
 

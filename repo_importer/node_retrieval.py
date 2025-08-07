@@ -11,8 +11,6 @@ def fetch_nodes_by_subsystem(repo_id: str, subsystem: str = None):
 
 def generate_node_summary(repo_id: str):
     filters = {"repo_id": repo_id}
-def generate_node_summary(repo_id: str):
-    filters = {"repo_id": repo_id}
     rows = execute_query(db, "semantic_node", filters)
 
     total_nodes = len(rows)
