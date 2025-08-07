@@ -16,6 +16,10 @@ subsystem_map = {
         "db": ["sqlalchemy", "psycopg", "alembic", "ormar"],
         "test": ["pytest", "mock", "unittest"],
         "analytics": ["posthog", "amplitude", "mixpanel"],
+        "security": [
+            "jwt", "authlib", "bcrypt", "secrets", "itsdangerous",
+            "cryptography", "supabase.auth", "clerk", "fastapi.security", "oauthlib"
+        ],
     },
     "filenames": {
         "auth": ["auth", "login", "signup", "session"],
@@ -33,6 +37,7 @@ subsystem_map = {
         "db": ["models", "schema", "migrations"],
         "test": ["test", "fixture", "mock"],
         "analytics": ["analytics", "telemetry"],
+        "security": ["auth", "token", "rbac", "session", "login", "secure", "vault"],
     },
     "paths": {
         "auth": ["auth", "login", "signup"],
@@ -52,11 +57,13 @@ subsystem_map = {
         "analytics": ["analytics"],
         "ux": ["pages", "dashboard", "ui"],
         "api": ["routes", "endpoints"],
+        "security": ["auth", "security", "session", "token", "secrets", "rbac"],
     },
     "decorators": {
         "api": ["@app.get", "@app.post", "@router.get", "@router.post", "@route"],
         "task": ["@app.task", "@celery.task", "@shared_task"],
         "auth": ["@auth_required", "@login_required", "@jwt_required"],
+        "security": ["requires_auth", "token_required", "authenticated"],
     },
     "content": {
         "training": ["model.fit(", "trainer.train(", "pipeline("],
@@ -64,8 +71,13 @@ subsystem_map = {
         "analytics": ["track_event(", "log_usage(", "capture_metric"],
         "memory": ["embed_text(", "similarity_search(", "vectorstore"],
         "storage": ["upload_file(", "save_to_bucket(", "store_file("],
+        "security": [
+            "Authorization", "Bearer", "Role", "AccessControl", "trace_id",
+            "token", "TTL", ".env", "Vault", "authenticated"
+        ],
     }
 }
+
 
 class TaggingHook:
 
