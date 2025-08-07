@@ -5,6 +5,7 @@ from models.federation_schemas import ProposePatchRequest
 from services.replicator.federation_patch_planner import FederatedCSTPatchPlanner
 from services.github_service import GitHubService  # Ensure this is imported
 from services.db.repo_manager import RepoManager
+from models.federation_schemas import LinkFederationNodeRequest
 router = APIRouter(prefix='/federation')
 service = FederationService()
 planner = FederatedCSTPatchPlanner()
@@ -52,3 +53,9 @@ async def query_federation_graph(
     except Exception as e:
         print(f"[ERROR] Federation graph query failed: {type(e).__name__} - {e}")
         raise HTTPException(status_code=500, detail=f"Federation graph query failed: {e}")
+@router.post('/link-federation-node')
+async def link_federation_node(request: LinkFederationNodeRequest):
+    try:
+        return service.link_federation_node(request)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
