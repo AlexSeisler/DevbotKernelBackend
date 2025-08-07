@@ -27,3 +27,13 @@ async def import_repo(payload: ImportRepoRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get('/nodes')
+async def get_nodes(repo_id: str, subsystem: Optional[str] = None):
+    from repo_importer.node_retrieval import fetch_nodes_by_subsystem
+    return fetch_nodes_by_subsystem(repo_id, subsystem)
+
+
+@router.get('/node-summary')
+async def get_node_summary(repo_id: str):
+    from repo_importer.node_retrieval import generate_node_summary
+    return generate_node_summary(repo_id)
