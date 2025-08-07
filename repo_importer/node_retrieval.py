@@ -3,14 +3,23 @@ from settings import _db_instance
 
 db = _db_instance
 
+def _resolve_uuid(repo_id: str) -> str:
+    filters = {"logical_repo_id": repo_id}
+    results = execute_query(db, "federation_repo", filters)
+    if not results:
+        raise ValueError(f"No repo found for logical_repo_id={repo_id}")
+    return results[0]["id"]  # Correct field
+
 def fetch_nodes_by_subsystem(repo_id: str, subsystem: str = None):
-    filters = {"repo_id": repo_id}
+    uuid = _resolve_uuid(repo_id)
+    filters = {"repo_id": uuid}
     if subsystem:
-        filters["subsystem"] = [subsystem]  # wrap in list for Postgres overlap
+        filters["subsystem"] = [subsystem]
     return execute_query(db, "semantic_node", filters)
 
 def generate_node_summary(repo_id: str):
-    filters = {"repo_id": repo_id}
+    uuid = _resolve_uuid(repo_id)
+    filters = {"repo_id": uuid}
     rows = execute_query(db, "semantic_node", filters)
 
     total_nodes = len(rows)
