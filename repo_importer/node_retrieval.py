@@ -10,12 +10,12 @@ def _resolve_uuid(repo_id: str) -> str:
         raise ValueError(f"No repo found for logical_repo_id={repo_id}")
     return results[0]["id"]  # Correct field
 
-def fetch_nodes_by_subsystem(repo_id: str, subsystem: str = None):
+def fetch_nodes_by_subsystem(repo_id: str, subsystem: str = None, columns: list = None):
     uuid = _resolve_uuid(repo_id)
     filters = {"repo_id": uuid}
     if subsystem:
         filters["subsystem"] = [subsystem]
-    return execute_query(db, "semantic_node", filters, limit=10000)
+    return execute_query(db, "semantic_node", filters, limit=10000, columns=columns)
 
 def generate_node_summary(repo_id: str):
     uuid = _resolve_uuid(repo_id)
