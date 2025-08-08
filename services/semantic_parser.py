@@ -4,6 +4,66 @@ import uuid
 import multiprocessing
 
 class SemanticParser:
+    class BaseSemanticParser:
+        def parse(self, file_content: str, file_path: str) -> list[dict]:
+            """
+        Returns a list of semantic node dictionaries in unified schema.
+        """
+            raise NotImplementedError
+    
+    
+    class LibCSTSemanticParser(BaseSemanticParser):
+        def parse(self, file_content: str, file_path: str) -> list[dict]:
+            import libcst as cst
+            from typing import List, Dict
+
+            class Collector(cst.CSTVisitor):
+                def __init__(self, source: str):
+                    self.source = source
+                    self.nodes: List[Dict] = []
+
+                def visit_FunctionDef(self, node: cst.FunctionDef):
+                    decorators = [self.source[d.start.byte:d.end.byte] for d in node.decorators]
+                    self.nodes.append({
+                        "node_type": "function",
+                        "name": node.name.value,
+                        "language": "python",
+                        "imports": [],  # will be filled by import collectors
+                        "decorators": decorators,
+                        "docstring": cst.get_docstring(node),
+                        "source_code": self.source[node.start.byte:node.end.byte],
+                        "code_block": self.source[node.start.byte:node.end.byte],
+                        "start_line": node.start.line,
+                        "end_line": node.end.line
+                    })
+
+                def visit_ClassDef(self, node: cst.ClassDef):
+                    decorators = [self.source[d.start.byte:d.end.byte] for d in node.decorators]
+                    self.nodes.append({
+                        "node_type": "class",
+                        "name": node.name.value,
+                        "language": "python",
+                        "imports": [],
+                        "decorators": decorators,
+                        "docstring": cst.get_docstring(node),
+                        "source_code": self.source[node.start.byte:node.end.byte],
+                        "code_block": self.source[node.start.byte:node.end.byte],
+                        "start_line": node.start.line,
+                        "end_line": node.end.line
+                    })
+
+                def visit_Import(self, node: cst.Import):
+                    # Add import nodes to all collected entries (optional improvement: track scope)
+                    pass
+
+                def visit_ImportFrom(self, node: cst.ImportFrom):
+                    pass
+
+            module = cst.parse_module(file_content)
+            wrapper = cst.metadata.MetadataWrapper(module)
+            collector = Collector(file_content)
+            wrapper.visit(collector)
+            return collector.nodes
 
     def parse_python_file(self, file_content, file_path="unknown.py"):
         semantic_nodes = []
