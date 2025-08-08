@@ -31,6 +31,11 @@ class Tagger:
         """
         Infer subsystems for a given semantic node using modular scoring.
         """
+        print(f"\n[DEBUG] Infer subsystem for: {file_path}")
+        print(f"[DEBUG] Imports: {imports}")
+        print(f"[DEBUG] Decorators: {decorators}")
+        print(f"[DEBUG] First 5 content lines: {content_lines[:5]}")
+
         subsystems = aggregate_scores(
             self.subsystem_map,
             file_path,
@@ -40,11 +45,15 @@ class Tagger:
             content_lines
         )
 
+        print(f"[DEBUG] Aggregate scores result: {subsystems}")
+
         if not subsystems:
             return ["core"]
 
         normalized = self._normalize_subsystems(subsystems)
+        print(f"[DEBUG] Normalized subsystems: {normalized}")
         return normalized or ["core"]
+
 
     def _tag_semantic_node(self, node):
         """
@@ -94,6 +103,11 @@ class Tagger:
                 imports.update(node.get("imports", []))
                 decorators.update(node.get("decorators", []))
                 lines.extend(node.get("source_code", "").splitlines())
+
+            print(f"\n[DEBUG] Processing file group: {file_path}")
+            print(f"[DEBUG] Aggregated imports: {list(imports)}")
+            print(f"[DEBUG] Aggregated decorators: {list(decorators)}")
+            print(f"[DEBUG] Aggregated first 5 lines: {lines[:5]}")
 
             subsystems = self.infer_subsystem(file_path, list(imports), list(decorators), lines)
             for node in group:
