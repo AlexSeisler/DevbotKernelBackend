@@ -3,6 +3,7 @@ from typing import List, Optional, Dict
 
 # 🌿 Branch Creation Schema
 class BranchCreateRequest(BaseModel):
+    repo_id: str = Field(..., description="The full owner/repo identifier")
     new_branch: str = Field(..., description="The name of the branch to create")
     base_branch: str = Field("main", description="The base branch to create from")
 
