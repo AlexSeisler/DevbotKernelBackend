@@ -7,6 +7,7 @@ from services.github_service import GitHubService
 from services.semantic_parser import SemanticParser
 from repo_importer.tagger import Tagger
 from models.federation_schemas import ImportRepoRequest
+from services.semantic_parser import LibCSTSemanticParser
 import zipfile
 import tempfile
 
@@ -21,6 +22,7 @@ class RepoIngestion:
         self.github = GitHubService()
         self.semantic_parser = SemanticParser()
         self.tagging_hook = Tagger()
+        self.python_parser = LibCSTSemanticParser()
 
 
     def import_repo(self, payload: ImportRepoRequest):
@@ -104,8 +106,8 @@ class RepoIngestion:
                                 continue
 
                             try:
-                                nodes = self.semantic_parser.parse_python_file(content, file_path=rel_path)
-                                print(f"[PARSE] Parsed {len(nodes)} nodes from {rel_path}")
+                                nodes = self.python_parser.parse(content, file_path=rel_path)
+                                print(f"[PARSE] Parsed {len(nodes)} nodes from {rel_path} using LibCST parser")
                             except Exception as e:
                                 print(f"[FAILSAFE] Node fallback for {rel_path}: {e}")
                                 nodes = [{

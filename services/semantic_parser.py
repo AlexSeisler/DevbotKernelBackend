@@ -5,8 +5,8 @@ import multiprocessing
 class BaseSemanticParser:
     def parse(self, file_content: str, file_path: str) -> list[dict]:
         """
-    Returns a list of semantic node dictionaries in unified schema.
-    """
+        Returns a list of semantic node dictionaries in unified schema.
+        """
         raise NotImplementedError
 
 
