@@ -58,11 +58,30 @@ class Tagger:
         file_path = node.get("file_path", "")
 
         # Restore original secondary tagging logic
-        if "test" in file_path:
-            tags.append("test")
-        if "infra" in file_path or "ops" in file_path:
-            tags.append("infra")
-        if node_type == "decorator":
+    def _tag_all_semantic_nodes(self, nodes):
+        """
+        Apply tagging to all semantic nodes in a list, grouped by file for subsystem inference.
+        """
+        from collections import defaultdict
+        file_groups = defaultdict(list)
+        for node in nodes:
+            file_groups[node["file_path"]].append(node)
+
+        for file_path, group in file_groups.items():
+            imports = set()
+            decorators = set()
+            lines = []
+            for node in group:
+                imports.update(node.get("imports", []))
+                decorators.update(node.get("decorators", []))
+                lines.extend(node.get("source_code", "").splitlines())
+
+            subsystems = self.infer_subsystem(file_path, list(imports), list(decorators), lines)
+            for node in group:
+                node["subsystems"] = subsystems
+                self._tag_semantic_node(node)
+
+        return nodes
             tags.append("decorator")
         if name in {"main", "__init__", "run"}:
             tags.append("entrypoint")
