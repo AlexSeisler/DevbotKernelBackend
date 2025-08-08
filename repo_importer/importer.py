@@ -5,7 +5,7 @@ from services.db.semantic_manager import SemanticManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.github_service import GitHubService
 from services.semantic_parser import SemanticParser
-from repo_importer.tagging_hook import TaggingHook
+from repo_importer.tagger import Tagger
 from models.federation_schemas import ImportRepoRequest
 import zipfile
 import tempfile
@@ -20,7 +20,7 @@ class RepoIngestion:
         self.graph_manager = FederationGraphManager()
         self.github = GitHubService()
         self.semantic_parser = SemanticParser()
-        self.tagging_hook = TaggingHook()
+        self.tagging_hook = Tagger()
 
 
     def import_repo(self, payload: ImportRepoRequest):
