@@ -61,11 +61,37 @@ class LibCSTSemanticParser(BaseSemanticParser):
                 })
 
             def visit_Import(self, node: cst.Import):
-                # Add import nodes to all collected entries (optional improvement: track scope)
-                pass
+                for name in node.names:
+                    self.nodes.append({
+                        "node_type": "import",
+                        "name": name.name.value,
+                        "language": "python",
+                        "imports": [],
+                        "decorators": [],
+                        "docstring": None,
+                        "source_code": self.module.code_for_node(node),
+                        "code_block": self.module.code_for_node(node),
+                        "start_line": node.start.line,
+                        "end_line": node.end.line
+                    })
 
             def visit_ImportFrom(self, node: cst.ImportFrom):
-                pass
+                module_name = node.module.value if node.module else ""
+                for name in node.names:
+                    import_name = name.name.value
+                    full_import = f"{module_name}.{import_name}" if module_name else import_name
+                    self.nodes.append({
+                        "node_type": "import",
+                        "name": full_import,
+                        "language": "python",
+                        "imports": [],
+                        "decorators": [],
+                        "docstring": None,
+                        "source_code": self.module.code_for_node(node),
+                        "code_block": self.module.code_for_node(node),
+                        "start_line": node.start.line,
+                        "end_line": node.end.line
+                    })
 
         module = cst.parse_module(file_content)
         collector = Collector(file_content, module)
