@@ -16,13 +16,14 @@ class LibCSTSemanticParser(BaseSemanticParser):
         from typing import List, Dict
 
         class Collector(cst.CSTVisitor):
-            def __init__(self, source: str):
+            def __init__(self, source: str, module: cst.Module):
                 self.source = source
+                self.module = module
                 self.nodes: List[Dict] = []
 
             def _extract_docstring(self, node):
-                if hasattr(node, "body") and node.body:
-                    first_stmt = node.body[0]
+                if hasattr(node, "body") and hasattr(node.body, "body") and node.body.body:
+                    first_stmt = node.body.body[0]
                     if isinstance(first_stmt, cst.SimpleStatementLine):
                         first_expr = first_stmt.body[0]
                         if isinstance(first_expr, cst.Expr) and isinstance(first_expr.value, cst.SimpleString):
@@ -30,7 +31,7 @@ class LibCSTSemanticParser(BaseSemanticParser):
                 return None
 
             def visit_FunctionDef(self, node: cst.FunctionDef):
-                decorators = [self.source[d.start.byte:d.end.byte] for d in node.decorators]
+                decorators = [self.module.code_for_node(d.decorator) for d in node.decorators]
                 self.nodes.append({
                     "node_type": "function",
                     "name": node.name.value,
@@ -38,14 +39,14 @@ class LibCSTSemanticParser(BaseSemanticParser):
                     "imports": [],
                     "decorators": decorators,
                     "docstring": self._extract_docstring(node),
-                    "source_code": self.source[node.start.byte:node.end.byte],
-                    "code_block": self.source[node.start.byte:node.end.byte],
+                    "source_code": self.module.code_for_node(node),
+                    "code_block": self.module.code_for_node(node),
                     "start_line": node.start.line,
                     "end_line": node.end.line
                 })
 
             def visit_ClassDef(self, node: cst.ClassDef):
-                decorators = [self.source[d.start.byte:d.end.byte] for d in node.decorators]
+                decorators = [self.module.code_for_node(d.decorator) for d in node.decorators]
                 self.nodes.append({
                     "node_type": "class",
                     "name": node.name.value,
@@ -53,8 +54,8 @@ class LibCSTSemanticParser(BaseSemanticParser):
                     "imports": [],
                     "decorators": decorators,
                     "docstring": self._extract_docstring(node),
-                    "source_code": self.source[node.start.byte:node.end.byte],
-                    "code_block": self.source[node.start.byte:node.end.byte],
+                    "source_code": self.module.code_for_node(node),
+                    "code_block": self.module.code_for_node(node),
                     "start_line": node.start.line,
                     "end_line": node.end.line
                 })
@@ -67,9 +68,8 @@ class LibCSTSemanticParser(BaseSemanticParser):
                 pass
 
         module = cst.parse_module(file_content)
-        wrapper = cst.metadata.MetadataWrapper(module)
-        collector = Collector(file_content)
-        wrapper.visit(collector)
+        collector = Collector(file_content, module)
+        module.visit(collector)
         return collector.nodes
 class SemanticParser:
     def parse_python_file(self, file_content, file_path="unknown.py"):
