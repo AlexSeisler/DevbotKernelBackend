@@ -29,7 +29,6 @@ async def import_repo(payload: ImportRepoRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 @router.get('/nodes')
-@router.get('/nodes')
 async def get_nodes(repo_id: str, subsystem: Optional[str] = None, fields: Optional[str] = None):
     if fields == "slim":
         columns = ["file_path", "name", "node_type"]
