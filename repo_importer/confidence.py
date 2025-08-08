@@ -64,19 +64,51 @@ def aggregate_scores(subsystem_map, path, filename, imports, decorators, lines):
     Orchestrate scoring across all heuristics and return a sorted list
     of subsystem candidates based on total score.
     """
+    print(f"\n[DEBUG] aggregate_scores called for: {path}")
+    print(f"[DEBUG] Filename: {filename}")
+    print(f"[DEBUG] Imports: {imports}")
+    print(f"[DEBUG] Decorators: {decorators}")
+    print(f"[DEBUG] First 5 content lines: {lines[:5]}")
+
     combined_scores = {}
 
-    # Merge all scoring results
-    for score_dict in [
-        _score_path(path, subsystem_map),
-        _score_filename(filename, subsystem_map),
-        _score_imports(imports, subsystem_map),
-        _score_decorators(decorators, subsystem_map),
-        _score_inline_content(lines, subsystem_map)
-    ]:
-        for subsystem, score in score_dict.items():
-            combined_scores[subsystem] = combined_scores.get(subsystem, 0) + score
+    # Path rules
+    for subsystem, patterns in subsystem_map.get("paths", {}).items():
+        for pattern in patterns:
+            if pattern.lower() in path.lower():
+                combined_scores[subsystem] = combined_scores.get(subsystem, 0) + WEIGHT_PATH
+                print(f"[DEBUG] Path match: '{pattern}' for subsystem '{subsystem}' → +{WEIGHT_PATH}")
 
-    # Sort by score descending
+    # Filename rules
+    for subsystem, patterns in subsystem_map.get("filenames", {}).items():
+        for pattern in patterns:
+            if pattern.lower() in filename.lower():
+                combined_scores[subsystem] = combined_scores.get(subsystem, 0) + WEIGHT_FILENAME
+                print(f"[DEBUG] Filename match: '{pattern}' for subsystem '{subsystem}' → +{WEIGHT_FILENAME}")
+
+    # Import rules
+    for subsystem, patterns in subsystem_map.get("imports", {}).items():
+        for pattern in patterns:
+            if any(pattern in imp for imp in imports):
+                combined_scores[subsystem] = combined_scores.get(subsystem, 0) + WEIGHT_IMPORTS
+                print(f"[DEBUG] Import match: '{pattern}' for subsystem '{subsystem}' → +{WEIGHT_IMPORTS}")
+
+    # Decorator rules
+    for subsystem, patterns in subsystem_map.get("decorators", {}).items():
+        for pattern in patterns:
+            if any(pattern in dec for dec in decorators):
+                combined_scores[subsystem] = combined_scores.get(subsystem, 0) + WEIGHT_DECORATORS
+                print(f"[DEBUG] Decorator match: '{pattern}' for subsystem '{subsystem}' → +{WEIGHT_DECORATORS}")
+
+    # Content rules
+    for subsystem, patterns in subsystem_map.get("content", {}).items():
+        for pattern in patterns:
+            if any(pattern in line for line in lines):
+                combined_scores[subsystem] = combined_scores.get(subsystem, 0) + WEIGHT_CONTENT
+                print(f"[DEBUG] Content match: '{pattern}' for subsystem '{subsystem}' → +{WEIGHT_CONTENT}")
+
+    print(f"[DEBUG] Final raw scores: {combined_scores}")
     sorted_subsystems = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
+    print(f"[DEBUG] Sorted subsystems: {sorted_subsystems}")
+
     return [sub for sub, _ in sorted_subsystems]
