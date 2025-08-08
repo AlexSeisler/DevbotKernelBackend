@@ -2,7 +2,6 @@ import os, requests, base64
 from fastapi import HTTPException
 from models.federation_schemas import LinkFederationNodeRequest
 from services.db.semantic_manager import SemanticManager
-from services.semantic_parser import SemanticParser
 from services.db.repo_manager import RepoManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.db.semantic_manager import SemanticManager
@@ -31,7 +30,6 @@ class FederationService():
         self.db = _db_instance
         self.repo_manager = RepoManager()
         self.graph_manager = FederationGraphManager()
-        self.semantic_parser = SemanticParser()
         self.semantic_manager = SemanticManager()
         self.github = GitHubService()
         self.proposal_manager = ProposalManager(self.db)

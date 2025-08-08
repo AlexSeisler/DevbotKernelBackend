@@ -3,7 +3,7 @@ import multiprocessing
 import libcst as cst
 from typing import List, Dict, Optional
 
-LARGE_FILE_THRESHOLD = 50_000  # ~50 KB
+LARGE_FILE_THRESHOLD = 50000  # ~50 KB
 
 
 class BaseSemanticParser:

@@ -4,7 +4,6 @@ from services.db.repo_manager import RepoManager
 from services.db.semantic_manager import SemanticManager
 from services.db.federation_graph_manager import FederationGraphManager
 from services.github_service import GitHubService
-from services.semantic_parser import SemanticParser
 from repo_importer.tagger import Tagger
 from models.federation_schemas import ImportRepoRequest
 from services.semantic_parser import LibCSTSemanticParser
@@ -20,7 +19,7 @@ class RepoIngestion:
         self.semantic_manager = SemanticManager()
         self.graph_manager = FederationGraphManager()
         self.github = GitHubService()
-        self.semantic_parser = SemanticParser()
+        self.semantic_parser = LibCSTSemanticParser()
         self.tagging_hook = Tagger()
         self.python_parser = LibCSTSemanticParser()
 
@@ -139,7 +138,7 @@ class RepoIngestion:
             # 🧠 Phase 1: Offload heavy files to subprocess-based parser
             for rel_path, content in heavy_file_queue:
                 try:
-                    nodes = self.semantic_parser.parse_large_python_file(content)
+                    nodes = self.semantic_parser.parse_large_python_file_libcst(content)
                     print(f"[HEAVY PARSE] {len(nodes)} nodes from {rel_path}")
                     for node in nodes:
                         node['file_path'] = rel_path
