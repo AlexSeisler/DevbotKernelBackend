@@ -48,7 +48,8 @@ class Tagger:
 
     def _tag_semantic_node(self, node):
         """
-        Tag a single semantic node with subsystem(s) and secondary classification tags.
+        Tag a single semantic node with secondary classification tags only.
+        Subsystem inference is handled at the file-group level in _tag_all_semantic_nodes().
         """
         tags = []
 
@@ -73,10 +74,6 @@ class Tagger:
         if not tags:
             tags.append("util")
 
-        # Assign subsystem predictions
-        imports = node.get("imports", [])
-        content_lines = node.get("content", "").split("\n") if node.get("content") else []
-        node["subsystems"] = self.infer_subsystem(file_path, imports, decorators, content_lines)
         node["tags"] = tags
         return node
 
