@@ -20,15 +20,24 @@ class LibCSTSemanticParser(BaseSemanticParser):
                 self.source = source
                 self.nodes: List[Dict] = []
 
+            def _extract_docstring(self, node):
+                if hasattr(node, "body") and node.body:
+                    first_stmt = node.body[0]
+                    if isinstance(first_stmt, cst.SimpleStatementLine):
+                        first_expr = first_stmt.body[0]
+                        if isinstance(first_expr, cst.Expr) and isinstance(first_expr.value, cst.SimpleString):
+                            return first_expr.value.evaluated_value
+                return None
+
             def visit_FunctionDef(self, node: cst.FunctionDef):
                 decorators = [self.source[d.start.byte:d.end.byte] for d in node.decorators]
                 self.nodes.append({
                     "node_type": "function",
                     "name": node.name.value,
                     "language": "python",
-                    "imports": [],  # will be filled by import collectors
+                    "imports": [],
                     "decorators": decorators,
-                    "docstring": cst.get_docstring(node),
+                    "docstring": self._extract_docstring(node),
                     "source_code": self.source[node.start.byte:node.end.byte],
                     "code_block": self.source[node.start.byte:node.end.byte],
                     "start_line": node.start.line,
@@ -43,7 +52,7 @@ class LibCSTSemanticParser(BaseSemanticParser):
                     "language": "python",
                     "imports": [],
                     "decorators": decorators,
-                    "docstring": cst.get_docstring(node),
+                    "docstring": self._extract_docstring(node),
                     "source_code": self.source[node.start.byte:node.end.byte],
                     "code_block": self.source[node.start.byte:node.end.byte],
                     "start_line": node.start.line,
