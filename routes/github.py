@@ -86,9 +86,9 @@ async def get_branch_sha(repo_id: str, branch: str = "main"):
 
 # ✅ 6️⃣ Branch Creation
 @router.post("/branch")
-async def create_branch(repo_id: str, payload: BranchCreateRequest):
+async def create_branch(payload: BranchCreateRequest):
     try:
-        owner, repo = parse_repo_id(repo_id)
+        owner, repo = parse_repo_id(payload.repo_id)
         return github_service.create_branch(owner, repo, payload.new_branch, payload.base_branch)
     except Exception as e:
         print(f"[ERROR] create_branch failed: {str(e)}")
