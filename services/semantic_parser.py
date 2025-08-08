@@ -81,10 +81,8 @@ class LibCSTSemanticParser(BaseSemanticParser):
                 self.nodes.append(node_dict)
 
             def visit_FunctionDef(self, node: cst.FunctionDef):
-                self._handle_function(node, async_fn=False)
-
-            def visit_AsyncFunctionDef(self, node: cst.AsyncFunctionDef):
-                self._handle_function(node, async_fn=True)
+                async_fn = bool(node.asynchronous)
+                self._handle_function(node, async_fn=async_fn)
 
             # === CLASSES ===
             def visit_ClassDef(self, node: cst.ClassDef):
@@ -95,24 +93,23 @@ class LibCSTSemanticParser(BaseSemanticParser):
                 for b in node.body.body:
                     if isinstance(b, cst.FunctionDef):
                         methods.append(b.name.value)
-                    elif isinstance(b, cst.AsyncFunctionDef):
-                        methods.append(b.name.value)
 
-                node_dict = {
+                self.nodes.append({
                     "node_type": "class",
                     "name": node.name.value,
                     "language": "python",
-                    "imports": list(set(self.imports)),
+                    "imports": self.imports.copy(),
                     "decorators": decorators,
                     "docstring": parser_self._extract_docstring(node),
                     "methods": methods,
                     "inherits_from": inherits,
+                    "source_code": module.code_for_node(node),
                     "code_block": module.code_for_node(node),
-                    "start_line": getattr(node, "start", None).line if hasattr(node, "start") else None,
-                    "end_line": getattr(node, "end", None).line if hasattr(node, "end") else None,
-                    "uuid": parser_self._generate_uuid(node.name.value, file_path, getattr(node, "start", None).line if hasattr(node, "start") else 0),
+                    "start_line": node.start.line,
+                    "end_line": node.end.line,
+                    "uuid": parser_self._generate_uuid(node.name.value, file_path, node.start.line),
                     "interface_type": None
-                }
+                })
 
                 print(f"[DEBUG] Visiting ClassDef: {node.name.value} → {node_dict}")
                 self.nodes.append(node_dict)
