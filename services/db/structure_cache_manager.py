@@ -48,3 +48,22 @@ class StructureCacheManager:
             raise
         finally:
             self.db.release_connection(conn)
+    def prepare_anchor_rows_from_libcst(self, nodes, repo_id, file_path, branch, sha):
+        """
+        Convert LibCST semantic nodes into file_structure_cache row dicts.
+        """
+        rows = []
+        for node in nodes:
+            rows.append({
+                "repo_id": repo_id,
+                "branch": branch,
+                "file_path": file_path,
+                "sha": sha,
+                "anchor_path": [node["name"]],
+                "anchor_name": node["name"],
+                "anchor_type": node["node_type"],
+                "start_line": node["start_line"],
+                "end_line": node["end_line"],
+                "created_at": datetime.utcnow()
+            })
+        return rows
