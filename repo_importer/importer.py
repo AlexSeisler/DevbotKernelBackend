@@ -122,7 +122,11 @@ class RepoIngestion:
                                 }]
 
                             for node in nodes:
+                                prefix = f"{repo.replace('/', '-')}-{sha}/"
+                                if rel_path.startswith(prefix):
+                                    rel_path = rel_path[len(prefix):]
                                 node['file_path'] = rel_path
+
 
                             print(f"[TAGGING] Tagging {len(nodes)} nodes from {rel_path}")
                             nodes = self.tagging_hook._tag_all_semantic_nodes(nodes)
