@@ -58,6 +58,11 @@ def execute_query(db, table, filters=None, limit=100, order_by=None, desc=False,
 
     finally:
         db.release_connection(conn)
+
+def insert_rows(table, rows):
+    if not rows:
+        return []
+
     columns = rows[0].keys()
     query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) RETURNING *").format(
         sql.Identifier(table),
@@ -79,6 +84,7 @@ def execute_query(db, table, filters=None, limit=100, order_by=None, desc=False,
             return inserted
     finally:
         db.release_connection(conn)
+
 
 
 def update_rows(table, filters, updates):
