@@ -58,6 +58,28 @@ class Tagger:
         file_path = node.get("file_path", "")
 
         # Restore original secondary tagging logic
+        if "test" in file_path:
+            tags.append("test")
+        if "infra" in file_path or "ops" in file_path:
+            tags.append("infra")
+        if node_type == "decorator":
+            tags.append("decorator")
+        if name in {"main", "__init__", "run"}:
+            tags.append("entrypoint")
+        if name.startswith("_"):
+            tags.append("internal")
+        if any(k in d for d in decorators for k in ("get", "post", "route")):
+            tags.append("http")
+        if not tags:
+            tags.append("util")
+
+        # Assign subsystem predictions
+        imports = node.get("imports", [])
+        content_lines = node.get("content", "").split("\n") if node.get("content") else []
+        node["subsystems"] = self.infer_subsystem(file_path, imports, decorators, content_lines)
+        node["tags"] = tags
+        return node
+
     def _tag_all_semantic_nodes(self, nodes):
         """
         Apply tagging to all semantic nodes in a list, grouped by file for subsystem inference.
@@ -82,25 +104,3 @@ class Tagger:
                 self._tag_semantic_node(node)
 
         return nodes
-            tags.append("decorator")
-        if name in {"main", "__init__", "run"}:
-            tags.append("entrypoint")
-        if name.startswith("_"):
-            tags.append("internal")
-        if any(k in d for d in decorators for k in ("get", "post", "route")):
-            tags.append("http")
-        if not tags:
-            tags.append("util")
-
-        # Assign subsystem predictions
-        imports = node.get("imports", [])
-        content_lines = node.get("content", "").split("\n") if node.get("content") else []
-        node["subsystems"] = self.infer_subsystem(file_path, imports, decorators, content_lines)
-        node["tags"] = tags
-        return node
-
-    def _tag_all_semantic_nodes(self, nodes):
-        """
-        Apply tagging to all semantic nodes in a list.
-        """
-        return [self._tag_semantic_node(node) for node in nodes]
