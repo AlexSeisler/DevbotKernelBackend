@@ -4,6 +4,7 @@ from repo_importer.importer import RepoIngestion
 from models.federation_schemas import LinkFederationNodeRequest
 from services.db.repo_manager import RepoManager
 from services.db.federation_graph_manager import FederationGraphManager
+from repo_importer.node_retrieval import fetch_nodes_by_subsystem
 from settings import _db_instance
 import logging
 import os
