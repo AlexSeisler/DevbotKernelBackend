@@ -48,14 +48,36 @@ class Tagger:
 
     def _tag_semantic_node(self, node):
         """
-        Tag a single semantic node with subsystem(s).
+        Tag a single semantic node with subsystem(s) and secondary classification tags.
         """
-        file_path = node.get("file_path", "")
-        imports = node.get("imports", [])
-        decorators = node.get("decorators", [])
-        content_lines = node.get("content", "").split("\n") if node.get("content") else []
+        tags = []
 
+        name = node.get("name", "")
+        node_type = node.get("node_type", "")
+        decorators = node.get("decorators", [])
+        file_path = node.get("file_path", "")
+
+        # Restore original secondary tagging logic
+        if "test" in file_path:
+            tags.append("test")
+        if "infra" in file_path or "ops" in file_path:
+            tags.append("infra")
+        if node_type == "decorator":
+            tags.append("decorator")
+        if name in {"main", "__init__", "run"}:
+            tags.append("entrypoint")
+        if name.startswith("_"):
+            tags.append("internal")
+        if any(k in d for d in decorators for k in ("get", "post", "route")):
+            tags.append("http")
+        if not tags:
+            tags.append("util")
+
+        # Assign subsystem predictions
+        imports = node.get("imports", [])
+        content_lines = node.get("content", "").split("\n") if node.get("content") else []
         node["subsystems"] = self.infer_subsystem(file_path, imports, decorators, content_lines)
+        node["tags"] = tags
         return node
 
     def _tag_all_semantic_nodes(self, nodes):
