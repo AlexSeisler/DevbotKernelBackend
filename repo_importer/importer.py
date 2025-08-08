@@ -41,7 +41,7 @@ class RepoIngestion:
             raise Exception(f'GitHub repo ID resolution failed: {str(e)}')
 
         try:
-            sha = self.github.get_branch_sha(owner, repo, branch)["object"]["sha"],
+            sha = self.github.get_branch_sha(owner, repo, branch)["object"]["sha"]
 
         except Exception as e:
             raise Exception(f'Failed to fetch branch SHA: {str(e)}')
@@ -95,7 +95,7 @@ class RepoIngestion:
                                 failed.append((fname, 'decode'))
                                 continue
 
-                            rel_path = fname
+                            rel_path = fname.split("/", 1)[1] if "/" in fname else fname
                             line_count = content.count("\n")
 
                             if line_count > MAX_INLINE_LINES:
@@ -122,9 +122,6 @@ class RepoIngestion:
                                 }]
 
                             for node in nodes:
-                                prefix = f"{repo.replace('/', '-')}-{sha}/"
-                                if rel_path.startswith(prefix):
-                                    rel_path = rel_path[len(prefix):]
                                 node['file_path'] = rel_path
 
 
