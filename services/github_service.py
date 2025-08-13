@@ -1,35 +1,29 @@
-# FULLY PATCHED GitHubService - No self.owner/repo usage
-
+# FULLY PATCHED GitHubService - Owner-based token selection via URL
 import os
 import requests
 import base64
 import urllib.parse
+from urllib.parse import urlparse
 from utils.helpers import encode_file_content
 from requests.exceptions import RequestException
 from dotenv import load_dotenv
 import libcst as cst
-load_dotenv()
 from libcst.metadata import PositionProvider, MetadataWrapper
+
+load_dotenv()
 
 class GitHubService:
     def __init__(self):
         self.base_url = "https://api.github.com"
-        self.tokens = []
+        self.tokens = {
+            "finegrained": os.getenv("GITHUB_FINEGRAINED_TOKEN"),
+            "classic": os.getenv("GITHUB_CLASSIC_TOKEN")
+        }
+        if not self.tokens["finegrained"] or not self.tokens["classic"]:
+            raise ValueError("Both GITHUB_FINEGRAINED_TOKEN and GITHUB_CLASSIC_TOKEN must be set")
 
-        primary = os.getenv("FEDERATION_GITHUB_TOKEN")
-        if primary:
-            self.tokens = [primary.strip()]
-        else:
-            multi = os.getenv("FEDERATION_GITHUB_TOKENS", "")
-            self.tokens = [t.strip() for t in multi.split(",") if t.strip()]
-
-        if not self.tokens:
-            raise ValueError("No valid GitHub token found in environment.")
-
-        self.current_token_index = 0
-        self.token = self.tokens[0]
         self.timeout = 10
-        self.headers = self._build_headers(self.token)
+        self.headers = {}  # Set dynamically in _request
 
     def _build_headers(self, token):
         return {
@@ -37,28 +31,33 @@ class GitHubService:
             "Accept": "application/vnd.github.v3+json"
         }
 
-    def _rotate_token(self):
-        if len(self.tokens) > 1:
-            self.current_token_index = (self.current_token_index + 1) % len(self.tokens)
-            self.token = self.tokens[self.current_token_index]
-            self.headers = self._build_headers(self.token)
-            print(f"[GITHUB] Token rotated to index {self.current_token_index}")
-
     def _request(self, method, url, **kwargs):
+        from urllib.parse import urlparse
+        owner = None
+        try:
+            # Lowercase all path parts and remove empty segments
+            parts = [p.lower() for p in urlparse(url).path.split("/") if p]
+            # Expected: repos/{owner}/{repo}/...
+            if len(parts) > 1 and parts[0] == "repos" and parts[1] == "alexseisler":
+                owner = "alexseisler"
+        except Exception:
+            pass
+
+        # Select token
+        token = self.tokens["finegrained"] if owner == "alexseisler" else self.tokens["classic"]
+        if not token:
+            raise RuntimeError(f"No token configured for owner={owner or 'unknown'}")
+
+        self.headers = self._build_headers(token)
+
         try:
             response = requests.request(method, url, headers=self.headers, timeout=self.timeout, **kwargs)
             response.raise_for_status()
             return response.json()
         except RequestException as e:
-            if hasattr(e.response, 'status_code') and e.response.status_code == 403:
-                if "rate limit" in str(e).lower():
-                    print(f"[GITHUB RATE LIMIT] rotating token...")
-                    self._rotate_token()
-                    return self._request(method, url, **kwargs)
             print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
             raise
 
-    # Replace or extend this method inside GitHubService:
 
     def get_repo_tree(self, owner, repo, branch, recursive, limit=None, offset=None, path_prefix=None):
         url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}?recursive={1 if recursive else 0}"
