@@ -1,0 +1,174 @@
+# actions-endpoints.txt (DevBot v1 Endpoint & Action Reference)
+
+## 🎯 Purpose
+
+This file defines all available execution endpoints accessible by DevBot v1, grouped by function class. These endpoints form the operational API surface that DevBot uses to read, write, traverse, mutate, and validate backend code and memory systems.
+
+All routes are validated under OpenAPI 3.1 and mapped to secure, auditable patch-based flows. This document ensures DevBot is trained with precise API call shapes, usage semantics, and integration order.
+
+---
+
+## 🔍 A. Health & Context
+
+### `GET /health/ping`
+
+- **Summary**: Kernel online check
+- **Returns**: `{"kernel_status": "online", "github_owner": ..., "version": ...}`
+- **Notes**: Used for context resolution and agent liveness probing
+
+---
+
+## 📂 B. Repository Navigation
+
+### `GET /repo/tree`
+
+- **Summary**: Retrieve full file tree from any repo
+- **Params**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `branch` (optional): Branch to scan (default=`main`)
+    - `recursive` (optional): Recursively expand tree (default=`true`)
+    - `limit` / `offset` (optional): Paginate results
+    - `path_prefix` (optional): Filter to subfolder path (default=root)
+
+### `GET /repo/file`
+
+- **Summary**: Get raw file contents or chunk by line
+- **Params**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `file_path` (required): Path to the file in the repo
+    - `branch` (optional): Branch name (default=`main`)
+    - `start_line` / `chunk_size` (optional): Enable partial file reads
+    - `include_meta` (optional): Include file SHA, size, etc.
+
+### `GET /repo/file/structure`
+
+- **Summary**: Parse file AST structure (LibCST)
+- **Params**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `file_path` (required): Path to the file in the repo
+    - `branch` (optional): Branch name (default=`main`)
+- **Behavior**: Auto-populates structure cache if missing
+
+---
+
+## 📦 C. File & Branch Operations
+
+### `POST /repo/scaffold/file`
+
+- **Summary**: Create a new file on a repo/branch
+- **Payload**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `branch` (required): Target branch
+    - `file_path` (required): Path to the new file
+    - `content` (required): UTF-8 raw file string
+    - `commit_message` (required): Git commit description
+
+### `GET /repo/sha`
+
+- **Summary**: Fetch latest commit SHA of branch
+- **Params**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `branch` (optional): Target branch (default=`main`)
+
+### `GET /repo/history`
+
+- **Purpose**: Fetch commit history for a file — useful for audits, rollbacks, or lineage
+- **Params**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `file_path` (required): File path to inspect
+    - `branch` (optional): Branch name (default=`main`)
+
+### `POST /repo/branch`
+
+- **Purpose**: Create a new Git branch on the target repository using an existing base branch
+- **Payload**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `new_branch` (required): Name of the new branch to be created
+    - `base_branch` (optional): Source branch (default=`main`)
+- **Behavior**:
+    - Retrieves latest commit SHA of the base branch
+    - Pushes a new ref to `refs/heads/{new_branch}` pointing to the base SHA
+
+### `POST /repo/pull-request`
+
+- **Purpose:** Create a GitHub pull request between branches.
+    
+    **Parameters (JSON Body):**
+    
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`.
+    - `source_branch` (required): The branch with new commits.
+    - `target_branch` (required): The base branch to merge into.
+    - `title` (required): Pull request title.
+    - `body` (optional): PR description/message.
+        
+        **Live Output:**
+        
+        - ✅ PR #39 created successfully
+        - 🔗 [View Pull Request](https://github.com/AlexSeisler/DevbotKernelBackend/pull/39)
+
+---
+
+## 🧠 D. Federation Memory: Query & Access
+
+### `POST /query`
+
+- **Summary**: Read rows from database
+- **Payload**: `table`, `filters`, `limit`, `order_by`, `desc`
+- **Usage**: Retrieve anchors, file structure metadata, patch records
+
+### `POST /insert`
+
+- **Summary**: Insert rows into table
+
+### `POST /update`
+
+- **Summary**: Update existing rows
+
+### `POST /delete`
+
+- **Summary**: Delete rows from table
+
+### `POST /create-table`
+
+- **Summary**: Define new SQL table schema
+
+### `GET /introspect/tables`
+
+- **Summary**: List all registered database tables
+
+---
+
+## 🧠 E. Federation Patch + Semantic Flow
+
+### `POST /federation/propose-patch`
+
+- **Summary**: Submit AST-safe, SHA-locked mutation
+- **Payload**:
+    - `repo_id`, `branch`, `proposed_by`, `commit_message`
+    - `patches[]`: `file_path`, `anchor`, `anchor_path`, `patch_strategy`, `code_block`, `base_sha`, `anchor_lines`
+- **Behavior**:
+    - Resolves AST anchor
+    - Validates `base_sha`
+    - Logs patch into federation memory
+
+### `POST /federation/import-repo`
+
+- **Summary**: Ingest repo into federation scope (initial index)
+- **Payload**: `owner`, `repo`, `default_branch`
+
+### `POST /federation/graph/link`
+
+- **Summary**: Link semantic node to memory graph
+- **Payload**: `repo_id`, `file_path`, `name`, `cross_linked_to`, `node_type`, `tags`, `notes`
+
+---
+
+## ✅ Operational Notes
+
+- All endpoints follow OpenAPI schema validation
+- All mutations are PATCH-style: propose ➝ validate ➝ commit
+- `repo/*` = GitHub + file system surface
+- `query/*` = Memory cache and metadata access
+- `federation/*` = Patch graph, structure validation, and commit flows
+
+This file enables DevBot to reference its full execution surface with precise semantics, valid parameters, and safe flows.

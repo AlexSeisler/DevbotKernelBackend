@@ -1,0 +1,118 @@
+# federation-database.txt (DevBot v1 — Semantic + Patch Memory Tables)
+
+## 🤖 Purpose
+
+This file defines the complete federation-layer database reference for DevBot v1. These tables serve as the execution memory core — enabling semantic anchor lookups, patch tracking, and node-level linkage. DevBot accesses these tables strictly via `/query`, `/insert`, `/update`, and `/delete` operations (see `actions-endpoints.txt`), and all mutations must go through auditable patch or import endpoints.
+
+---
+
+## 📚 Table: `file_structure_cache`
+
+### 🔍 Purpose
+
+Holds parsed AST structure of source files across repositories — every function, class, and structural anchor is indexed with precise metadata.
+
+### 🧱 Schema Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `repo_id` | string | GitHub repo ID (`owner/repo`) |
+| `file_path` | string | File path inside repo |
+| `branch` | string | Git branch |
+| `anchor_path` | list | Full AST path to node (e.g., `["Outer", "f"]`) |
+| `anchor` | string | Anchor node name (function/class/etc.) |
+| `anchor_type` | string | Function, class, return, if, etc. |
+| `start_line` | int | Line number where anchor starts |
+| `end_line` | int | Line number where anchor ends |
+| `sha` | string | SHA of file when parsed |
+
+### 🔍 Use Cases
+
+- Lookup anchors for patch planning
+- Validate SHA before patching
+- Map `anchor_path` for structure-resolved edits
+
+---
+
+## 📈 Table: `federation_graph`
+
+### 🔍 Purpose
+
+Cross-repository semantic memory map — links nodes across projects and files for reuse, mutation traceability, or prompt modeling.
+
+### 🧱 Schema Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `repo_id` | string | Project GitHub ID |
+| `file_path` | string | File path of node |
+| `name` | string | Node name |
+| `cross_linked_to` | string | Federation-level link target |
+| `node_type` | string | Function, class, prompt, schema, etc. |
+| `tags` | list | Optional metadata tags |
+| `notes` | string | Developer/agent annotation |
+
+### 🔍 Use Cases
+
+- Link prompts across modules
+- Anchor semantic reuse
+- Store task-specific or classification tags
+
+---
+
+## 🧾 Table: `patch_proposal`
+
+### 🔍 Purpose
+
+Records every patch proposed by DevBot or Federation agents, including diff metadata, strategy used, anchor resolution, and commit logs.
+
+### 🧱 Schema Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `repo_id` | string | GitHub repo |
+| `file_path` | string | File being patched |
+| `branch` | string | Target branch |
+| `patch_strategy` | string | insert / append / replace / delete |
+| `anchor_path` | list | Full AST node path |
+| `anchor` | string | Anchor node |
+| `anchor_lines` | list | [start, end] lines (if applicable) |
+| `code_block` | string | Injected code string (optional) |
+| `base_sha` | string | SHA to validate target state |
+| `proposed_by` | string | Agent name |
+| `commit_message` | string | Commit-level summary |
+| `status` | string | Proposal state (e.g., committed / rejected) |
+| `timestamp` | datetime | UTC timestamp |
+
+### 🔍 Use Cases
+
+- Validate patch origin / authorship
+- Rollback or track failed diffs
+- Investigate anchor decision history
+
+---
+
+## 🧠 Access Model Summary
+
+All reads are routed through `/query`, using JSON-stringified filters like:
+
+```
+{
+  "table": "file_structure_cache",
+  "filters": "{\"repo_id\": \"AlexSeisler/DevbotKernelBackend\", \"file_path\": \"routes/core.py\"}"
+}
+```
+
+All modifications go through the following endpoints only:
+
+- `/federation/propose-patch`
+- `/federation/graph/link`
+- `/federation/import-repo`
+
+✅ Every mutation is logged, anchor-resolved, and SHA-locked.
+
+---
+
+DevBot treats these tables as its **live semantic memory** — driving every proposal, validation, and mutation task. Handle this memory with precision.
+
+This completes the database schema map for Federation Kernel agents.

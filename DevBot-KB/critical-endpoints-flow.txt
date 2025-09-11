@@ -1,0 +1,150 @@
+# **critical-endpoints-flow.txt (DevBot v1 — Critical Execution Flows)**
+
+## **🔎 Purpose**
+
+This file defines the mission-critical endpoints that power DevBot's core execution logic. These routes form the backbone of DevBot's patch proposal lifecycle, enabling safe, auditable mutations via AST-resolved anchors and SHA-validated commit chains.
+
+All listed flows are used heavily and must be fully understood for DevBot to operate efficiently within the Federation Kernel environment.
+
+---
+
+## **📚 Core Execution Flow: Query ➞ File ➞ Propose**
+
+### **1. 🧰 POST /query**
+
+- **Purpose**: Lookup semantic structure from file_structure_cache
+- **Use For**:
+    - Anchor resolution
+    - SHA retrieval
+    - Line number targeting
+- **Key Table**: file_structure_cache
+- **Best Practice**: Always use instead of /file/structure for efficiency
+
+### **2. 📂 GET /repo/file**
+
+- **Purpose**: Retrieve minimal code window from a target file
+- **Params**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `file_path` (required): Full path of the file in the repo
+    - `start_line`, `chunk_size` (optional): Line-chunked preview
+    - `branch` (optional): Target branch (default=`main`)
+    - `include_meta` (optional): Include SHA/size metadata
+- **Use For**:
+    - Providing source context for the patch
+    - Previewing anchor block before mutation
+
+### **🔧 POST /federation/propose-patch**
+
+- **Purpose**: Submit a patch mutation scoped to AST anchors or line blocks, for a specific GitHub repo/branch.
+- **Top-Level Payload Fields**:
+    - `repo_id` (required): GitHub repo in format `"owner/repo"`
+    - `branch` (required): Git branch to apply patch to
+    - `proposed_by` (required): Name of proposing agent (e.g., `"DevBot"`)
+    - `commit_message` (required): Describes patch purpose
+    - `patches` (required): List of individual patch entries (see below)
+- **Patch Entry Fields**:
+    
+    
+    | **Field** | **Required** | **Description** |
+    | --- | --- | --- |
+    | `file_path` | ✅ | File to mutate |
+    | `base_sha` | ✅ | SHA snapshot before mutation (rollback-safe) |
+    | `anchor` | ✅ | Name of the node to mutate (e.g., function or class name) |
+    | `anchor_path` | ✅ | Full hierarchy to node, e.g., `["Class", "method"]` |
+    | `patch_strategy` | ✅ | `insert`, `append`, `replace`, `delete` — where/how to apply |
+    | `code_block` | ✅* | Raw code string (omit for delete) |
+    | `anchor_lines` | ✅* | `[start, end]` line numbers (required for replace/delete) |
+
+### **🎯 PATCH STRATEGY MATRIX**
+
+| **Strategy** | **anchor_path** | **anchor_lines** | **Description** |
+| --- | --- | --- | --- |
+| insert | ✅ required | ❌ optional | Inject at **top** of anchor node (BOF if synthetic) |
+| append | ✅ required | ❌ optional | Inject at **bottom** of anchor node (EOF if synthetic) |
+| replace | ✅ required | ✅ required | Replace block [start, end] with code_block |
+| delete | ✅ required | ✅ required | Remove lines [start, end] |
+
+❗ anchor_path is always required for AST injection and metadata.
+
+🔢 anchor_lines are **ignored** for insert/append.
+
+## **🧪 OPTIMAL PATCH FLOW SUMMARY (v4.1 Finalized)**
+
+| **Step** | **Action** |
+| --- | --- |
+| 1️⃣ | Use POST /query on file_structure_cache with filters like:• repo_id• file_path• *(optional)* anchor for pinpoint targetingReturns: anchor_path, start_line, end_line, sha |
+| 2️⃣ | Use GET /repo/file with:• file_path• start_line (from query)• chunk_size (e.g., 20)✅ This provides direct source context with minimal drift |
+| 3️⃣ | Craft your patch proposal:• Use anchor, anchor_path, code_block, patch_strategy, and base_sha• Add anchor_lines only for replace/delete |
+| 4️⃣ | Submit to POST /federation/propose-patch✅ Proposal is SHA-locked, diff-validated, and logged into the federation graph |
+
+### **✅ file_structure_cache Alignment with Patch Flow**
+
+| **Field** | **Role in Flow** |
+| --- | --- |
+| repo_id | Used in /query and passed into patch context |
+| file_path | Used to pull code via /repo/file |
+| sha | Required for base_sha in patch proposals |
+| anchor_path | Used as anchor_path in proposal |
+| anchor_name | Used as anchor (equals last element of anchor_path) |
+| anchor_type | Helps guide patch strategy and semantics |
+| start_line/end_line | Used for anchor_lines or file chunk pulls |
+
+---
+
+## **🏋️ Additional Critical Tools**
+
+### **📚 GET /repo/file/structure**
+
+- **Purpose**: Extracts AST anchors from code (LibCST)
+- **Use Only If**: /query returns no cached result
+- **Effect**: Populates file_structure_cache
+
+### **📄 POST /repo/scaffold/file**
+
+- **Purpose**: Create test files or sandbox staging for proposals
+- **Use Case**:
+    - Temp scaffolding during devbot PR tests
+
+### **🔒 GET /repo/sha**
+
+- **Purpose**: Retrieve the latest commit SHA for branch
+- **Use Case**:
+    - Required for base_sha patch verification
+
+### **📊 POST /repo/pull-request**
+
+- **Purpose**: Finalize flow by PR creation
+- **Use Case**:
+    - DevBot submits final proposal after patching
+
+---
+
+## **🛠️ PATCH STRATEGIES**
+
+| **Strategy** | **Required Fields** | **Notes** |
+| --- | --- | --- |
+| insert | anchor, anchor_path, code_block | Injects at top of node |
+| append | anchor, anchor_path, code_block | Injects at bottom of node |
+| replace | anchor, anchor_path, code_block, anchor_lines | Replaces full or partial range |
+| delete | anchor, anchor_path, anchor_lines | Removes node or lines |
+
+---
+
+## **⚠️ Integrity Rules**
+
+- SHA **must** match current file state (use /sha or file_structure_cache)
+- anchor_path[-1] **must** equal anchor
+- Patch **fails** if node not found or diff is empty
+- All proposals are **logged**, **auditable**, and **rollback-safe**
+
+---
+
+## **🌟 Summary**
+
+DevBot's core execution depends on:
+
+- /query for anchor + SHA resolution
+- /file for precise chunk context
+- /propose-patch for semantic mutations
+
+Use these with discipline to maintain flow integrity, atomic safety, and codebase evolution consistency.

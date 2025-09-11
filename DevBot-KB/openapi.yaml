@@ -1,0 +1,560 @@
+openapi: 3.1.0
+info:
+  title: DevBot Federation Kernel API
+  version: 4.1.0
+  description: >
+    The DevBot SaaS Federation Kernel Backend — enables GPT agents to orchestrate GitHub
+    repositories safely for SaaS ingestion, semantic parsing, patch-controlled replication,
+    federation mapping, and multi-phase SaaS engineering automation.
+
+servers:
+  - url: https://devbotkernelbackend-v1j2.onrender.com
+
+paths:
+  /health/ping:
+    get:
+      summary: Kernel health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is live
+
+  /repo/tree:
+    get:
+      summary: Retrieve full repository file tree
+      operationId: getRepoTree
+      parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+        - name: recursive
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: path_prefix
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repo tree retrieved
+
+  /repo/file:
+    get:
+      summary: Retrieve file content (with optional chunking)
+      operationId: getFileContent
+      parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file_path
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+        - name: include_meta
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: start_line
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: chunk_size
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: File content retrieved (chunked if requested)
+
+  /repo/file/structure:
+    get:
+      summary: Parse and return file structure (functions, classes)
+      operationId: getFileStructure
+      parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file_path
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: File structure retrieved
+
+  /repo/history:
+    get:
+      summary: Retrieve file commit history
+      operationId: getFileHistory
+      parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file_path
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: File history retrieved
+
+  /repo/sha:
+    get:
+      summary: Retrieve latest branch SHA
+      operationId: getBranchSHA
+      parameters:
+        - name: repo_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: Branch SHA retrieved
+
+  /repo/branch:
+    post:
+      summary: Create new branch
+      operationId: createBranch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchCreateRequest'
+      responses:
+        '200':
+          description: Branch created
+  /repo/pull-request:
+    post:
+      summary: Create pull request
+      operationId: createPullRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PullRequestCreateRequest'
+      responses:
+        '200':
+          description: Pull request created
+
+  /federation/import-repo:
+    post:
+      summary: Ingest new repository into federation kernel
+      operationId: importRepo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRepoRequest'
+      responses:
+        '200':
+          description: Repo ingested
+
+  /federation/graph/link:
+    post:
+      summary: Link semantic nodes into federation graph
+      operationId: linkFederationNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkFederationNodeRequest'
+      responses:
+        '200':
+          description: Node linked
+
+  /federation/propose-patch:
+    post:
+      summary: Propose federation patch set
+      operationId: proposeFederationPatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposePatchRequest'
+      responses:
+        '200':
+          description: Patch proposal registered
+  /query:
+    post:
+      summary: Flexible database query interface for federation memory
+      operationId: queryTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Query results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      type: object
+  /insert:
+    post:
+      summary: Insert row(s) into a database table
+      operationId: insertRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertRequest'
+      responses:
+        '200':
+          description: Rows inserted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /update:
+    post:
+      summary: Update fields in a database table using filters
+      operationId: updateRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRequest'
+      responses:
+        '200':
+          description: Rows updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /delete:
+    post:
+      summary: Delete rows from a database table using filters
+      operationId: deleteRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteRequest'
+      responses:
+        '200':
+          description: Rows deleted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /create-table:
+    post:
+      summary: Create a new table with defined schema
+      operationId: createTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTableRequest'
+      responses:
+        '200':
+          description: Table created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+  /introspect/tables:
+    get:
+      summary: Return list of all accessible database tables
+      operationId: introspectTables
+      responses:
+        '200':
+          description: Table list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /repo/scaffold/file:
+    post:
+      summary: Create a new file in a GitHub repository
+      operationId: scaffoldFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScaffoldFileRequest'
+      responses:
+        '201':
+          description: File successfully created
+        '400':
+          description: File creation failed
+
+components:
+  schemas:
+    QueryRequest:
+      type: object
+      properties:
+        table:
+          type: string
+          description: Name of the table to query
+        filters:
+          type: string
+          description: JSON stringified filter object (required for compatibility with GPT actions)
+          example: '{"repo_id": "AlexSeisler/DevbotKernelBackend", "file_path": "sandbox/test.py", "branch": "main", "anchor_path": ["greet_user"], "sha": "abcdef123456..."}'
+        limit:
+          type: integer
+          default: 100
+          description: Maximum number of rows to return
+        order_by:
+          type: string
+          description: Column to order results by
+        desc:
+          type: boolean
+          default: false
+          description: If true, results are sorted descending
+
+    InsertRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        rows:
+          type: string
+          description: JSON stringified list of objects
+
+    UpdateRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        filters:
+          type: string
+          description: JSON stringified object
+        updates:
+          type: string
+          description: JSON stringified object
+
+    DeleteRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        filters:
+          type: string
+          description: JSON stringified object
+
+    CreateTableRequest:
+      type: object
+      properties:
+        table:
+          type: string
+        columns:
+          type: string
+          description: JSON stringified object mapping column names to SQL types
+
+
+    ImportRepoRequest:
+      type: object
+      properties:
+        owner:
+          type: string
+        repo:
+          type: string
+        default_branch:
+          type: string
+
+    LinkFederationNodeRequest:
+      type: object
+      properties:
+        repo_id:
+          type: integer
+        file_path:
+          type: string
+        name:
+          type: string
+        cross_linked_to:
+          type: string
+        notes:
+          type: string
+        node_type:
+          type: string
+        federation_weight:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+    ProposePatchRequest:
+      type: object
+      properties:
+        repo_id:
+          type: string
+        branch:
+          type: string
+        proposed_by:
+          type: string
+        commit_message:
+          type: string
+        patches:
+          type: array
+          items:
+            type: object
+            properties:
+              file_path:
+                type: string
+              base_sha:
+                type: string
+              anchor:
+                type: string
+              code_block:
+                type: string
+              anchor_lines:
+                type: array
+                items:
+                  type: integer
+                description: >
+                  Optional [start, end] line numbers for scoped patching
+              anchor_path:
+                type: array
+                items:
+                  type: string
+                description: >
+                  Optional full hierarchical path to the anchor 
+                  (e.g., ["OuterClass", "InnerClass", "target_func"])
+              patch_strategy:
+                type: string
+                enum: [insert, append, replace, delete]
+                default: insert
+                description: >
+                  Defines how to apply the code_block in relation to the anchor.
+                  • insert (default): inject at top of node
+                  • append: inject at bottom
+                  • replace: overwrite anchor or anchor_lines
+                  • delete: remove anchor or lines only
+    ScaffoldFileRequest:
+      type: object
+      properties:
+        repo_id:
+          type: string
+          description: GitHub repository in the format "owner/repo"
+        branch:
+          type: string
+          description: Target Git branch for file creation
+        file_path:
+          type: string
+          description: Path of the new file to create
+        content:
+          type: string
+          description: UTF-8 file content (base64-encoded automatically)
+        commit_message:
+          type: string
+          description: Commit message for file creation
+
+    BranchCreateRequest:
+      type: object
+      properties:
+        repo_id:
+          type: string
+        new_branch:
+          type: string
+        base_branch:
+          type: string
+          default: main
+
+    PullRequestCreateRequest:
+      type: object
+      properties:
+        repo_id:
+          type: string
+          description: GitHub repo identifier in "owner/repo" format
+        source_branch:
+          type: string
+        target_branch:
+          type: string
+        title:
+          type: string
+        body:
+          type: string

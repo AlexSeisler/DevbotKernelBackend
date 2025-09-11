@@ -1,0 +1,126 @@
+# patch-strategy-guide.txt (DevBot v1 Patch Mutation Manual)
+
+## 🎯 Purpose
+
+This file outlines the four authorized patch strategies used in DevBot's mutation flow: `insert`, `append`, `replace`, and `delete`. Each strategy corresponds to an auditable, SHA-locked instruction that modifies source code through AST-aware targeting. This is the mutation engine's execution guide.
+
+---
+
+## 🔐 Constraints
+
+Every patch must:
+
+1. ✅ Include `anchor` and `anchor_path`
+2. ✅ Specify the `patch_strategy`
+3. ✅ Use `base_sha` (current file SHA) for validation
+4. ✅ Conform to structure-validated anchors (from `/query` or `/repo/file/structure`)
+5. ✅ Pass all diff checks (no-ops rejected)
+
+---
+
+## 🧠 Strategy Matrix
+
+| Strategy | Anchor Path Required | Anchor Lines Required | Code Block Required | Effect |
+| --- | --- | --- | --- | --- |
+| `insert` | ✅ Yes | ❌ No | ✅ Yes | Inject at **top** of anchor node |
+| `append` | ✅ Yes | ❌ No | ✅ Yes | Inject at **bottom** of anchor node |
+| `replace` | ✅ Yes | ✅ Yes | ✅ Yes | Replace lines [start_line, end_line] |
+| `delete` | ✅ Yes | ✅ Yes | ❌ No | Delete lines [start_line, end_line] |
+
+> ⚠️ anchor_lines are ignored for insert/append. Required only for replace/delete.
+> 
+
+---
+
+## 🔧 Field Breakdown
+
+### `anchor`
+
+The target function/class or inline marker (e.g., `"process_data"`). Required for all mutations.
+
+### `anchor_path`
+
+The full hierarchy of the anchor (e.g., `["MyClass", "process_data"]`).
+
+### `anchor_lines`
+
+Line span to operate on. Optional for `insert/append`. Required for `replace/delete`.
+
+### `code_block`
+
+Injected code payload. Must be fully indented and syntactically valid.
+
+---
+
+## 🛠 Patch Examples
+
+### Insert into function:
+
+```
+{
+  "patch_strategy": "insert",
+  "anchor": "load_data",
+  "anchor_path": ["load_data"],
+  "code_block": "    print('Injected pre-block')"
+}
+```
+
+### Append to class:
+
+```
+{
+  "patch_strategy": "append",
+  "anchor": "DataProcessor",
+  "anchor_path": ["DataProcessor"],
+  "code_block": "    def log_state(self): print(self.state)"
+}
+```
+
+### Replace handler:
+
+```
+{
+  "patch_strategy": "replace",
+  "anchor": "update_handler",
+  "anchor_path": ["update_handler"],
+  "anchor_lines": [40, 55],
+  "code_block": "def update_handler(): return 'updated'"
+}
+```
+
+### Delete function:
+
+```
+{
+  "patch_strategy": "delete",
+  "anchor": "temp_cleanup",
+  "anchor_path": ["temp_cleanup"],
+  "anchor_lines": [12, 18]
+}
+```
+
+---
+
+## 🔄 Patch Flow Alignment
+
+Each mutation maps directly into the 5-step flow:
+
+```
+/query ➝ /repo/file ➝ /federation/propose-patch ➝ /repo/sha ➝ /repo/pull-request
+```
+
+Use `/query` to get anchor_path, sha, and anchor_lines.
+Use `/repo/file` to get surrounding context.
+Use `/federation/propose-patch` to execute the strategy.
+
+---
+
+## ✅ Safety Protocol
+
+- 🧠 Resolve structure from cache first (`/query` on `file_structure_cache`)
+- 🔐 Use latest SHA (`/repo/sha` or `query` result)
+- 🛡️ All mutations logged in `patch_proposal` + `federation_graph`
+
+This file encodes your patch intelligence. Use it precisely.
+
+Welcome to the mutation layer, DevBot.

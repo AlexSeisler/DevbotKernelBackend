@@ -1,0 +1,91 @@
+# structure-parsing-guide.txt (DevBot v1 — AST + Anchor Resolution Guide)
+
+## 📊 Purpose
+
+This guide outlines the semantic structure parsing logic DevBot must follow when resolving source anchors. It distinguishes between raw AST extraction via `/repo/file/structure` and optimized, cache-first retrieval via `/query` into `file_structure_cache`. This ensures precision, speed, and rollback safety.
+
+---
+
+## 🔢 Core Principle
+
+Always **query the cache first**. Never re-parse unnecessarily. Structure parsing should follow a strict two-phase strategy:
+
+| Phase | Action | Tool |
+| --- | --- | --- |
+| ✅ Phase 1 | Pull structure from `file_structure_cache` | `POST /query` |
+| ❌ Phase 2 | (Fallback only) parse via AST from source | `GET /repo/file/structure` |
+
+> Cache-first logic minimizes cost, enables diff reuse, and ensures line/anchor integrity with SHA alignment.
+> 
+
+---
+
+## 📂 File Structure Cache Fields (from `/query`)
+
+| Field | Description |
+| --- | --- |
+| `anchor_path` | Full AST node path |
+| `anchor` | Target function/class name |
+| `start_line` | Line number start of anchor |
+| `end_line` | Line number end of anchor |
+| `sha` | File SHA at time of structure parse |
+
+---
+
+## 🕹️ Endpoint Usage
+
+### 1. Cache Pull via `/query`
+
+```
+{
+  "table": "file_structure_cache",
+  "filters": "{\"repo_id\": \"AlexSeisler/DevbotKernelBackend\", \"file_path\": \"routes/db_write.py\"}"
+}
+```
+
+> ✅ Use this to extract all anchor metadata, line ranges, and file SHA in one call.
+> 
+
+---
+
+### 2. Fallback Parse via `/repo/file/structure`
+
+```
+GET /repo/file/structure?file_path=routes/db_write.py&branch=main
+```
+
+> ⚠️ Only use this if the file was not previously parsed or no cache exists.
+> 
+
+---
+
+## 🥁 Patch Flow Role
+
+Structure parsing is a **precursor** to safe patching. Data from `file_structure_cache` is used in:
+
+- `anchor_path` for AST targeting
+- `start_line`, `end_line` for precise patch range
+- `sha` to validate `base_sha` in mutation proposal
+
+Without this structure, no patch can be submitted.
+
+---
+
+## 🔄 How to Refresh Cache
+
+Use `GET /repo/file/structure` to re-parse a file and insert it back into `file_structure_cache`. This happens automatically when patch proposals detect missing anchors.
+
+---
+
+## 🔐 Safety Rules
+
+- ✅ Always validate anchor path from cache
+- ✅ Always ensure line numbers are accurate to file version
+- ✅ Only fall back to live parsing when absolutely required
+- ❌ Never propose a patch without valid anchor_path + base_sha
+
+---
+
+DevBot uses structure parsing as its semantic radar. All anchor-resolved patches rely on accurate structure. Always use cache when possible and ensure patch context is tightly scoped.
+
+This completes your anchor resolution guide.
