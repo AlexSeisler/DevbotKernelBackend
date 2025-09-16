@@ -21,7 +21,7 @@ paths:
 
   /repo/tree:
     get:
-      summary: Retrieve full repository file tree
+      summary: Retrieve repository file tree (paginated & slimmed)
       operationId: getRepoTree
       parameters:
         - name: repo_id
@@ -47,12 +47,14 @@ paths:
           schema:
             type: integer
             minimum: 1
+            default: 500
         - name: offset
           in: query
           required: false
           schema:
             type: integer
             minimum: 0
+            default: 0
         - name: path_prefix
           in: query
           required: false
@@ -60,7 +62,40 @@ paths:
             type: string
       responses:
         '200':
-          description: Repo tree retrieved
+          description: Paginated repository tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    description: List of files and directories
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                          description: File or directory path
+                        type:
+                          type: string
+                          enum: [blob, tree]
+                          description: Whether the entry is a file (blob) or folder (tree)
+                        size:
+                          type: integer
+                          description: File size in bytes (0 for directories)
+                  total:
+                    type: integer
+                    description: Total number of items in the tree (capped at 5000)
+                  limit:
+                    type: integer
+                    description: Page size (default 500)
+                  offset:
+                    type: integer
+                    description: Starting index of this page
+                  more:
+                    type: boolean
+                    description: Whether more items are available
 
   /repo/file:
     get:

@@ -59,16 +59,76 @@ class GitHubService:
             raise
 
 
-    def get_repo_tree(self, owner, repo, branch, recursive, limit=None, offset=None, path_prefix=None):
+    def get_repo_tree(
+        self,
+        owner,
+        repo,
+        branch,
+        recursive=True,
+        limit: int = 500,
+        offset: int = 0,
+        path_prefix: str = None
+    ):
+        """
+        Retrieve the repository tree with bulletproof safeguards.
+        - Enforces a hard cap to prevent oversized payloads.
+        - Supports pagination via limit + offset.
+        - Trims unneeded fields (only path, type, size).
+        """
         url = f"{self.base_url}/repos/{owner}/{repo}/git/trees/{branch}?recursive={1 if recursive else 0}"
-        tree_data = self._request("GET", url)["tree"]
 
-        if path_prefix:
-            tree_data = [item for item in tree_data if item["path"].startswith(path_prefix)]
-        if offset is not None and limit is not None:
-            tree_data = tree_data[offset:offset+limit]
+        try:
+            response = self._request("GET", url)
+            tree_data = response.get("tree", [])
+            total = len(tree_data)
 
-        return tree_data
+            # ✅ Filter by path_prefix
+            if path_prefix:
+                tree_data = [item for item in tree_data if item.get("path", "").startswith(path_prefix)]
+                total = len(tree_data)
+
+            # ✅ Apply safe hard cap
+            HARD_CAP = 5000
+            if total > HARD_CAP:
+                print(f"[WARN] Tree size {total} exceeds hard cap {HARD_CAP}. Truncating.")
+                tree_data = tree_data[:HARD_CAP]
+                total = HARD_CAP
+
+            # ✅ Enforce pagination
+            start = max(offset, 0)
+            end = min(start + (limit or 500), total)
+
+            # ✅ Trim to minimal schema
+            paginated = [
+                {
+                    "path": item.get("path"),
+                    "type": item.get("type"),
+                    "size": item.get("size", 0)  # directories often missing size
+                }
+                for item in tree_data[start:end]
+            ]
+
+            # ✅ Return with metadata
+            return {
+                "items": paginated,
+                "total": total,
+                "limit": limit or 500,
+                "offset": offset,
+                "more": end < total
+            }
+
+        except Exception as e:
+            print(f"[ERROR] get_repo_tree failed: {e}")
+            return {
+                "items": [],
+                "total": 0,
+                "limit": limit or 500,
+                "offset": offset,
+                "more": False,
+                "error": str(e)
+            }
+
+
 
 
     # Replace or extend this method inside GitHubService:

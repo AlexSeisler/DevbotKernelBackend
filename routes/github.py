@@ -19,10 +19,30 @@ def parse_repo_id(repo_id: str):
 
 # ✅ 1️⃣ Repo Tree Retrieval with dynamic repo_id
 @router.get("/tree")
-async def get_repo_tree(repo_id: str, branch: str = "main", recursive: bool = True, path_prefix: Optional[str] = ""):
+async def get_repo_tree(
+    repo_id: str,
+    branch: str = "main",
+    recursive: bool = True,
+    path_prefix: Optional[str] = "",
+    limit: int = 500,
+    offset: int = 0
+):
+    """
+    Repo Tree Retrieval (safe + paginated)
+    - Supports limit & offset for pagination
+    - Gracefully handles oversized trees
+    """
     try:
         owner, repo = parse_repo_id(repo_id)
-        result = github_service.get_repo_tree(owner, repo, branch, recursive, path_prefix)
+        result = github_service.get_repo_tree(
+            owner,
+            repo,
+            branch,
+            recursive,
+            limit=limit,
+            offset=offset,
+            path_prefix=path_prefix
+        )
         return result
     except Exception as e:
         print(f"[ERROR] get_repo_tree failed: {str(e)}")
