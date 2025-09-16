@@ -58,7 +58,6 @@ class GitHubService:
             print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
             raise
 
-
     def get_repo_tree(
         self,
         owner,
@@ -72,6 +71,7 @@ class GitHubService:
         """
         Retrieve the repository tree with bulletproof safeguards.
         - Enforces a hard cap to prevent oversized payloads.
+        - Automatically clamps per-page limit to MAX_LIMIT.
         - Supports pagination via limit + offset.
         - Trims unneeded fields (only path, type, size).
         """
@@ -87,16 +87,20 @@ class GitHubService:
                 tree_data = [item for item in tree_data if item.get("path", "").startswith(path_prefix)]
                 total = len(tree_data)
 
-            # ✅ Apply safe hard cap
+            # ✅ Apply safe hard cap on total
             HARD_CAP = 5000
             if total > HARD_CAP:
                 print(f"[WARN] Tree size {total} exceeds hard cap {HARD_CAP}. Truncating.")
                 tree_data = tree_data[:HARD_CAP]
                 total = HARD_CAP
 
-            # ✅ Enforce pagination
+            # ✅ Auto-clamp per-page limit
+            MAX_LIMIT = 500
+            safe_limit = min(limit or 500, MAX_LIMIT)
+
+            # ✅ Enforce pagination with clamped limit
             start = max(offset, 0)
-            end = min(start + (limit or 500), total)
+            end = min(start + safe_limit, total)
 
             # ✅ Trim to minimal schema
             paginated = [
@@ -112,7 +116,7 @@ class GitHubService:
             return {
                 "items": paginated,
                 "total": total,
-                "limit": limit or 500,
+                "limit": safe_limit,
                 "offset": offset,
                 "more": end < total
             }
@@ -127,6 +131,7 @@ class GitHubService:
                 "more": False,
                 "error": str(e)
             }
+
 
 
 
