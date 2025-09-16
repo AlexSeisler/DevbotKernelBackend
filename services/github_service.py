@@ -64,7 +64,7 @@ class GitHubService:
         repo,
         branch,
         recursive=True,
-        limit: int = 1000,
+        limit: int = 500,
         offset: int = 0,
         path_prefix: str = None
     ):
@@ -95,8 +95,8 @@ class GitHubService:
                 total = HARD_CAP
 
             # ✅ Auto-clamp per-page limit
-            MAX_LIMIT = 1000
-            safe_limit = min(limit or 1000, MAX_LIMIT)
+            MAX_LIMIT = 500
+            safe_limit = min(limit or 500, MAX_LIMIT)
 
             # ✅ Enforce pagination with clamped limit
             start = max(offset, 0)
@@ -126,7 +126,7 @@ class GitHubService:
             return {
                 "items": [],
                 "total": 0,
-                "limit": limit or 1000,
+                "limit": limit or 500,
                 "offset": offset,
                 "more": False,
                 "error": str(e)
