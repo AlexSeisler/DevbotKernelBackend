@@ -35,20 +35,22 @@ class GitHubService:
         from urllib.parse import urlparse
         owner = None
         try:
-            # Lowercase all path parts and remove empty segments
             parts = [p.lower() for p in urlparse(url).path.split("/") if p]
-            # Expected: repos/{owner}/{repo}/...
             if len(parts) > 1 and parts[0] == "repos" and parts[1] == "alexseisler":
                 owner = "alexseisler"
         except Exception:
             pass
 
-        # Select token
         token = self.tokens["finegrained"] if owner == "alexseisler" else self.tokens["classic"]
         if not token:
             raise RuntimeError(f"No token configured for owner={owner or 'unknown'}")
 
         self.headers = self._build_headers(token)
+
+        # --- BEGIN DIAGNOSTIC PATCH ---
+        token_type = "finegrained" if owner == "alexseisler" else "classic"
+        print(f"[TOKEN SELECTOR] Using {token_type.upper()} token for URL: {url}")
+        # --- END DIAGNOSTIC PATCH ---
 
         try:
             response = requests.request(method, url, headers=self.headers, timeout=self.timeout, **kwargs)
@@ -57,6 +59,7 @@ class GitHubService:
         except RequestException as e:
             print(f"[GITHUB API ERROR] {method} {url} failed: {str(e)}")
             raise
+
 
     def get_repo_tree(
         self,
